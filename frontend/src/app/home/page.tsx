@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type PostType = "upcoming_event" | "event_summary";
 
@@ -23,6 +23,11 @@ type Post = {
   likes: number;
   comments: number;
   createdAt: string;
+};
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
 
 const mockPosts: Post[] = [
@@ -149,7 +154,16 @@ export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>(mockPosts);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatBooting, setChatBooting] = useState(false);
+  const [chatInitializedForOpen, setChatInitializedForOpen] = useState(false);
+  const [chatError, setChatError] = useState("");
   const [formState, setFormState] = useState<PostFormState>(initialForm);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
   const userName = useSyncExternalStore(
     subscribeToStorage,
     () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
@@ -209,6 +223,211 @@ export default function HomePage() {
     setIsModalOpen(false);
     setFormState(initialForm);
   };
+
+  const toggleChatPopup = () => {
+    setIsChatOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setChatError("");
+        setChatInitializedForOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const closeChatPopup = () => {
+    setIsChatOpen(false);
+    setChatInitializedForOpen(false);
+  };
+
+  const extractMessages = (payload: unknown): ChatMessage[] => {
+    if (!Array.isArray(payload)) return [];
+
+    return payload
+      .map((item) => {
+        if (typeof item === "string") {
+          return { role: "assistant" as const, content: item };
+        }
+
+        if (item && typeof item === "object") {
+          const candidate = item as { role?: unknown; content?: unknown; message?: unknown };
+          const role = candidate.role === "user" ? "user" : "assistant";
+          const contentValue =
+            typeof candidate.content === "string"
+              ? candidate.content
+              : typeof candidate.message === "string"
+                ? candidate.message
+                : "";
+
+          if (contentValue.trim().length > 0) {
+            return { role, content: contentValue };
+          }
+        }
+
+        return null;
+      })
+      .filter((message): message is ChatMessage => Boolean(message));
+  };
+
+  const getChatAuthHeaders = (includeJsonContentType = false): HeadersInit => {
+    const token = localStorage.getItem("tracka.access_token");
+    if (!token) {
+      throw new Error("Please sign in to use the chatbot.");
+    }
+
+    return {
+      ...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  const createChatSession = useCallback(async () => {
+    const response = await fetch(`${apiBase}/chat/session`, {
+      method: "POST",
+      headers: getChatAuthHeaders(true),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to start chatbot session.");
+    }
+
+    const payload = await response.json();
+    const data = (payload?.data as Record<string, unknown> | undefined) || payload;
+    const sessionId = (data?.session_id as string | undefined) || null;
+    if (!sessionId) {
+      throw new Error("Chatbot session id missing from response.");
+    }
+
+    setChatSessionId(sessionId);
+    localStorage.setItem("tracka.chat_session_id", sessionId);
+    const initialMessages = extractMessages(data?.messages);
+    setChatMessages(
+      initialMessages.length > 0
+        ? initialMessages
+        : [{ role: "assistant", content: "Hi! Ask me anything about your campaign." }]
+    );
+    return sessionId;
+  }, [apiBase]);
+
+  const loadChatSession = useCallback(
+    async (sessionId: string) => {
+      const response = await fetch(`${apiBase}/chat/session/${sessionId}`, {
+        method: "GET",
+        headers: getChatAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to load chatbot session.");
+      }
+
+      const payload = await response.json();
+      const data = (payload?.data as Record<string, unknown> | undefined) || payload;
+      const loadedMessages = extractMessages(data?.messages);
+      setChatSessionId(sessionId);
+      setChatMessages(loadedMessages);
+    },
+    [apiBase]
+  );
+
+  const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const message = chatInput.trim();
+
+    if (!message || chatLoading) return;
+
+    setChatInput("");
+    setChatError("");
+    setChatMessages((prev) => [...prev, { role: "user", content: message }]);
+    setChatLoading(true);
+
+    try {
+      let activeSessionId = chatSessionId;
+      if (!activeSessionId) {
+        activeSessionId = await createChatSession();
+      }
+
+      if (!activeSessionId) {
+        throw new Error("Chatbot session is not ready yet.");
+      }
+
+      const response = await fetch(`${apiBase}/chat/message`, {
+        method: "POST",
+        headers: getChatAuthHeaders(true),
+        body: JSON.stringify({
+          session_id: activeSessionId,
+          message,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Chatbot failed to send message.");
+      }
+
+      const payload = await response.json();
+      const data = (payload?.data as Record<string, unknown> | undefined) || payload;
+      const mergedMessages = extractMessages(data?.messages);
+
+      if (mergedMessages.length > 0) {
+        setChatMessages(mergedMessages);
+        return;
+      }
+
+      const assistantReply =
+        (typeof data?.reply === "string" && data.reply) ||
+        (typeof data?.response === "string" && data.response) ||
+        (typeof data?.answer === "string" && data.answer) ||
+        (typeof data?.message === "string" && data.message) ||
+        "I am here and listening. Can you share a little more?";
+
+      setChatMessages((prev) => [...prev, { role: "assistant", content: assistantReply }]);
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unable to send message.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isChatOpen) {
+      setChatBooting(false);
+      return;
+    }
+
+    if (chatSessionId || chatBooting || chatInitializedForOpen) return;
+
+    const initializeChat = async () => {
+      setChatBooting(true);
+      setChatInitializedForOpen(true);
+      setChatError("");
+      try {
+        const existingSessionId = localStorage.getItem("tracka.chat_session_id");
+        if (existingSessionId) {
+          try {
+            await loadChatSession(existingSessionId);
+          } catch {
+            localStorage.removeItem("tracka.chat_session_id");
+            await createChatSession();
+          }
+        } else {
+          await createChatSession();
+        }
+      } catch (error) {
+        localStorage.removeItem("tracka.chat_session_id");
+        setChatError(error instanceof Error ? error.message : "Unable to open chatbot.");
+      } finally {
+        setChatBooting(false);
+      }
+    };
+
+    void initializeChat();
+  }, [
+    chatBooting,
+    chatInitializedForOpen,
+    chatSessionId,
+    createChatSession,
+    isChatOpen,
+    loadChatSession,
+  ]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -505,6 +724,7 @@ export default function HomePage() {
           >
             <h3 className="text-sm font-semibold text-[#0F172A]">Quick Links</h3>
             <div className="mt-4 space-y-3 text-sm text-slate-600">
+              
               <a
                 href="https://www.foodhelpline.org/share"
                 className="block rounded-xl bg-[#FFFEF5] px-3 py-2 hover:text-emerald-600"
@@ -686,6 +906,100 @@ export default function HomePage() {
               </form>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed bottom-6 right-5 z-40">
+        <motion.button
+          type="button"
+          onClick={toggleChatPopup}
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-yellow-200 bg-white shadow-xl shadow-yellow-200/70"
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.96 }}
+          aria-label="Open chatbot"
+        >
+          <Image src="/logo.svg" alt="Chatbot" width={30} height={30} />
+        </motion.button>
+      </div>
+
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.section
+            className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-sm overflow-hidden rounded-3xl border border-yellow-100 bg-white shadow-2xl"
+            initial={{ opacity: 0, y: 14, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.96 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFFEF5] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Image src="/logo.svg" alt="Lemontree Bot" width={20} height={20} />
+                <div>
+                  <p className="text-sm font-semibold text-[#065F46]">Lemontree Chatbot</p>
+                  <p className="text-[11px] text-slate-500">Campaign assistant</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeChatPopup}
+                className="text-sm text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="h-72 space-y-2 overflow-y-auto px-4 py-3">
+              {chatBooting && (
+                <p className="rounded-2xl bg-yellow-50 px-3 py-2 text-xs text-slate-500">
+                  Connecting to chatbot...
+                </p>
+              )}
+
+              {!chatBooting && chatMessages.length === 0 && (
+                <p className="rounded-2xl bg-yellow-50 px-3 py-2 text-xs text-slate-500">
+                  Ask about pantry locations, volunteer planning, or campaign ideas.
+                </p>
+              )}
+
+              {chatMessages.map((message, index) => (
+                <div
+                  key={`${message.role}-${index}`}
+                  className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm ${
+                    message.role === "user"
+                      ? "ml-auto bg-emerald-600 text-white"
+                      : "bg-[#FFFEF5] text-slate-700"
+                  }`}
+                >
+                  {message.content}
+                </div>
+              ))}
+
+              {chatLoading && (
+                <p className="w-fit rounded-2xl bg-[#FFFEF5] px-3 py-2 text-xs text-slate-500">
+                  Bot is typing...
+                </p>
+              )}
+            </div>
+
+            <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-3 py-3">
+              {chatError && <p className="mb-2 text-xs text-rose-500">{chatError}</p>}
+              <div className="flex items-center gap-2">
+                <input
+                  value={chatInput}
+                  onChange={(event) => setChatInput(event.target.value)}
+                  placeholder="Type your message..."
+                  className="flex-1 rounded-full border border-yellow-100 px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || chatBooting || chatInput.trim().length === 0}
+                  className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          </motion.section>
         )}
       </AnimatePresence>
     </div>
