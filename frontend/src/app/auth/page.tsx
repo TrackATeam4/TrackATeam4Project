@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useInView, useMotionValue, animate } from "framer-motion";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
 
 const featureItems = [
@@ -59,6 +59,14 @@ function StatNumber({ value, suffix }: { value: number; suffix: string }) {
 }
 
 export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedMode = searchParams.get("mode");
