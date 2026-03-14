@@ -106,6 +106,36 @@ def create_campaign(
     return {"success": True, "data": result.data[0] if result.data else None}
 
 
+# ── GET /campaigns ───────────────────────────────────────────────────────────
+
+
+@router.get("")
+def list_campaigns(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    supabase=Depends(get_supabase_client),
+):
+    """Public paginated list of campaigns."""
+    start = (page - 1) * limit
+    end = start + limit - 1
+
+    result = (
+        supabase.table("campaigns")
+        .select("*", count="exact")
+        .order("created_at", desc=True)
+        .range(start, end)
+        .execute()
+    )
+
+    total = result.count or 0
+
+    return {
+        "success": True,
+        "data": result.data or [],
+        "meta": {"total": total, "page": page, "limit": limit},
+    }
+
+
 # ── GET /campaigns/mine ───────────────────────────────────────────────────────
 
 
@@ -197,7 +227,9 @@ def sign_up_for_campaign(
     if existing_rows:
         existing = existing_rows[0]
         if existing["status"] in ("pending", "confirmed"):
-            raise HTTPException(status_code=409, detail="Already signed up for this campaign")
+            raise HTTPException(
+                status_code=409, detail="Already signed up for this campaign"
+            )
         try:
             result = (
                 supabase.table("signups")
@@ -206,22 +238,28 @@ def sign_up_for_campaign(
                 .execute()
             )
         except Exception as exc:
-            logger.error("Failed to re-activate signup for campaign %s: %s", campaign_id, exc)
+            logger.error(
+                "Failed to re-activate signup for campaign %s: %s", campaign_id, exc
+            )
             raise HTTPException(status_code=500, detail="Failed to sign up")
         return {"success": True, "data": result.data[0] if result.data else None}
 
     try:
         result = (
             supabase.table("signups")
-            .insert({
-                "campaign_id": campaign_id,
-                "user_id": user_id,
-                "status": "pending",
-            })
+            .insert(
+                {
+                    "campaign_id": campaign_id,
+                    "user_id": user_id,
+                    "status": "pending",
+                }
+            )
             .execute()
         )
     except Exception as exc:
-        logger.error("Failed signup for campaign %s user %s: %s", campaign_id, user_id, exc)
+        logger.error(
+            "Failed signup for campaign %s user %s: %s", campaign_id, user_id, exc
+        )
         raise HTTPException(status_code=500, detail="Failed to sign up")
 
     return {"success": True, "data": result.data[0] if result.data else None}
@@ -283,7 +321,9 @@ def get_campaign_signups(
     campaign = _get_campaign_or_404(supabase, campaign_id)
 
     if campaign["organizer_id"] != user_id:
-        raise HTTPException(status_code=403, detail="Only the organizer can view campaign signups")
+        raise HTTPException(
+            status_code=403, detail="Only the organizer can view campaign signups"
+        )
 
     result = (
         supabase.table("signups")
@@ -311,7 +351,9 @@ def confirm_attendance(
     campaign = _get_campaign_or_404(supabase, campaign_id)
 
     if campaign["organizer_id"] != organizer_id:
-        raise HTTPException(status_code=403, detail="Only the organizer can confirm attendance")
+        raise HTTPException(
+            status_code=403, detail="Only the organizer can confirm attendance"
+        )
 
     signup_result = (
         supabase.table("signups")
@@ -327,7 +369,9 @@ def confirm_attendance(
 
     signup = signup_rows[0]
     if signup["status"] == "cancelled":
-        raise HTTPException(status_code=400, detail="Cancelled signup cannot be confirmed")
+        raise HTTPException(
+            status_code=400, detail="Cancelled signup cannot be confirmed"
+        )
 
     if signup["status"] == "confirmed":
         return {"success": True, "data": signup}
