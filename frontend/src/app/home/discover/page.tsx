@@ -64,6 +64,35 @@ const createCampaignPin = (): HTMLDivElement => {
   return el;
 };
 
+// User location pin — blue pulsing dot
+const createUserLocationPin = (): HTMLDivElement => {
+  const el = document.createElement("div");
+  el.innerHTML = `
+    <div style="
+      position:relative;
+      width:20px;
+      height:20px;
+    ">
+      <div style="
+        position:absolute;
+        inset:0;
+        border-radius:50%;
+        background:rgba(59,130,246,0.25);
+        animation:tracka-pulse 2s ease-out infinite;
+      "></div>
+      <div style="
+        position:absolute;
+        inset:4px;
+        border-radius:50%;
+        background:#3b82f6;
+        border:2.5px solid #fff;
+        box-shadow:0 2px 6px rgba(59,130,246,0.5);
+      "></div>
+    </div>
+  `;
+  return el;
+};
+
 // Pantry pin — amber teardrop with a fork icon
 const createPantryPin = (): HTMLDivElement => {
   const el = document.createElement("div");
@@ -90,9 +119,11 @@ export default function HomeDiscoverPage() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<MapboxMarker[]>([]);
+  const userMarkerRef = useRef<MapboxMarker | null>(null);
 
   const [initialCenter, setInitialCenter] = useState<LngLat>(DEFAULT_CENTER);
   const [searchCenter, setSearchCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [userLocation, setUserLocation] = useState<LngLat | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
   const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const [campaignPins, setCampaignPins] = useState<MapPin[]>([]);
@@ -113,6 +144,7 @@ export default function HomeDiscoverPage() {
         };
         setInitialCenter(nextCenter);
         setSearchCenter(nextCenter);
+        setUserLocation(nextCenter);
       },
       () => {
         // Keep default center when location permission is denied.
@@ -162,6 +194,32 @@ export default function HomeDiscoverPage() {
 
     map.flyTo({ center: [initialCenter.lng, initialCenter.lat], zoom: 11, duration: 800 });
   }, [initialCenter.lat, initialCenter.lng]);
+
+  // Place / update the "You are here" pin whenever location or map changes
+  useEffect(() => {
+    if (!userLocation || !mapRef.current || !MAPBOX_TOKEN) return;
+
+    const placeUserPin = async () => {
+      const mapboxglModule: MapboxModule = (await import("mapbox-gl")).default;
+      const map = mapRef.current;
+      if (!map) return;
+
+      const popup = new mapboxglModule.Popup({ offset: 14, className: "tracka-popup" }).setHTML(
+        `<div style="font-family:system-ui;padding:4px 2px;font-size:13px;font-weight:600;color:#1e40af">📍 You are here</div>`
+      );
+
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+      } else {
+        userMarkerRef.current = new mapboxglModule.Marker({ element: createUserLocationPin(), anchor: "center" })
+          .setLngLat([userLocation.lng, userLocation.lat])
+          .setPopup(popup)
+          .addTo(map);
+      }
+    };
+
+    void placeUserPin();
+  }, [userLocation]);
 
   useEffect(() => {
     const fetchPins = async () => {
@@ -352,7 +410,15 @@ export default function HomeDiscoverPage() {
             )}
           </div>
 
+          <style>{`
+            @keyframes tracka-pulse {
+              0%   { transform: scale(1);   opacity: 0.7; }
+              70%  { transform: scale(2.4); opacity: 0; }
+              100% { transform: scale(2.4); opacity: 0; }
+            }
+          `}</style>
           <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-500" /> You</span>
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-600" /> Campaign</span>
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" /> Food Pantry</span>
             {loading ? <span>Refreshing pins...</span> : null}
