@@ -1,7 +1,8 @@
 # Python
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
+**/__pycache__/
+**/*.pyc
+backend/.coverage
 backend/.env
 
 # Node
@@ -14,3 +15,7 @@ frontend/.env
 .DS_Store
 .venv/
 .env.local
+
+# Documentation (AI context)
+AGENTS.md
+CLAUDE.md

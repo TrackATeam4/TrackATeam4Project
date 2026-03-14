@@ -202,6 +202,11 @@ def send_message(
         reply = result.get("output", "")
     except Exception as exc:
         logger.error("Agent invocation failed: %s", exc)
+        if "botocore" in type(exc).__module__ or "boto" in type(exc).__module__:
+            raise HTTPException(
+                status_code=503,
+                detail="AI service temporarily unavailable. Please try again later.",
+            )
         raise HTTPException(status_code=500, detail="Failed to process message")
 
     # Insert assistant reply

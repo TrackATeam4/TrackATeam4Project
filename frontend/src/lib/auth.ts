@@ -16,17 +16,19 @@ export async function signInWithGoogle() {
   return data
 }
 
-export async function signUpWithEmail(email: string, password: string) {
+export async function signUpWithEmail(email: string, password: string, name?: string) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${window.location.origin}/auth/callback`,
+      data: {
+        full_name: name,
+      },
     },
   })
   
   if (error) {
-    console.error('Error signing up with email:', error.message)
     throw error
   }
   

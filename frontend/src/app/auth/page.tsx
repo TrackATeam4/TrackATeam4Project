@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useInView, useMotionValue, animate } from "framer-motion";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
 
 const featureItems = [
@@ -59,6 +59,14 @@ function StatNumber({ value, suffix }: { value: number; suffix: string }) {
 }
 
 export default function AuthPage() {
+  return (
+    <Suspense>
+      <AuthPageInner />
+    </Suspense>
+  );
+}
+
+function AuthPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedMode = searchParams.get("mode");
@@ -83,7 +91,7 @@ export default function AuthPage() {
 
     try {
       if (mode === "signup") {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, name);
       } else {
         await signInWithEmail(email, password);
       }
@@ -104,7 +112,14 @@ export default function AuthPage() {
       router.push("/home");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Something went wrong.");
+      const raw = error instanceof Error ? error.message : "Something went wrong.";
+      const friendly: Record<string, string> = {
+        "User already registered": "An account with this email already exists. Please sign in instead.",
+        "Invalid login credentials": "Incorrect email or password.",
+        "Email not confirmed": "Please confirm your email before signing in.",
+        "Password should be at least 6 characters": "Password must be at least 6 characters.",
+      };
+      setMessage(friendly[raw] ?? raw);
     }
   };
 
