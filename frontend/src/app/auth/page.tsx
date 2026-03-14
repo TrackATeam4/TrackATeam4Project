@@ -4,6 +4,8 @@ import { AnimatePresence, motion, useInView, useMotionValue, animate } from "fra
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+
 const featureItems = [
   {
     title: "Launch campaigns",
@@ -86,7 +88,7 @@ export default function AuthPage() {
 
     try {
       const endpoint = mode === "signup" ? "/auth/signup" : "/auth/signin";
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -104,6 +106,10 @@ export default function AuthPage() {
       }
 
       const payload = await response.json();
+
+      if (email) {
+        localStorage.setItem("tracka.user_email", email);
+      }
 
       if (payload?.session?.access_token) {
         localStorage.setItem("tracka.access_token", payload.session.access_token);

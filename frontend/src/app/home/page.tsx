@@ -138,6 +138,11 @@ const initialForm: PostFormState = {
   blocks: "",
 };
 
+const CHAT_API_BASE =
+  process.env.NEXT_PUBLIC_AI_BEDROCK_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8000";
+
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
   window.addEventListener("storage", callback);
@@ -163,7 +168,7 @@ export default function HomePage() {
   const [chatInitializedForOpen, setChatInitializedForOpen] = useState(false);
   const [chatError, setChatError] = useState("");
   const [formState, setFormState] = useState<PostFormState>(initialForm);
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
     subscribeToStorage,
     () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
@@ -463,7 +468,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#FFFEF5] text-slate-700">
       <div className="flex">
         <motion.aside
-          className="fixed left-0 top-0 hidden h-screen w-60 flex-col border-r border-yellow-100 bg-white px-5 py-8 lg:flex"
+          className="fixed left-0 top-0 hidden h-screen w-72 flex-col border-r border-yellow-100 bg-white px-6 py-8 lg:flex"
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -509,7 +514,7 @@ export default function HomePage() {
           </div>
         </motion.aside>
 
-        <aside className="fixed left-0 top-0 hidden h-screen w-20 flex-col border-r border-yellow-100 bg-white px-3 py-8 md:flex lg:hidden">
+        <aside className="fixed left-0 top-0 hidden h-screen w-24 flex-col border-r border-yellow-100 bg-white px-3 py-8 md:flex lg:hidden">
           <div className="flex flex-col items-center gap-4 text-xl">
             {navItems.map((item) => (
               <Link
@@ -527,8 +532,8 @@ export default function HomePage() {
           </div>
         </aside>
 
-        <main className="flex-1 px-4 pb-24 pt-6 lg:ml-60 md:ml-20">
-          <div className="mx-auto max-w-2xl space-y-6">
+        <main className="flex-1 px-5 pb-24 pt-6 lg:ml-72 md:ml-24 xl:mr-[340px]">
+          <div className="mx-auto max-w-4xl space-y-6">
             <div className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/70">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
@@ -670,15 +675,15 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto border-l border-yellow-100 bg-white px-6 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[340px] flex-col gap-6 overflow-y-auto border-l border-yellow-100 bg-white px-7 py-8 xl:flex">
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-4 shadow-lg shadow-yellow-100/60"
+            className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5 shadow-lg shadow-yellow-100/60"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h3 className="text-sm font-semibold text-[#065F46]">🍋 Community Impact</h3>
-            <div className="mt-3 space-y-2 text-sm text-slate-500">
+            <h3 className="text-base font-semibold text-[#065F46]">🍋 Community Impact</h3>
+            <div className="mt-3 space-y-2 text-base text-slate-500">
               <div className="flex justify-between">
                 <span>Campaigns completed</span>
                 <span className="font-semibold text-emerald-600">142</span>
@@ -695,18 +700,18 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-white p-4 shadow-lg shadow-yellow-100/60"
+            className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <h3 className="text-sm font-semibold text-[#0F172A]">🔥 Trending Campaigns</h3>
-            <div className="mt-4 space-y-3 text-sm">
+            <h3 className="text-base font-semibold text-[#0F172A]">🔥 Trending Campaigns</h3>
+            <div className="mt-4 space-y-3 text-base">
               {trendingCampaigns.map((post) => (
-                <div key={post.id} className="rounded-xl bg-[#FFFEF5] p-3">
+                <div key={post.id} className="rounded-xl bg-[#FFFEF5] p-4">
                   <p className="font-semibold text-slate-700">{post.event?.location}</p>
-                  <p className="text-xs text-slate-500">{post.event?.date}</p>
-                  <p className="text-xs text-emerald-600">
+                  <p className="text-sm text-slate-500">{post.event?.date}</p>
+                  <p className="text-sm text-emerald-600">
                     {post.event
                       ? `${post.event.spotsTotal - post.event.spotsFilled} spots left`
                       : ""}
@@ -717,24 +722,24 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-white p-4 shadow-lg shadow-yellow-100/60"
+            className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <h3 className="text-sm font-semibold text-[#0F172A]">Quick Links</h3>
-            <div className="mt-4 space-y-3 text-sm text-slate-600">
+            <h3 className="text-base font-semibold text-[#0F172A]">Quick Links</h3>
+            <div className="mt-4 space-y-3 text-base text-slate-600">
               
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-[#FFFEF5] px-3 py-2 hover:text-emerald-600"
+                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 hover:text-emerald-600"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-3 py-2 text-left hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left hover:text-emerald-600">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-3 py-2 text-left hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left hover:text-emerald-600">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -913,50 +918,50 @@ export default function HomePage() {
         <motion.button
           type="button"
           onClick={toggleChatPopup}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-yellow-200 bg-white shadow-xl shadow-yellow-200/70"
+          className="flex h-20 w-20 items-center justify-center rounded-full border border-yellow-200 bg-white shadow-xl shadow-yellow-200/70"
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.96 }}
           aria-label="Open chatbot"
         >
-          <Image src="/logo.svg" alt="Chatbot" width={30} height={30} />
+          <Image src="/logo.svg" alt="Chatbot" width={50} height={50} />
         </motion.button>
       </div>
 
       <AnimatePresence>
         {isChatOpen && (
           <motion.section
-            className="fixed bottom-24 right-5 z-50 w-[calc(100vw-2.5rem)] max-w-sm overflow-hidden rounded-3xl border border-yellow-100 bg-white shadow-2xl"
+            className="fixed bottom-28 right-5 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-3xl border border-yellow-100 bg-white shadow-2xl"
             initial={{ opacity: 0, y: 14, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.96 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFFEF5] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Image src="/logo.svg" alt="Lemontree Bot" width={20} height={20} />
+            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFFEF5] px-5 py-4">
+              <div className="flex items-center gap-3">
+                <Image src="/logo.svg" alt="Lemontree Bot" width={28} height={28} />
                 <div>
-                  <p className="text-sm font-semibold text-[#065F46]">Lemontree Chatbot</p>
-                  <p className="text-[11px] text-slate-500">Campaign assistant</p>
+                  <p className="text-base font-semibold text-[#065F46]">Lemontree Chatbot</p>
+                  <p className="text-sm text-slate-500">Campaign assistant</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeChatPopup}
-                className="text-sm text-slate-400 hover:text-slate-600"
+                className="text-base text-slate-400 hover:text-slate-600"
               >
                 ✕
               </button>
             </div>
 
-            <div className="h-72 space-y-2 overflow-y-auto px-4 py-3">
+            <div className="h-80 space-y-3 overflow-y-auto px-5 py-4">
               {chatBooting && (
-                <p className="rounded-2xl bg-yellow-50 px-3 py-2 text-xs text-slate-500">
+                <p className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-slate-500">
                   Connecting to chatbot...
                 </p>
               )}
 
               {!chatBooting && chatMessages.length === 0 && (
-                <p className="rounded-2xl bg-yellow-50 px-3 py-2 text-xs text-slate-500">
+                <p className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-slate-500">
                   Ask about pantry locations, volunteer planning, or campaign ideas.
                 </p>
               )}
@@ -964,7 +969,7 @@ export default function HomePage() {
               {chatMessages.map((message, index) => (
                 <div
                   key={`${message.role}-${index}`}
-                  className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm ${
+                  className={`max-w-[90%] rounded-2xl px-4 py-3 text-base ${
                     message.role === "user"
                       ? "ml-auto bg-emerald-600 text-white"
                       : "bg-[#FFFEF5] text-slate-700"
@@ -975,25 +980,25 @@ export default function HomePage() {
               ))}
 
               {chatLoading && (
-                <p className="w-fit rounded-2xl bg-[#FFFEF5] px-3 py-2 text-xs text-slate-500">
+                <p className="w-fit rounded-2xl bg-[#FFFEF5] px-4 py-3 text-sm text-slate-500">
                   Bot is typing...
                 </p>
               )}
             </div>
 
-            <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-3 py-3">
-              {chatError && <p className="mb-2 text-xs text-rose-500">{chatError}</p>}
-              <div className="flex items-center gap-2">
+            <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-4 py-4">
+              {chatError && <p className="mb-3 text-sm text-rose-500">{chatError}</p>}
+              <div className="flex items-center gap-3">
                 <input
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
                   placeholder="Type your message..."
-                  className="flex-1 rounded-full border border-yellow-100 px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="flex-1 rounded-full border border-yellow-100 px-4 py-3 text-base text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || chatBooting || chatInput.trim().length === 0}
-                  className="rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Send
                 </button>

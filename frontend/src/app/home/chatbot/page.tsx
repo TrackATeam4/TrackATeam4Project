@@ -13,7 +13,10 @@ type ChatMessage = {
 
 type ChatContext = Record<string, unknown>;
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE =
+	process.env.NEXT_PUBLIC_AI_BEDROCK_API_URL ||
+	process.env.NEXT_PUBLIC_API_URL ||
+	"http://localhost:8000";
 
 const readPayloadData = (payload: unknown): Record<string, unknown> => {
 	if (!payload || typeof payload !== "object") return {};
