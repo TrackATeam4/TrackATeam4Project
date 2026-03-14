@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
-from routers import campaigns, impact, feed, promotion, leaderboard, chat
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ app.include_router(feed.router)
 app.include_router(promotion.router)
 app.include_router(leaderboard.router)
 app.include_router(chat.router)
+app.include_router(tasks.router)
 
 
 class SignUpRequest(BaseModel):
@@ -105,5 +106,6 @@ async def reset_password(request: ResetPasswordRequest):
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
     return {"user": user}
+
 
 # Chat endpoints are provided by `routers/chat.py`.
