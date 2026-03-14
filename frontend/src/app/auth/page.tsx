@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useInView, useMotionValue, animate } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const featureItems = [
@@ -58,12 +58,25 @@ function StatNumber({ value, suffix }: { value: number; suffix: string }) {
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const requestedMode = searchParams.get("mode");
+    if (requestedMode === "signin" || requestedMode === "signup") {
+      setMode(requestedMode);
+    }
+
+    if (searchParams.get("created") === "1") {
+      setStatus("success");
+      setMessage("Account created successfully. Please sign in.");
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,6 +110,11 @@ export default function AuthPage() {
 
       if (mode === "signup") {
         localStorage.setItem("tracka.signup_name", name);
+        setStatus("success");
+        setMessage("Account created successfully. Please sign in.");
+        setPassword("");
+        router.push("/auth?mode=signin&created=1");
+        return;
       }
 
       router.push("/home");
@@ -107,44 +125,25 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FFFEF5] text-slate-700">
-      <motion.div
-        className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-yellow-200/50 blur-3xl"
-        animate={{ y: [0, -12, 0], opacity: [0.6, 0.8, 0.6] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl"
-        animate={{ y: [0, 14, 0], opacity: [0.5, 0.7, 0.5] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-orange-200/30 blur-3xl"
-        animate={{ y: [0, -10, 0], opacity: [0.4, 0.6, 0.4] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      <div className="absolute inset-0 opacity-[0.03]">
-        <div className="h-full w-full bg-[radial-gradient(circle_at_1px_1px,#0f172a_1px,transparent_0)] [background-size:24px_24px]" />
-      </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#FFF9D6] text-slate-700">
 
       <header className="sticky top-0 z-20">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-2 text-lg font-semibold text-[#065F46]">
-            <span className="text-2xl">🍋</span>
+          <div className="flex items-center gap-3 text-2xl font-bold text-[#065F46] sm:text-3xl">
+            <img src="/logo.svg" alt="Lemontree" className="h-10 w-10" />
             Lemontree
           </div>
           <a
             href="https://www.foodhelpline.org"
-            className="text-sm font-medium text-slate-500 transition hover:text-[#065F46]"
+            className="text-base font-semibold text-slate-600 transition hover:text-[#065F46]"
           >
             About Lemontree
           </a>
         </div>
       </header>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col gap-12 px-6 pb-16 pt-6 lg:flex-row lg:items-center">
-        <div className="w-full space-y-8 lg:w-3/5">
+      <div className="relative mx-auto grid min-h-[calc(100vh-96px)] max-w-6xl grid-cols-1 gap-12 px-6 pb-16 pt-6 lg:grid-cols-2 lg:items-center lg:gap-16">
+        <div className="w-full space-y-8">
           <motion.span
             className="inline-flex items-center rounded-full bg-yellow-100 px-4 py-2 text-sm font-medium text-[#065F46]"
             initial={{ opacity: 0, y: 10 }}
@@ -217,7 +216,7 @@ export default function AuthPage() {
         </div>
 
         <motion.div
-          className="w-full lg:w-2/5"
+          className="w-full"
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ type: "spring", stiffness: 120, damping: 18 }}
@@ -226,7 +225,11 @@ export default function AuthPage() {
             <div className="flex items-center justify-between rounded-full bg-yellow-50 p-1 text-sm">
               <button
                 type="button"
-                onClick={() => setMode("signin")}
+                onClick={() => {
+                  setMode("signin");
+                  setStatus("idle");
+                  setMessage("");
+                }}
                 className={`flex-1 rounded-full px-4 py-2 font-medium transition ${
                   mode === "signin"
                     ? "bg-white text-[#0F172A] shadow"
@@ -237,7 +240,11 @@ export default function AuthPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode("signup")}
+                onClick={() => {
+                  setMode("signup");
+                  setStatus("idle");
+                  setMessage("");
+                }}
                 className={`flex-1 rounded-full px-4 py-2 font-medium transition ${
                   mode === "signup"
                     ? "bg-white text-[#0F172A] shadow"
@@ -342,6 +349,12 @@ export default function AuthPage() {
 
               {status === "error" && message ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
+                  {message}
+                </div>
+              ) : null}
+
+              {status === "success" && message ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700">
                   {message}
                 </div>
               ) : null}
