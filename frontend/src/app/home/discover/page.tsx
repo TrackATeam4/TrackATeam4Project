@@ -42,25 +42,48 @@ const parseArrayData = <T,>(payload: unknown): T[] => {
   return [];
 };
 
-const createPinMarker = (): HTMLDivElement => {
-  const pinMarker = document.createElement("div");
-  pinMarker.style.display = "inline-flex";
-  pinMarker.style.alignItems = "center";
-  pinMarker.style.justifyContent = "center";
-  pinMarker.style.transform = "translateY(-50%)";
+// Campaign pin — green teardrop with a leaf icon
+const createCampaignPin = (): HTMLDivElement => {
+  const el = document.createElement("div");
+  el.style.cursor = "pointer";
+  el.innerHTML = `
+    <div style="
+      position:relative;
+      width:36px;
+      height:44px;
+      filter:drop-shadow(0 3px 6px rgba(0,0,0,0.22));
+      transform:translateY(-100%);
+    ">
+      <svg viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+        <path d="M18 2C10.268 2 4 8.268 4 16c0 10.5 14 26 14 26S32 26.5 32 16C32 8.268 25.732 2 18 2z" fill="#16a34a" stroke="#fff" stroke-width="1.5"/>
+        <circle cx="18" cy="16" r="7" fill="rgba(255,255,255,0.2)"/>
+        <text x="18" y="20.5" text-anchor="middle" font-size="11" fill="white">🌱</text>
+      </svg>
+    </div>
+  `;
+  return el;
+};
 
-  const pinImage = document.createElement("img");
-  pinImage.src = "/pinMarker.jpg";
-  pinImage.alt = "Pin marker";
-  pinImage.width = 36;
-  pinImage.height = 36;
-  pinImage.style.width = "36px";
-  pinImage.style.height = "36px";
-  pinImage.style.objectFit = "contain";
-  pinImage.style.filter = "drop-shadow(0 2px 6px rgba(15,23,42,0.25))";
-  pinMarker.appendChild(pinImage);
-
-  return pinMarker;
+// Pantry pin — amber teardrop with a fork icon
+const createPantryPin = (): HTMLDivElement => {
+  const el = document.createElement("div");
+  el.style.cursor = "pointer";
+  el.innerHTML = `
+    <div style="
+      position:relative;
+      width:32px;
+      height:39px;
+      filter:drop-shadow(0 3px 6px rgba(0,0,0,0.18));
+      transform:translateY(-100%);
+    ">
+      <svg viewBox="0 0 32 39" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+        <path d="M16 2C9.373 2 4 7.373 4 14c0 9.333 12 23 12 23S28 23.333 28 14C28 7.373 22.627 2 16 2z" fill="#f59e0b" stroke="#fff" stroke-width="1.5"/>
+        <circle cx="16" cy="14" r="6" fill="rgba(255,255,255,0.2)"/>
+        <text x="16" y="18" text-anchor="middle" font-size="10" fill="white">🍎</text>
+      </svg>
+    </div>
+  `;
+  return el;
 };
 
 export default function HomeDiscoverPage() {
@@ -213,13 +236,15 @@ export default function HomeDiscoverPage() {
       const allPoints: Array<[number, number]> = [];
 
       campaignPins.forEach((pin) => {
-        const pinMarker = createPinMarker();
+        const popup = new mapboxglModule.Popup({ offset: 20, className: "tracka-popup" }).setHTML(`
+          <div style="font-family:system-ui;min-width:200px;padding:4px 2px">
+            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:4px">${pin.title}</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:4px">📅 ${pin.date}</div>
+            <div style="font-size:12px;color:#16a34a;font-weight:600">${pin.signup_count}${pin.max_volunteers ? `/${pin.max_volunteers}` : ""} volunteers joined</div>
+          </div>
+        `);
 
-        const popup = new mapboxglModule.Popup({ offset: 14 }).setHTML(
-          `<div style="font-family:system-ui;min-width:210px"><strong>${pin.title}</strong><br/><span style="font-size:12px;color:#475569">${pin.date}</span><br/><span style="font-size:12px;color:#047857">${pin.signup_count}/${pin.max_volunteers ?? "-"} joined</span></div>`
-        );
-
-        const marker = new mapboxglModule.Marker(pinMarker)
+        const marker = new mapboxglModule.Marker({ element: createCampaignPin(), anchor: "bottom" })
           .setLngLat([pin.longitude, pin.latitude])
           .setPopup(popup)
           .addTo(map);
@@ -229,13 +254,14 @@ export default function HomeDiscoverPage() {
       });
 
       pantryPins.forEach((pin) => {
-        const pinMarker = createPinMarker();
+        const popup = new mapboxglModule.Popup({ offset: 18, className: "tracka-popup" }).setHTML(`
+          <div style="font-family:system-ui;min-width:200px;padding:4px 2px">
+            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:4px">${pin.name}</div>
+            <div style="font-size:12px;color:#64748b">📍 ${pin.address ?? "Food pantry"}</div>
+          </div>
+        `);
 
-        const popup = new mapboxglModule.Popup({ offset: 14 }).setHTML(
-          `<div style="font-family:system-ui;min-width:210px"><strong>${pin.name}</strong><br/><span style="font-size:12px;color:#475569">${pin.address ?? "Food pantry"}</span></div>`
-        );
-
-        const marker = new mapboxglModule.Marker(pinMarker)
+        const marker = new mapboxglModule.Marker({ element: createPantryPin(), anchor: "bottom" })
           .setLngLat([pin.longitude, pin.latitude])
           .setPopup(popup)
           .addTo(map);
