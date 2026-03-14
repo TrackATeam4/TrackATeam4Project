@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
-from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +30,7 @@ app.include_router(leaderboard.router)
 app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
+app.include_router(map.router)
 
 
 @app.on_event("startup")

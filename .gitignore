@@ -13,6 +13,8 @@ frontend/.env
 
 # OS
 .DS_Store
+.venv/
+.env.local
 
 # Documentation (AI context)
 AGENTS.md
