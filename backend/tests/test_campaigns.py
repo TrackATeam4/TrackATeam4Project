@@ -832,3 +832,328 @@ class TestDeleteCampaign:
         """Returns 401 when no Authorization header is provided."""
         resp = unauth_client.delete(f"/campaigns/{CAMPAIGN_ID}")
         assert resp.status_code == 401
+
+
+VOLUNTEER_ID = "550e8400-e29b-41d4-a716-446655440777"
+
+
+# ── POST /campaigns/{id}/signup ──────────────────────────────────────────────
+
+
+class TestSignUpForCampaign:
+    """POST /campaigns/{id}/signup"""
+
+    def test_signup_success(self, client, mock_supabase):
+        """Volunteer can sign up for an existing campaign."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = []
+                created_result = MagicMock()
+                created_result.data = [
+                    {
+                        "id": "signup-1",
+                        "campaign_id": CAMPAIGN_ID,
+                        "user_id": ORGANIZER_ID,
+                        "status": "pending",
+                        "task_id": None,
+                    }
+                ]
+                select_chain = mock_table.select.return_value
+                select_chain.eq.return_value = select_chain
+                select_chain.execute.return_value = existing_result
+                mock_table.insert.return_value.execute.return_value = created_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/signup")
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"]["status"] == "pending"
+
+    def test_signup_duplicate_returns_409(self, client, mock_supabase):
+        """Duplicate pending/confirmed signup is rejected."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = [{"id": "signup-1", "status": "pending"}]
+                select_chain = mock_table.select.return_value
+                select_chain.eq.return_value = select_chain
+                select_chain.execute.return_value = existing_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/signup")
+        assert resp.status_code == 409
+
+    def test_signup_reactivates_cancelled_signup(self, client, mock_supabase):
+        """Cancelled signup can be reactivated to pending."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = [{"id": "signup-1", "status": "cancelled"}]
+                updated_result = MagicMock()
+                updated_result.data = [{"id": "signup-1", "status": "pending"}]
+                select_chain = mock_table.select.return_value
+                select_chain.eq.return_value = select_chain
+                select_chain.execute.return_value = existing_result
+                mock_table.update.return_value.eq.return_value.execute.return_value = updated_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/signup")
+        assert resp.status_code == 201
+        assert resp.json()["data"]["status"] == "pending"
+
+
+# ── DELETE /campaigns/{id}/signup ────────────────────────────────────────────
+
+
+class TestWithdrawSignup:
+    """DELETE /campaigns/{id}/signup"""
+
+    def test_withdraw_success(self, client, mock_supabase):
+        """Volunteer can cancel an existing signup."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = [{"id": "signup-1", "status": "pending"}]
+                updated_result = MagicMock()
+                updated_result.data = [{"id": "signup-1", "status": "cancelled"}]
+                select_chain = mock_table.select.return_value
+                select_chain.eq.return_value = select_chain
+                select_chain.execute.return_value = existing_result
+                mock_table.update.return_value.eq.return_value.execute.return_value = updated_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.delete(f"/campaigns/{CAMPAIGN_ID}/signup")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "cancelled"
+
+    def test_withdraw_not_found_returns_404(self, client, mock_supabase):
+        """Returns 404 when signup does not exist for this user/campaign."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = []
+                select_chain = mock_table.select.return_value
+                select_chain.eq.return_value = select_chain
+                select_chain.execute.return_value = existing_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.delete(f"/campaigns/{CAMPAIGN_ID}/signup")
+        assert resp.status_code == 404
+
+
+# ── GET /campaigns/{id}/signups ──────────────────────────────────────────────
+
+
+class TestGetCampaignSignups:
+    """GET /campaigns/{id}/signups"""
+
+    def test_list_signups_organizer_only_success(self, client, mock_supabase):
+        """Organizer can list signups for their campaign."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                list_result = MagicMock()
+                list_result.data = [
+                    {
+                        "id": "signup-1",
+                        "campaign_id": CAMPAIGN_ID,
+                        "user_id": VOLUNTEER_ID,
+                        "status": "pending",
+                        "joined_at": "2026-03-14T10:00:00+00:00",
+                        "task_id": None,
+                    }
+                ]
+                chain = mock_table.select.return_value
+                chain.eq.return_value = chain
+                chain.order.return_value = chain
+                chain.execute.return_value = list_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.get(f"/campaigns/{CAMPAIGN_ID}/signups")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert len(body["data"]) == 1
+
+    def test_list_signups_not_organizer_returns_403(self, client, mock_supabase):
+        """Non-organizer cannot list signups."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = {**MOCK_CAMPAIGN, "organizer_id": OTHER_USER_ID}
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.get(f"/campaigns/{CAMPAIGN_ID}/signups")
+        assert resp.status_code == 403
+
+
+# ── POST /campaigns/{id}/confirm/{uid} ───────────────────────────────────────
+
+
+class TestConfirmAttendance:
+    """POST /campaigns/{id}/confirm/{uid}"""
+
+    def test_confirm_success_updates_status_and_awards_points(self, client, mock_supabase):
+        """Organizer confirms attendance and volunteer gets points."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = [
+                    {
+                        "id": "signup-1",
+                        "campaign_id": CAMPAIGN_ID,
+                        "user_id": VOLUNTEER_ID,
+                        "status": "pending",
+                    }
+                ]
+                updated_result = MagicMock()
+                updated_result.data = [
+                    {
+                        "id": "signup-1",
+                        "campaign_id": CAMPAIGN_ID,
+                        "user_id": VOLUNTEER_ID,
+                        "status": "confirmed",
+                    }
+                ]
+                chain = mock_table.select.return_value
+                chain.eq.return_value = chain
+                chain.execute.return_value = existing_result
+                mock_table.update.return_value.eq.return_value.execute.return_value = updated_result
+            elif table_name == "user_points":
+                points_result = MagicMock()
+                points_result.data = [{"id": "points-1"}]
+                mock_table.insert.return_value.execute.return_value = points_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/confirm/{VOLUNTEER_ID}")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "confirmed"
+
+    def test_confirm_not_organizer_returns_403(self, client, mock_supabase):
+        """Non-organizer cannot confirm attendance."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = {**MOCK_CAMPAIGN, "organizer_id": OTHER_USER_ID}
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/confirm/{VOLUNTEER_ID}")
+        assert resp.status_code == 403
+
+    def test_confirm_missing_signup_returns_404(self, client, mock_supabase):
+        """Returns 404 when volunteer is not signed up."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = []
+                chain = mock_table.select.return_value
+                chain.eq.return_value = chain
+                chain.execute.return_value = existing_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/confirm/{VOLUNTEER_ID}")
+        assert resp.status_code == 404
+
+    def test_confirm_cancelled_signup_returns_400(self, client, mock_supabase):
+        """Cancelled signup cannot be confirmed."""
+
+        def table_router(table_name):
+            mock_table = MagicMock()
+            if table_name == "campaigns":
+                campaign_result = MagicMock()
+                campaign_result.data = MOCK_CAMPAIGN
+                mock_table.select.return_value.eq.return_value.single.return_value.execute.return_value = campaign_result
+            elif table_name == "signups":
+                existing_result = MagicMock()
+                existing_result.data = [
+                    {
+                        "id": "signup-1",
+                        "campaign_id": CAMPAIGN_ID,
+                        "user_id": VOLUNTEER_ID,
+                        "status": "cancelled",
+                    }
+                ]
+                chain = mock_table.select.return_value
+                chain.eq.return_value = chain
+                chain.execute.return_value = existing_result
+            return mock_table
+
+        mock_supabase.table.side_effect = table_router
+
+        resp = client.post(f"/campaigns/{CAMPAIGN_ID}/confirm/{VOLUNTEER_ID}")
+        assert resp.status_code == 400

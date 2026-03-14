@@ -1,4 +1,4 @@
-"""Volunteer Campaign CRUD endpoints."""
+"""Volunteer Campaign CRUD and signup endpoints."""
 
 import logging
 from typing import Annotated, Literal, Optional
@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
+from services.rewards import award_points
 from supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,8 @@ _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 _TIME_PATTERN = r"^\d{2}:\d{2}$"
 
 CampaignStatus = Literal["draft", "published", "completed", "cancelled"]
+
+ATTENDANCE_POINTS = 20
 
 
 class CampaignCreate(BaseModel):
@@ -167,6 +170,187 @@ def get_joined_campaigns(
         "data": result.data or [],
         "meta": {"page": page, "limit": limit},
     }
+
+
+# ── POST /campaigns/{id}/signup ──────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/signup", status_code=201)
+def sign_up_for_campaign(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Volunteer signs up for a campaign. Auth required."""
+    user_id = user.user.id
+    _get_campaign_or_404(supabase, campaign_id)
+
+    existing_result = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    existing_rows = existing_result.data or []
+
+    if existing_rows:
+        existing = existing_rows[0]
+        if existing["status"] in ("pending", "confirmed"):
+            raise HTTPException(status_code=409, detail="Already signed up for this campaign")
+        try:
+            result = (
+                supabase.table("signups")
+                .update({"status": "pending"})
+                .eq("id", existing["id"])
+                .execute()
+            )
+        except Exception as exc:
+            logger.error("Failed to re-activate signup for campaign %s: %s", campaign_id, exc)
+            raise HTTPException(status_code=500, detail="Failed to sign up")
+        return {"success": True, "data": result.data[0] if result.data else None}
+
+    try:
+        result = (
+            supabase.table("signups")
+            .insert({
+                "campaign_id": campaign_id,
+                "user_id": user_id,
+                "status": "pending",
+            })
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Failed signup for campaign %s user %s: %s", campaign_id, user_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to sign up")
+
+    return {"success": True, "data": result.data[0] if result.data else None}
+
+
+# ── DELETE /campaigns/{id}/signup ────────────────────────────────────────────
+
+
+@router.delete("/{campaign_id}/signup")
+def withdraw_signup(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Volunteer withdraws their signup from a campaign. Auth required."""
+    user_id = user.user.id
+    _get_campaign_or_404(supabase, campaign_id)
+
+    signup_result = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    rows = signup_result.data or []
+    if not rows:
+        raise HTTPException(status_code=404, detail="Signup not found")
+
+    signup = rows[0]
+    if signup["status"] == "cancelled":
+        return {"success": True, "data": {"id": signup["id"], "status": "cancelled"}}
+
+    try:
+        result = (
+            supabase.table("signups")
+            .update({"status": "cancelled"})
+            .eq("id", signup["id"])
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Failed to cancel signup for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to withdraw signup")
+
+    return {"success": True, "data": result.data[0] if result.data else None}
+
+
+# ── GET /campaigns/{id}/signups ──────────────────────────────────────────────
+
+
+@router.get("/{campaign_id}/signups")
+def get_campaign_signups(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """List signups for a campaign. Organizer only."""
+    user_id = user.user.id
+    campaign = _get_campaign_or_404(supabase, campaign_id)
+
+    if campaign["organizer_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Only the organizer can view campaign signups")
+
+    result = (
+        supabase.table("signups")
+        .select("id, campaign_id, user_id, status, joined_at, task_id")
+        .eq("campaign_id", campaign_id)
+        .order("joined_at", desc=False)
+        .execute()
+    )
+
+    return {"success": True, "data": result.data or []}
+
+
+# ── POST /campaigns/{id}/confirm/{uid} ───────────────────────────────────────
+
+
+@router.post("/{campaign_id}/confirm/{uid}")
+def confirm_attendance(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    uid: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Organizer confirms volunteer attended; this triggers rewards."""
+    organizer_id = user.user.id
+    campaign = _get_campaign_or_404(supabase, campaign_id)
+
+    if campaign["organizer_id"] != organizer_id:
+        raise HTTPException(status_code=403, detail="Only the organizer can confirm attendance")
+
+    signup_result = (
+        supabase.table("signups")
+        .select("id, status, user_id, campaign_id")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", uid)
+        .execute()
+    )
+    signup_rows = signup_result.data or []
+
+    if not signup_rows:
+        raise HTTPException(status_code=404, detail="Signup not found")
+
+    signup = signup_rows[0]
+    if signup["status"] == "cancelled":
+        raise HTTPException(status_code=400, detail="Cancelled signup cannot be confirmed")
+
+    if signup["status"] == "confirmed":
+        return {"success": True, "data": signup}
+
+    try:
+        result = (
+            supabase.table("signups")
+            .update({"status": "confirmed"})
+            .eq("id", signup["id"])
+            .execute()
+        )
+        updated = result.data[0] if result.data else signup
+        award_points(supabase, uid, "attend", ATTENDANCE_POINTS, campaign_id)
+    except Exception as exc:
+        logger.error(
+            "Failed to confirm attendance for campaign %s user %s: %s",
+            campaign_id,
+            uid,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Failed to confirm attendance")
+
+    return {"success": True, "data": updated}
 
 
 # ── GET /campaigns/{id} ───────────────────────────────────────────────────────
