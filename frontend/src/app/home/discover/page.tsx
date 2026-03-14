@@ -69,7 +69,8 @@ export default function HomeDiscoverPage() {
   const markersRef = useRef<MapboxMarker[]>([]);
 
   const [initialCenter, setInitialCenter] = useState<LngLat>(DEFAULT_CENTER);
-  const [viewportCenter, setViewportCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [searchCenter, setSearchCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [hasMoved, setHasMoved] = useState(false);
   const [campaignPins, setCampaignPins] = useState<MapPin[]>([]);
   const [pantryPins, setPantryPins] = useState<FoodPantryPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +88,7 @@ export default function HomeDiscoverPage() {
           lng: position.coords.longitude,
         };
         setInitialCenter(nextCenter);
-        setViewportCenter(nextCenter);
+        setSearchCenter(nextCenter);
       },
       () => {
         // Keep default center when location permission is denied.
@@ -114,8 +115,7 @@ export default function HomeDiscoverPage() {
       });
 
       map.on("moveend", () => {
-        const nextCenter = map.getCenter();
-        setViewportCenter({ lat: nextCenter.lat, lng: nextCenter.lng });
+        setHasMoved(true);
       });
 
       mapRef.current = map;
@@ -147,9 +147,9 @@ export default function HomeDiscoverPage() {
       try {
         const [campaignRes, pantryRes] = await Promise.allSettled([
           fetch(
-            `${API_BASE}/map/campaigns?lat=${viewportCenter.lat}&lng=${viewportCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
+            `${API_BASE}/map/campaigns?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
           ),
-          fetch(`${API_BASE}/map/food-pantries?lat=${viewportCenter.lat}&lng=${viewportCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
+          fetch(`${API_BASE}/map/food-pantries?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
         ]);
 
         const issues: string[] = [];
@@ -196,7 +196,7 @@ export default function HomeDiscoverPage() {
     };
 
     void fetchPins();
-  }, [viewportCenter.lat, viewportCenter.lng]);
+  }, [searchCenter.lat, searchCenter.lng]);
 
   useEffect(() => {
     if (!mapRef.current || !MAPBOX_TOKEN) return;
@@ -286,8 +286,27 @@ export default function HomeDiscoverPage() {
             </div>
           ) : null}
 
-          <div className="mt-5 h-[560px] overflow-hidden rounded-2xl border border-yellow-100 bg-[#FFFDF2]">
+          <div className="relative mt-5 h-[560px] overflow-hidden rounded-2xl border border-yellow-100 bg-[#FFFDF2]">
             <div ref={mapContainerRef} className="h-full w-full" />
+            {hasMoved && !loading && (
+              <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2">
+                <button
+                  onClick={() => {
+                    const map = mapRef.current;
+                    if (!map) return;
+                    const c = map.getCenter();
+                    setSearchCenter({ lat: c.lat, lng: c.lng });
+                    setHasMoved(false);
+                  }}
+                  className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-lg ring-1 ring-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+                  </svg>
+                  Search this area
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
