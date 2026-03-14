@@ -28,14 +28,6 @@ const stats = [
   { label: "corporate partners", value: 30, suffix: "+" },
 ];
 
-const roleOptions = [
-  { value: "volunteer", label: "Volunteer" },
-  { value: "admin", label: "Admin" },
-  { value: "food_pantry_supplier", label: "Food pantry Supplier" },
-] as const;
-
-type RoleValue = (typeof roleOptions)[number]["value"];
-
 function StatNumber({ value, suffix }: { value: number; suffix: string }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const inView = useInView(ref, { once: true, margin: "-20%" });
@@ -68,7 +60,6 @@ export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [selectedRole, setSelectedRole] = useState<RoleValue | "">("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,12 +81,6 @@ export default function AuthPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (mode === "signup" && !selectedRole) {
-      setStatus("error");
-      setMessage("Please select a role before registering.");
-      return;
-    }
-
     setStatus("loading");
     setMessage("");
 
@@ -110,7 +95,6 @@ export default function AuthPage() {
           name,
           email,
           password,
-          role: selectedRole || undefined,
         }),
       });
 
@@ -127,7 +111,6 @@ export default function AuthPage() {
 
       if (mode === "signup") {
         localStorage.setItem("tracka.signup_name", name);
-        localStorage.setItem("tracka.signup_role", selectedRole);
         setStatus("success");
         setMessage("Account created successfully. Please sign in.");
         setPassword("");
@@ -286,28 +269,6 @@ export default function AuthPage() {
               </div>
 
               <form className="space-y-4" onSubmit={handleSubmit}>
-                {mode === "signup" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-600">Choose role before register</label>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      {roleOptions.map((role) => (
-                        <button
-                          key={role.value}
-                          type="button"
-                          onClick={() => setSelectedRole(role.value)}
-                          className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
-                            selectedRole === role.value
-                              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                              : "border-yellow-100 bg-white text-slate-600 hover:border-emerald-200"
-                          }`}
-                        >
-                          {role.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <AnimatePresence initial={false}>
                   {mode === "signup" && (
                     <motion.div
