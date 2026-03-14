@@ -68,19 +68,57 @@ def health():
 
 
 @app.post("/auth/signup")
-async def sign_up(request: SignUpRequest):
+async def sign_up(
+    request: SignUpRequest,
+    supabase=Depends(get_supabase_client),
+):
     try:
-        supabase = get_supabase_client()
         response = supabase.auth.sign_up(
             {
                 "email": request.email,
                 "password": request.password,
             }
         )
-        return {"message": "Sign up successful", "user": response.user}
     except Exception as exc:
         logger.error("Signup failed for %s: %s", request.email, exc)
         raise HTTPException(status_code=400, detail="Sign up failed. Please try again.")
+
+    auth_user = getattr(response, "user", None)
+    user_id = getattr(auth_user, "id", None)
+    user_email = getattr(auth_user, "email", None) or request.email
+
+    if not user_id:
+        logger.error("Signup succeeded but auth user ID missing for %s", request.email)
+        raise HTTPException(
+            status_code=500,
+            detail="User created in auth, but failed to initialize profile.",
+        )
+
+    user_meta = getattr(auth_user, "user_metadata", {}) or {}
+    display_name = (
+        user_meta.get("full_name")
+        or user_meta.get("name")
+        or user_email.split("@")[0]
+    )
+
+    try:
+        supabase.table("users").upsert(
+            {
+                "id": user_id,
+                "email": user_email,
+                "name": display_name,
+                "role": "volunteer",
+            },
+            on_conflict="id",
+        ).execute()
+    except Exception as exc:
+        logger.error("Failed creating profile row for %s (%s): %s", request.email, user_id, exc)
+        raise HTTPException(
+            status_code=500,
+            detail="User created in auth, but failed to initialize profile.",
+        )
+
+    return {"message": "Sign up successful", "user": auth_user}
 
 
 @app.post("/auth/signin")
