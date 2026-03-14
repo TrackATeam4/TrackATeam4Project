@@ -3,8 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from auth import get_current_user
 from supabase_client import get_supabase_client
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from routes.map import router as map_router, pantry_router, admin_analytics_router, admin_campaign_router
 
 app = FastAPI(title="TrackA API", version="1.0.0")
+
+app.include_router(map_router)
+app.include_router(pantry_router)
+app.include_router(admin_analytics_router)
+app.include_router(admin_campaign_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,3 +88,32 @@ async def reset_password(request: ResetPasswordRequest):
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
     return {"user": user}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    detail = exc.detail
+
+    if isinstance(detail, dict) and {"success", "error", "code"} <= detail.keys():
+        return JSONResponse(status_code=exc.status_code, content=detail)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": str(detail),
+            "code": "HTTP_ERROR",
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "error": "Invalid request parameters",
+            "code": "VALIDATION_ERROR",
+        },
+    )
