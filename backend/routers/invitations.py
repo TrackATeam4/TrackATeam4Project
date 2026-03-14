@@ -68,6 +68,30 @@ def _get_organizer_email(supabase, organizer_id: str) -> str:
     return result.data["email"] if result.data else "noreply@tracka.app"
 
 
+# ── GET /campaigns/{id}/calendar-url ─────────────────────────────────────────
+
+
+@router.get("/campaigns/{campaign_id}/calendar-url")
+def get_campaign_calendar_url(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Return a pre-filled Google Calendar URL for any campaign. Auth required."""
+    campaign = _get_campaign_or_404(supabase, campaign_id)
+    c_date, c_start, c_end = _parse_campaign_datetimes(campaign)
+
+    url = build_google_calendar_url(
+        title=campaign["title"],
+        description=campaign.get("description") or "",
+        location=campaign["address"],
+        event_date=c_date,
+        start_time=c_start,
+        end_time=c_end,
+    )
+    return {"success": True, "data": {"google_calendar_url": url, "campaign_id": campaign_id}}
+
+
 # ── POST /campaigns/{id}/invitations ─────────────────────────────────────────
 
 
