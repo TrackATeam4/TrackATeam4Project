@@ -1,6 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
@@ -101,10 +103,10 @@ const mockPosts: Post[] = [
 
 const navItems = [
   { label: "Feed", icon: "🏠", href: "/home" },
-  { label: "Discover", icon: "🗺️", href: "/discover" },
-  { label: "Create Campaign", icon: "➕", href: "/create" },
-  { label: "Leaderboard", icon: "📊", href: "/leaderboard" },
-  { label: "My Profile", icon: "👤", href: "/profile" },
+  { label: "Discover", icon: "🗺️", href: "/home/discover" },
+  { label: "Create Campaign", icon: "➕", href: "/home/create" },
+  { label: "Leaderboard", icon: "📊", href: "/home/leaderboard" },
+  { label: "My Profile", icon: "👤", href: "/home/profile" },
 ];
 
 type PostFormState = {
@@ -249,7 +251,7 @@ export default function HomePage() {
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xl font-bold text-[#065F46]">
-              <span className="text-2xl">🍋</span>
+                <Image src="/logo.svg" alt="Lemontree" width={24} height={24} className="h-6 w-6" />
               Lemontree
             </div>
             <p className="text-xs text-slate-400">Volunteer Hub</p>
@@ -257,7 +259,7 @@ export default function HomePage() {
 
           <nav className="mt-10 flex flex-1 flex-col gap-2 text-sm">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.label}
                 href={item.href}
                 className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition ${
@@ -268,12 +270,12 @@ export default function HomePage() {
               >
                 <span className="text-lg">{item.icon}</span>
                 <span>{item.label}</span>
-              </a>
+              </Link>
             ))}
           </nav>
 
           <div className="mt-6 space-y-3">
-            <div className="flex items-center gap-3 rounded-2xl bg-[#FFFEF5] px-3 py-2">
+            <Link href="/home/profile" className="flex items-center gap-3 rounded-2xl bg-[#FFFEF5] px-3 py-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
                 {userName.charAt(0).toUpperCase()}
               </div>
@@ -283,7 +285,7 @@ export default function HomePage() {
                   Volunteer
                 </span>
               </div>
-            </div>
+            </Link>
             <button className="text-xs text-slate-400 hover:text-slate-600">Logout</button>
           </div>
         </motion.aside>
@@ -291,7 +293,7 @@ export default function HomePage() {
         <aside className="fixed left-0 top-0 hidden h-screen w-20 flex-col border-r border-yellow-100 bg-white px-3 py-8 md:flex lg:hidden">
           <div className="flex flex-col items-center gap-4 text-xl">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.label}
                 href={item.href}
                 className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
@@ -301,7 +303,7 @@ export default function HomePage() {
                 }`}
               >
                 {item.icon}
-              </a>
+              </Link>
             ))}
           </div>
         </aside>
@@ -522,7 +524,7 @@ export default function HomePage() {
 
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-yellow-100 bg-white py-3 md:hidden">
         {navItems.map((item) => (
-          <a
+          <Link
             key={item.label}
             href={item.href}
             className={`text-xl ${
@@ -530,7 +532,7 @@ export default function HomePage() {
             }`}
           >
             {item.icon}
-          </a>
+          </Link>
         ))}
       </nav>
 

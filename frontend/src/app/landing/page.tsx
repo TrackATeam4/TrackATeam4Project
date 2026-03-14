@@ -31,7 +31,7 @@ export default function LandingPage() {
 
           <Link
             href="/auth?mode=signup"
-            className="flex w-[210px] items-center justify-center text-3xl font-black tracking-[0.12em] text-[#0E2A3B] transition hover:bg-[#d9b83a]"
+            className="flex w-[210px] items-center justify-center bg-[#E5C64A] text-3xl font-black tracking-[0.12em] text-[#0E2A3B] transition hover:bg-[#d9b83a]"
           >
             REGISTER
           </Link>
