@@ -5,7 +5,8 @@ from pydantic import BaseModel, EmailStr, Field
 import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
-from routers import campaigns, impact, feed, promotion, leaderboard, chat
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, invitations
+from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,6 +28,17 @@ app.include_router(feed.router)
 app.include_router(promotion.router)
 app.include_router(leaderboard.router)
 app.include_router(chat.router)
+app.include_router(invitations.router)
+
+
+@app.on_event("startup")
+def on_startup():
+    start_scheduler()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    stop_scheduler()
 
 
 class SignUpRequest(BaseModel):
