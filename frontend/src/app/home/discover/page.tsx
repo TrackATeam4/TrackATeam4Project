@@ -31,7 +31,7 @@ type LngLat = { lat: number; lng: number };
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "").trim();
 const DEFAULT_CENTER: LngLat = { lat: 40.7128, lng: -74.006 };
-const DEFAULT_RADIUS_KM = 3;
+const DEFAULT_RADIUS_KM = 5;
 
 const parseArrayData = <T,>(payload: unknown): T[] => {
   if (!payload || typeof payload !== "object") return [];
@@ -68,24 +68,15 @@ const createCampaignPin = (): HTMLDivElement => {
 const createUserLocationPin = (): HTMLDivElement => {
   const el = document.createElement("div");
   el.innerHTML = `
-    <div style="
-      position:relative;
-      width:20px;
-      height:20px;
-    ">
+    <div style="position:relative;width:20px;height:20px;">
       <div style="
-        position:absolute;
-        inset:0;
-        border-radius:50%;
+        position:absolute;inset:0;border-radius:50%;
         background:rgba(59,130,246,0.25);
         animation:tracka-pulse 2s ease-out infinite;
       "></div>
       <div style="
-        position:absolute;
-        inset:4px;
-        border-radius:50%;
-        background:#3b82f6;
-        border:2.5px solid #fff;
+        position:absolute;inset:4px;border-radius:50%;
+        background:#3b82f6;border:2.5px solid #fff;
         box-shadow:0 2px 6px rgba(59,130,246,0.5);
       "></div>
     </div>
@@ -93,7 +84,7 @@ const createUserLocationPin = (): HTMLDivElement => {
   return el;
 };
 
-// Pantry pin — amber teardrop with a fork icon
+// Pantry pin — amber teardrop with apple icon
 const createPantryPin = (): HTMLDivElement => {
   const el = document.createElement("div");
   el.style.cursor = "pointer";
@@ -121,7 +112,7 @@ export default function HomeDiscoverPage() {
   const markersRef = useRef<MapboxMarker[]>([]);
   const userMarkerRef = useRef<MapboxMarker | null>(null);
 
-  const [initialCenter, setInitialCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [mapReady, setMapReady] = useState(false);
   const [searchCenter, setSearchCenter] = useState<LngLat>(DEFAULT_CENTER);
   const [userLocation, setUserLocation] = useState<LngLat | null>(null);
   const [hasMoved, setHasMoved] = useState(false);
@@ -129,33 +120,43 @@ export default function HomeDiscoverPage() {
   const [campaignPins, setCampaignPins] = useState<MapPin[]>([]);
   const [pantryPins, setPantryPins] = useState<FoodPantryPin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
 
   const totalCampaigns = useMemo(() => campaignPins.length, [campaignPins]);
   const totalPantries = useMemo(() => pantryPins.length, [pantryPins]);
 
-  useEffect(() => {
+  // ── Request geolocation on mount ──────────────────────────────────────────
+  const requestLocation = () => {
     if (!navigator.geolocation) return;
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const nextCenter = {
+        const loc: LngLat = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-        setInitialCenter(nextCenter);
-        setSearchCenter(nextCenter);
-        setUserLocation(nextCenter);
+        setUserLocation(loc);
+        setSearchCenter(loc);
+        setLocating(false);
+        // Fly the map to user's location
+        if (mapRef.current) {
+          mapRef.current.flyTo({ center: [loc.lng, loc.lat], zoom: 13, duration: 1200 });
+        }
       },
-      () => {
-        // Keep default center when location permission is denied.
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
     );
-  }, []);
+  };
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN || !mapContainerRef.current || mapRef.current) return;
+    requestLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // ── Initialise Mapbox once ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !mapContainerRef.current || mapRef.current) return;
     let cancelled = false;
 
     const initMap = async () => {
@@ -166,14 +167,15 @@ export default function HomeDiscoverPage() {
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: "mapbox://styles/mapbox/streets-v12",
-        center: [initialCenter.lng, initialCenter.lat],
+        center: [DEFAULT_CENTER.lng, DEFAULT_CENTER.lat],
         zoom: 11,
       });
 
-      map.on("moveend", () => {
-        setHasMoved(true);
+      map.on("load", () => {
+        if (!cancelled) setMapReady(true);
       });
 
+      map.on("moveend", () => setHasMoved(true));
       mapRef.current = map;
     };
 
@@ -181,46 +183,13 @@ export default function HomeDiscoverPage() {
 
     return () => {
       cancelled = true;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
+      mapRef.current?.remove();
+      mapRef.current = null;
+      setMapReady(false);
     };
-  }, [initialCenter.lat, initialCenter.lng]);
+  }, []); // intentionally empty — map is only ever created once
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    map.flyTo({ center: [initialCenter.lng, initialCenter.lat], zoom: 11, duration: 800 });
-  }, [initialCenter.lat, initialCenter.lng]);
-
-  // Place / update the "You are here" pin whenever location or map changes
-  useEffect(() => {
-    if (!userLocation || !mapRef.current || !MAPBOX_TOKEN) return;
-
-    const placeUserPin = async () => {
-      const mapboxglModule: MapboxModule = (await import("mapbox-gl")).default;
-      const map = mapRef.current;
-      if (!map) return;
-
-      const popup = new mapboxglModule.Popup({ offset: 14, className: "tracka-popup" }).setHTML(
-        `<div style="font-family:system-ui;padding:4px 2px;font-size:13px;font-weight:600;color:#1e40af">📍 You are here</div>`
-      );
-
-      if (userMarkerRef.current) {
-        userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
-      } else {
-        userMarkerRef.current = new mapboxglModule.Marker({ element: createUserLocationPin(), anchor: "center" })
-          .setLngLat([userLocation.lng, userLocation.lat])
-          .setPopup(popup)
-          .addTo(map);
-      }
-    };
-
-    void placeUserPin();
-  }, [userLocation]);
-
+  // ── Fetch pins whenever searchCenter or radius changes ─────────────────────
   useEffect(() => {
     const fetchPins = async () => {
       setLoading(true);
@@ -231,23 +200,25 @@ export default function HomeDiscoverPage() {
           fetch(
             `${API_BASE}/map/campaigns?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${radiusKm}&status=published`
           ),
-          fetch(`${API_BASE}/map/food-pantries?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${radiusKm}`),
+          fetch(
+            `${API_BASE}/map/food-pantries?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${radiusKm}`
+          ),
         ]);
 
         const issues: string[] = [];
 
         let nextCampaignPins: MapPin[] = [];
         if (campaignRes.status === "fulfilled" && campaignRes.value.ok) {
-          const campaignPayload = await campaignRes.value.json();
-          nextCampaignPins = parseArrayData<MapPin>(campaignPayload);
+          const payload = await campaignRes.value.json();
+          nextCampaignPins = parseArrayData<MapPin>(payload);
         } else {
           issues.push("Campaign endpoint unavailable");
         }
 
         let backendPantries: FoodPantryPin[] = [];
         if (pantryRes.status === "fulfilled" && pantryRes.value.ok) {
-          const pantryPayload = await pantryRes.value.json();
-          backendPantries = parseArrayData<FoodPantryPin>(pantryPayload);
+          const payload = await pantryRes.value.json();
+          backendPantries = parseArrayData<FoodPantryPin>(payload);
         } else {
           issues.push("Pantry endpoint unavailable");
         }
@@ -255,23 +226,20 @@ export default function HomeDiscoverPage() {
         const dedupedPantries = backendPantries.filter(
           (pin, index, all) =>
             all.findIndex(
-              (candidate) =>
-                candidate.name.toLowerCase() === pin.name.toLowerCase() &&
-                Math.abs(candidate.latitude - pin.latitude) < 0.0001 &&
-                Math.abs(candidate.longitude - pin.longitude) < 0.0001
+              (c) =>
+                c.name.toLowerCase() === pin.name.toLowerCase() &&
+                Math.abs(c.latitude - pin.latitude) < 0.0001 &&
+                Math.abs(c.longitude - pin.longitude) < 0.0001
             ) === index
         );
 
         setCampaignPins(nextCampaignPins);
         setPantryPins(dedupedPantries);
-
-        if (issues.length > 0) {
-          setError(`Partial map data: ${issues.join(" | ")}`);
-        }
-      } catch (fetchError) {
+        if (issues.length > 0) setError(`Partial map data: ${issues.join(" | ")}`);
+      } catch (err) {
         setCampaignPins([]);
         setPantryPins([]);
-        setError(fetchError instanceof Error ? fetchError.message : "Unable to load Discover map data.");
+        setError(err instanceof Error ? err.message : "Unable to load map data.");
       } finally {
         setLoading(false);
       }
@@ -280,15 +248,16 @@ export default function HomeDiscoverPage() {
     void fetchPins();
   }, [searchCenter.lat, searchCenter.lng, radiusKm]);
 
+  // ── Draw campaign + pantry markers once map is ready ──────────────────────
   useEffect(() => {
-    if (!mapRef.current || !MAPBOX_TOKEN) return;
+    if (!mapReady || !MAPBOX_TOKEN) return;
 
     const drawMarkers = async () => {
       const mapboxglModule: MapboxModule = (await import("mapbox-gl")).default;
       const map = mapRef.current;
       if (!map) return;
 
-      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
 
       const allPoints: Array<[number, number]> = [];
@@ -301,12 +270,10 @@ export default function HomeDiscoverPage() {
             <div style="font-size:12px;color:#16a34a;font-weight:600">${pin.signup_count}${pin.max_volunteers ? `/${pin.max_volunteers}` : ""} volunteers joined</div>
           </div>
         `);
-
         const marker = new mapboxglModule.Marker({ element: createCampaignPin(), anchor: "bottom" })
           .setLngLat([pin.longitude, pin.latitude])
           .setPopup(popup)
           .addTo(map);
-
         markersRef.current.push(marker);
         allPoints.push([pin.longitude, pin.latitude]);
       });
@@ -318,12 +285,10 @@ export default function HomeDiscoverPage() {
             <div style="font-size:12px;color:#64748b">📍 ${pin.address ?? "Food pantry"}</div>
           </div>
         `);
-
         const marker = new mapboxglModule.Marker({ element: createPantryPin(), anchor: "bottom" })
           .setLngLat([pin.longitude, pin.latitude])
           .setPopup(popup)
           .addTo(map);
-
         markersRef.current.push(marker);
         allPoints.push([pin.longitude, pin.latitude]);
       });
@@ -338,7 +303,35 @@ export default function HomeDiscoverPage() {
     };
 
     void drawMarkers();
-  }, [campaignPins, pantryPins]);
+  }, [campaignPins, pantryPins, mapReady]);
+
+  // ── Place / update "You are here" pin ─────────────────────────────────────
+  useEffect(() => {
+    if (!userLocation || !mapReady || !MAPBOX_TOKEN) return;
+
+    const placeUserPin = async () => {
+      const mapboxglModule: MapboxModule = (await import("mapbox-gl")).default;
+      const map = mapRef.current;
+      if (!map) return;
+
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLngLat([userLocation.lng, userLocation.lat]);
+      } else {
+        const popup = new mapboxglModule.Popup({ offset: 14, className: "tracka-popup" }).setHTML(
+          `<div style="font-family:system-ui;padding:4px 2px;font-size:13px;font-weight:600;color:#1e40af">📍 You are here</div>`
+        );
+        userMarkerRef.current = new mapboxglModule.Marker({
+          element: createUserLocationPin(),
+          anchor: "center",
+        })
+          .setLngLat([userLocation.lng, userLocation.lat])
+          .setPopup(popup)
+          .addTo(map);
+      }
+    };
+
+    void placeUserPin();
+  }, [userLocation, mapReady]);
 
   return (
     <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700">
@@ -357,9 +350,7 @@ export default function HomeDiscoverPage() {
                   key={km}
                   onClick={() => setRadiusKm(km)}
                   className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
-                    radiusKm === km
-                      ? "bg-emerald-500 text-white"
-                      : "hover:bg-slate-100 text-slate-500"
+                    radiusKm === km ? "bg-emerald-500 text-white" : "hover:bg-slate-100 text-slate-500"
                   }`}
                 >
                   {km}km
@@ -370,10 +361,24 @@ export default function HomeDiscoverPage() {
         </div>
 
         <section className="rounded-3xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60">
-          <h1 className="text-3xl font-bold text-[#0F172A]">Discover Nearby Impact</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Campaign pins are fetched from <span className="font-medium">/map/campaigns</span> and pantry pins from <span className="font-medium">/map/food-pantries</span>.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-[#0F172A]">Discover Nearby Impact</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Flyering campaigns and food pantries near you.
+              </p>
+            </div>
+            <button
+              onClick={requestLocation}
+              disabled={locating}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 ring-1 ring-blue-200 transition hover:bg-blue-100 disabled:opacity-60"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                <circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+              {locating ? "Locating…" : userLocation ? "Re-locate me" : "Locate me"}
+            </button>
+          </div>
 
           {!MAPBOX_TOKEN ? (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
@@ -421,7 +426,7 @@ export default function HomeDiscoverPage() {
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-500" /> You</span>
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-600" /> Campaign</span>
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" /> Food Pantry</span>
-            {loading ? <span>Refreshing pins...</span> : null}
+            {loading ? <span className="text-slate-400">Refreshing pins…</span> : null}
           </div>
         </section>
       </div>
