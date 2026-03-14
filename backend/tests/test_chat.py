@@ -1,6 +1,6 @@
 """Tests for chat router endpoints."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -39,6 +39,13 @@ def _mock_table_result(data):
     result = MagicMock()
     result.data = data
     return result
+
+
+def _set_session_lookup(session_tbl, session_data):
+    """Mock chat_sessions select-by-id lookup using limit(1)."""
+    session_tbl.select.return_value.eq.return_value.limit.return_value.execute.return_value = (
+        _mock_table_result(session_data)
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -96,8 +103,7 @@ class TestGetSession:
 
     def test_get_session_success(self, client, mock_supabase):
         session_tbl = MagicMock()
-        session_result = _mock_table_result(MOCK_SESSION)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
 
         msg_tbl = MagicMock()
         msg_result = _mock_table_result(MOCK_MESSAGES)
@@ -114,20 +120,37 @@ class TestGetSession:
         assert body["session"]["id"] == SESSION_ID
         assert len(body["messages"]) == 2
 
-    def test_get_session_not_found(self, client, mock_supabase):
-        session_tbl = MagicMock()
-        session_result = _mock_table_result(None)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+    def test_get_session_creates_new_session_when_missing(self, client, mock_supabase):
+        created_session = {**MOCK_SESSION, "id": "660e8400-e29b-41d4-a716-446655440099"}
 
-        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+        session_tbl = MagicMock()
+        _set_session_lookup(session_tbl, [])
+        session_tbl.insert.return_value.execute.return_value = _mock_table_result([created_session])
+
+        msg_tbl = MagicMock()
+        msg_tbl.select.return_value.eq.return_value.order.return_value.execute.return_value = _mock_table_result([])
+
+        mock_supabase.table.side_effect = _make_table_router({
+            "chat_sessions": session_tbl,
+            "chat_messages": msg_tbl,
+        })
 
         resp = client.get(f"/chat/session/{SESSION_ID}")
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["session"]["id"] == created_session["id"]
+        assert body["session"]["context"] == {}
+        assert body["messages"] == []
+        session_tbl.insert.assert_called_once_with({
+            "user_id": USER_ID,
+            "context": {},
+            "status": "active",
+        })
+        msg_tbl.select.return_value.eq.return_value.order.return_value.execute.assert_called_once()
 
     def test_get_session_wrong_user(self, client, mock_supabase):
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "user_id": OTHER_USER_ID})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "user_id": OTHER_USER_ID}])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -145,8 +168,7 @@ class TestSendMessage:
     def test_send_message_success(self, client, mock_supabase, mock_agent):
         # Session lookup
         session_tbl = MagicMock()
-        session_result = _mock_table_result(MOCK_SESSION)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
 
         # Message insert
         msg_tbl = MagicMock()
@@ -166,6 +188,7 @@ class TestSendMessage:
         })
         assert resp.status_code == 200
         body = resp.json()
+        assert body["session_id"] == SESSION_ID
         assert body["reply"] == "Hello! What would you like to organize?"
         assert "context" in body
 
@@ -173,23 +196,52 @@ class TestSendMessage:
         resp = client.post("/chat/message", json={"session_id": SESSION_ID, "message": ""})
         assert resp.status_code == 422
 
-    def test_send_message_session_not_found(self, client, mock_supabase):
-        session_tbl = MagicMock()
-        session_result = _mock_table_result(None)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+    def test_send_message_creates_new_session_when_missing(self, client, mock_supabase):
+        created_session = {**MOCK_SESSION, "id": "660e8400-e29b-41d4-a716-446655440088"}
 
-        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+        session_tbl = MagicMock()
+        session_tbl.select.return_value.eq.return_value.limit.return_value.execute.side_effect = [
+            _mock_table_result([]),
+            _mock_table_result([created_session]),
+        ]
+        session_tbl.insert.return_value.execute.return_value = _mock_table_result([created_session])
+
+        msg_tbl = MagicMock()
+        msg_tbl.insert.return_value.execute.return_value = _mock_table_result([{"id": "m3"}])
+        msg_tbl.select.return_value.eq.return_value.order.return_value.execute.return_value = _mock_table_result([
+            {"role": "user", "content": "hello"}
+        ])
+
+        mock_supabase.table.side_effect = _make_table_router({
+            "chat_sessions": session_tbl,
+            "chat_messages": msg_tbl,
+        })
 
         resp = client.post("/chat/message", json={
             "session_id": SESSION_ID,
             "message": "hello",
         })
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["session_id"] == created_session["id"]
+        assert body["context"] == {}
+        session_tbl.insert.assert_called_once_with({
+            "user_id": USER_ID,
+            "context": {},
+            "status": "active",
+        })
+        assert msg_tbl.insert.call_args_list == [
+            call({"session_id": created_session["id"], "role": "user", "content": "hello"}),
+            call({
+                "session_id": created_session["id"],
+                "role": "assistant",
+                "content": "Hello! What would you like to organize?",
+            }),
+        ]
 
     def test_send_message_wrong_user(self, client, mock_supabase):
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "user_id": OTHER_USER_ID})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "user_id": OTHER_USER_ID}])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -209,8 +261,7 @@ class TestSaveContext:
 
     def test_save_context_valid_field(self, client, mock_supabase):
         session_tbl = MagicMock()
-        session_result = _mock_table_result(MOCK_SESSION)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
 
         update_result = _mock_table_result([{**MOCK_SESSION, "context": {"title": "Park Event"}}])
         session_tbl.update.return_value.eq.return_value.execute.return_value = update_result
@@ -227,8 +278,7 @@ class TestSaveContext:
 
     def test_save_context_invalid_field(self, client, mock_supabase):
         session_tbl = MagicMock()
-        session_result = _mock_table_result(MOCK_SESSION)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -254,8 +304,7 @@ class TestCheckConflicts:
             "longitude": -73.968285,
             "date": "2026-04-15",
         }}
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         camp_tbl = MagicMock()
         camp_result = _mock_table_result([])  # no campaigns on that date
@@ -280,8 +329,7 @@ class TestCheckConflicts:
             "longitude": -73.968285,
             "date": "2026-04-15",
         }}
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         camp_tbl = MagicMock()
         # A campaign very close to the same location
@@ -309,8 +357,7 @@ class TestCheckConflicts:
     def test_check_conflicts_missing_location(self, client, mock_supabase):
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {"title": "Event"}}  # no location/coords/date
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -331,8 +378,7 @@ class TestSuggestPantries:
             "latitude": 40.785091,
             "longitude": -73.968285,
         }}
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         pantry_tbl = MagicMock()
         pantry_result = _mock_table_result([{
@@ -357,8 +403,7 @@ class TestSuggestPantries:
     def test_suggest_pantries_missing_coords(self, client, mock_supabase):
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {"title": "Event"}}  # no coords
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -383,8 +428,7 @@ class TestCreateCampaign:
             "end_time": "14:00",
         }
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "context": full_context})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "context": full_context}])
         # Update context with campaign_id after creation
         session_tbl.update.return_value.eq.return_value.execute.return_value = _mock_table_result([{}])
 
@@ -410,8 +454,7 @@ class TestCreateCampaign:
     def test_create_campaign_missing_fields(self, client, mock_supabase):
         partial_context = {"title": "Park Flyering"}  # missing location, address, etc.
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "context": partial_context})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "context": partial_context}])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -431,8 +474,7 @@ class TestGenerateFlyer:
     def test_generate_flyer_success(self, client, mock_supabase):
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {"campaign_id": CAMPAIGN_ID}}
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         template_tbl = MagicMock()
         template_result = _mock_table_result([{
@@ -461,8 +503,7 @@ class TestGenerateFlyer:
     def test_generate_flyer_no_campaign(self, client, mock_supabase):
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {}}  # no campaign_id
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
 
@@ -473,8 +514,7 @@ class TestGenerateFlyer:
         """Returns 404 when no flyer template exists."""
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {"campaign_id": CAMPAIGN_ID}}
-        session_result = _mock_table_result(ctx)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [ctx])
 
         template_tbl = MagicMock()
         template_result = _mock_table_result([])  # no templates
@@ -501,8 +541,7 @@ class TestSendMessageEdgeCases:
         mock_agent.invoke.side_effect = Exception("AWS Bedrock timeout")
 
         session_tbl = MagicMock()
-        session_result = _mock_table_result(MOCK_SESSION)
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
 
         msg_tbl = MagicMock()
         msg_tbl.insert.return_value.execute.return_value = _mock_table_result([{"id": "m3"}])
@@ -536,12 +575,12 @@ class TestSendMessageEdgeCases:
                     m = MagicMock()
                     def eq_fn(*a, **k):
                         m2 = MagicMock()
-                        def single_fn():
+                        def limit_fn(*_args, **_kwargs):
                             m3 = MagicMock()
-                            result = _mock_table_result(session_with_campaign)
+                            result = _mock_table_result([session_with_campaign])
                             m3.execute.return_value = result
                             return m3
-                        m2.single.side_effect = single_fn
+                        m2.limit.side_effect = limit_fn
                         return m2
                     m.eq.side_effect = eq_fn
                     return m
@@ -581,8 +620,7 @@ class TestCreateCampaignEdgeCases:
             "max_volunteers": 20,
         }
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "context": full_context})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "context": full_context}])
         session_tbl.update.return_value.eq.return_value.execute.return_value = _mock_table_result([{}])
 
         camp_tbl = MagicMock()
@@ -612,8 +650,7 @@ class TestCreateCampaignEdgeCases:
             "end_time": "14:00",
         }
         session_tbl = MagicMock()
-        session_result = _mock_table_result({**MOCK_SESSION, "context": full_context})
-        session_tbl.select.return_value.eq.return_value.single.return_value.execute.return_value = session_result
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION, "context": full_context}])
 
         camp_tbl = MagicMock()
         camp_tbl.insert.return_value.execute.side_effect = Exception("DB connection error")
@@ -625,3 +662,37 @@ class TestCreateCampaignEdgeCases:
 
         resp = client.post(f"/chat/session/{SESSION_ID}/create-campaign")
         assert resp.status_code == 500
+
+
+class TestBedrockExecutorWiring:
+    """Unit tests for Bedrock graph executor request context injection."""
+
+    def test_executor_passes_session_and_token_to_graph_builder(self, monkeypatch):
+        from langchain_core.messages import AIMessage
+        from routers.chat import _BedrockGraphExecutor
+
+        captured: dict[str, str] = {}
+
+        class FakeGraph:
+            def invoke(self, payload):
+                assert "messages" in payload
+                return {"messages": [AIMessage(content="ok")]}
+
+        def fake_build_bedrock_graph(*args, **kwargs):
+            captured["session_id"] = kwargs.get("session_id", "")
+            captured["token"] = kwargs.get("token", "")
+            return FakeGraph()
+
+        monkeypatch.setattr("routers.chat.build_bedrock_graph", fake_build_bedrock_graph)
+
+        executor = _BedrockGraphExecutor()
+        result = executor.invoke({
+            "input": "hello",
+            "chat_history": [],
+            "session_id": "session-123",
+            "token": "jwt-abc",
+        })
+
+        assert result["output"] == "ok"
+        assert captured["session_id"] == "session-123"
+        assert captured["token"] == "jwt-abc"
