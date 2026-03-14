@@ -169,6 +169,173 @@ Body: {
 
 ---
 
+### `/invite/[token]` — RSVP Page (already built)
+
+> This page is already implemented at `frontend/src/app/invite/[token]/page.tsx`.
+> You don't need to build it — just make sure your sign-in page accepts a `?redirect=` query param so unauthenticated users are returned here after login.
+
+**Flow:**
+1. Organizer sends an invite → backend emails the volunteer a link like `http://localhost:3000/invite/{token}`
+2. Volunteer clicks link → page loads, checks auth → redirects to sign-in if not logged in
+3. After sign-in, volunteer sees campaign details + Yes/No buttons
+4. Accepting creates a signup + sends a confirmation email with `.ics` attachment
+5. After accepting, an **Add to Google Calendar** button appears
+
+**Reusable component — use this anywhere you want a Google Calendar button:**
+```typescript
+import { AddToCalendarButton } from '@/components/AddToCalendarButton'
+
+// Usage
+<AddToCalendarButton url={googleCalendarUrl} />
+// or with custom class
+<AddToCalendarButton url={googleCalendarUrl} className="w-full justify-center" />
+```
+
+---
+
+### Invitations & RSVP — API Reference
+
+All endpoints require auth (`Authorization: Bearer <token>`).
+
+#### Send an invitation (organizer only)
+
+```typescript
+// POST /campaigns/{id}/invitations
+const result = await authFetch(`/campaigns/${campaignId}/invitations`, {
+  method: 'POST',
+  body: JSON.stringify({ email: 'volunteer@example.com' }),
+})
+
+// Response
+interface SendInviteResponse {
+  success: true
+  data: {
+    id: string
+    campaign_id: string
+    email: string
+    token: string
+    status: 'pending'
+    expires_at: string
+    invite_url: string   // ← shareable link: localhost:3000/invite/{token}
+    created_at: string
+  }
+}
+```
+
+Use `data.invite_url` to copy/share the invite link directly in the UI, or just let the email do it.
+
+---
+
+#### List invitations for a campaign (organizer only)
+
+```typescript
+// GET /campaigns/{id}/invitations
+const result = await authFetch(`/campaigns/${campaignId}/invitations`)
+
+// Response: array of invitations
+interface Invitation {
+  id: string
+  email: string
+  status: 'pending' | 'accepted' | 'expired'
+  created_at: string
+  expires_at: string
+}
+// result.data: Invitation[]
+```
+
+Use this to render an invite tracker table in the organizer dashboard — who was invited, who accepted, whose invite expired.
+
+---
+
+#### Load invite page data (volunteer — called by the RSVP page automatically)
+
+```typescript
+// GET /invitations/{token}
+const result = await authFetch(`/invitations/${token}`)
+
+// Response
+interface InvitePageData {
+  invitation: { id: string; status: string; email: string }
+  campaign: Campaign      // full campaign object
+  google_calendar_url: string   // pre-filled Google Calendar link
+}
+```
+
+**Status 410** means the invite has expired — show an "This invitation has expired" message.
+
+---
+
+#### Accept an invitation
+
+```typescript
+// POST /invitations/{token}/accept
+const result = await authFetch(`/invitations/${token}/accept`, { method: 'POST' })
+
+// Response
+interface AcceptResponse {
+  success: true
+  data: {
+    signup: { id: string; status: 'pending'; campaign_id: string; user_id: string }
+    google_calendar_url: string
+  }
+}
+```
+
+After accepting:
+- A signup row is created for the volunteer
+- A confirmation email with `.ics` is sent to the volunteer automatically
+- Use `data.google_calendar_url` to show the Add to Calendar button
+
+**Error 403** — logged-in user's email doesn't match the invite email. Show: *"This invitation was sent to a different email address."*
+
+---
+
+#### Decline an invitation
+
+```typescript
+// POST /invitations/{token}/decline
+await authFetch(`/invitations/${token}/decline`, { method: 'POST' })
+// Response: { success: true, data: { message: 'Invitation declined' } }
+```
+
+---
+
+#### Download .ics calendar file
+
+```typescript
+// GET /invitations/{token}/calendar.ics
+// Returns: text/calendar file download (Content-Disposition: attachment)
+
+// To trigger browser download:
+window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/invitations/${token}/calendar.ics`
+// Note: this endpoint requires auth — won't work as a plain <a href>
+// Use a button that calls authFetch with blob response instead:
+
+const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invitations/${token}/calendar.ics`, {
+  headers: { Authorization: `Bearer ${session.access_token}` },
+})
+const blob = await res.blob()
+const url = URL.createObjectURL(blob)
+const a = document.createElement('a')
+a.href = url
+a.download = 'invite.ics'
+a.click()
+URL.revokeObjectURL(url)
+```
+
+---
+
+### Where to add Invitations UI
+
+| Page | What to add |
+|------|------------|
+| Campaign detail (`/campaigns/[id]`) | "Send Invite" button (organizer only) — opens a modal with an email input that calls `POST /campaigns/{id}/invitations` |
+| Organizer dashboard (`/my/campaigns`) | Invite list per campaign — calls `GET /campaigns/{id}/invitations`, shows status badges (Pending / Accepted / Expired) |
+| After signup confirmation | `<AddToCalendarButton url={googleCalendarUrl} />` |
+| Confirmation email (auto-sent) | Already handled by backend — volunteer gets email + `.ics` automatically on accept |
+
+---
+
 ### `/my/campaigns` — Organizer Dashboard
 
 ```typescript
