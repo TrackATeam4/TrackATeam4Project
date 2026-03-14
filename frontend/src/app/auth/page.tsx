@@ -112,7 +112,14 @@ function AuthPageInner() {
       router.push("/home");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Something went wrong.");
+      const raw = error instanceof Error ? error.message : "Something went wrong.";
+      const friendly: Record<string, string> = {
+        "User already registered": "An account with this email already exists. Please sign in instead.",
+        "Invalid login credentials": "Incorrect email or password.",
+        "Email not confirmed": "Please confirm your email before signing in.",
+        "Password should be at least 6 characters": "Password must be at least 6 characters.",
+      };
+      setMessage(friendly[raw] ?? raw);
     }
   };
 

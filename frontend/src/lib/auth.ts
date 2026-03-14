@@ -26,7 +26,6 @@ export async function signUpWithEmail(email: string, password: string) {
   })
   
   if (error) {
-    console.error('Error signing up with email:', error.message)
     throw error
   }
   
