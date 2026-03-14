@@ -91,7 +91,7 @@ function AuthPageInner() {
 
     try {
       if (mode === "signup") {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password, name);
       } else {
         await signInWithEmail(email, password);
       }
