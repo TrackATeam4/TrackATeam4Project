@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header, Path
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
+from agent_app.chat_service import REQUIRED_FIELDS, VALID_CONTEXT_FIELDS
 from supabase_client import get_supabase_client
 from services.rewards import award_points, haversine_km
 
@@ -16,13 +17,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
-VALID_CONTEXT_FIELDS = {
-    "title", "location", "address", "latitude", "longitude",
-    "date", "start_time", "end_time", "max_volunteers",
-    "target_flyers", "tags", "food_pantry_id",
-}
-
-REQUIRED_FIELDS = ["title", "location", "address", "date", "start_time", "end_time"]
+# `REQUIRED_FIELDS` and `VALID_CONTEXT_FIELDS` are shared from agent_app.chat_service.
 
 
 # ---------------------------------------------------------------------------

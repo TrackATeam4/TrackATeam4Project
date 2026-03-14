@@ -1,9 +1,8 @@
-import logging
-
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 
+import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
 from routers import campaigns, impact, feed, promotion, leaderboard, chat
@@ -106,3 +105,5 @@ async def reset_password(request: ResetPasswordRequest):
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
     return {"user": user}
+
+# Chat endpoints are provided by `routers/chat.py`.
