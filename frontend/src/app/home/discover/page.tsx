@@ -31,7 +31,7 @@ type LngLat = { lat: number; lng: number };
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "").trim();
 const DEFAULT_CENTER: LngLat = { lat: 40.7128, lng: -74.006 };
-const DEFAULT_RADIUS_KM = 20;
+const DEFAULT_RADIUS_KM = 3;
 
 const parseArrayData = <T,>(payload: unknown): T[] => {
   if (!payload || typeof payload !== "object") return [];
@@ -71,6 +71,7 @@ export default function HomeDiscoverPage() {
   const [initialCenter, setInitialCenter] = useState<LngLat>(DEFAULT_CENTER);
   const [searchCenter, setSearchCenter] = useState<LngLat>(DEFAULT_CENTER);
   const [hasMoved, setHasMoved] = useState(false);
+  const [radiusKm, setRadiusKm] = useState(DEFAULT_RADIUS_KM);
   const [campaignPins, setCampaignPins] = useState<MapPin[]>([]);
   const [pantryPins, setPantryPins] = useState<FoodPantryPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,9 +148,9 @@ export default function HomeDiscoverPage() {
       try {
         const [campaignRes, pantryRes] = await Promise.allSettled([
           fetch(
-            `${API_BASE}/map/campaigns?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
+            `${API_BASE}/map/campaigns?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${radiusKm}&status=published`
           ),
-          fetch(`${API_BASE}/map/food-pantries?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
+          fetch(`${API_BASE}/map/food-pantries?lat=${searchCenter.lat}&lng=${searchCenter.lng}&radius_km=${radiusKm}`),
         ]);
 
         const issues: string[] = [];
@@ -196,7 +197,7 @@ export default function HomeDiscoverPage() {
     };
 
     void fetchPins();
-  }, [searchCenter.lat, searchCenter.lng]);
+  }, [searchCenter.lat, searchCenter.lng, radiusKm]);
 
   useEffect(() => {
     if (!mapRef.current || !MAPBOX_TOKEN) return;
@@ -262,9 +263,25 @@ export default function HomeDiscoverPage() {
           <Link href="/home" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
             ← Back to Home
           </Link>
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-xs flex-wrap">
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Events: {totalCampaigns}</span>
             <span className="rounded-full bg-yellow-100 px-3 py-1 text-yellow-700">Pantries: {totalPantries}</span>
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-600">
+              <span>Radius:</span>
+              {[1, 3, 5, 10].map((km) => (
+                <button
+                  key={km}
+                  onClick={() => setRadiusKm(km)}
+                  className={`rounded-full px-2 py-0.5 font-medium transition-colors ${
+                    radiusKm === km
+                      ? "bg-emerald-500 text-white"
+                      : "hover:bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {km}km
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
