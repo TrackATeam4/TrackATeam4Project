@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { authFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 type LeaderboardEntry = {
   rank: number;
@@ -14,8 +16,6 @@ type LeaderboardEntry = {
 
 type LeaderboardScope = "global" | "nearby";
 type LeaderboardPeriod = "all_time" | "monthly" | "weekly";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const parseEntries = (payload: unknown): LeaderboardEntry[] => {
   if (!payload || typeof payload !== "object") return [];
@@ -45,16 +45,6 @@ export default function HomeLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const authHeaders = (): HeadersInit => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
-      throw new Error("Missing auth token.");
-    }
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  };
-
   const fetchNearby = useCallback(async (): Promise<LeaderboardEntry[]> => {
     if (!navigator.geolocation) {
       throw new Error("Geolocation is not supported in this browser.");
@@ -68,46 +58,31 @@ export default function HomeLeaderboardPage() {
       );
     });
 
-    const response = await fetch(
-      `${API_BASE}/leaderboard/nearby?lat=${coords.latitude}&lng=${coords.longitude}&radius_km=20`,
-      {
-        headers: authHeaders(),
-      }
+    const response = await authFetch<LeaderboardEntry[]>(
+      `/leaderboard/nearby?lat=${coords.latitude}&lng=${coords.longitude}&radius_km=20`
     );
-
-    if (!response.ok) {
-      throw new Error("Failed to load nearby leaderboard.");
-    }
-
-    const payload = await response.json();
-    return parseEntries(payload);
+    return parseEntries(response);
   }, []);
 
   const fetchGlobal = useCallback(async (): Promise<LeaderboardEntry[]> => {
-    const response = await fetch(`${API_BASE}/leaderboard?scope=global&period=${period}`, {
-      headers: authHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to load global leaderboard.");
-    }
-
-    const payload = await response.json();
-    return parseEntries(payload);
+    const response = await authFetch<LeaderboardEntry[]>(`/leaderboard?scope=global&period=${period}`);
+    return parseEntries(response);
   }, [period]);
 
   useEffect(() => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
-      router.push("/auth");
-      return;
-    }
-
     const load = async () => {
       setLoading(true);
       setError("");
 
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/auth");
+          return;
+        }
+
         const nextEntries = scope === "nearby" ? await fetchNearby() : await fetchGlobal();
         setEntries(nextEntries);
       } catch (loadError) {

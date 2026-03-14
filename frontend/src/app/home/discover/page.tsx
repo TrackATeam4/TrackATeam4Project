@@ -24,17 +24,14 @@ type FoodPantryPin = {
   latitude: number;
   longitude: number;
   address?: string;
-  source?: "backend" | "foodhelpline";
 };
 
 type LngLat = { lat: number; lng: number };
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "").trim();
 const DEFAULT_CENTER: LngLat = { lat: 40.7128, lng: -74.006 };
 const DEFAULT_RADIUS_KM = 20;
-const MAX_FOODHELPLINE_PINS = 220;
-const FOODHELPLINE_RESOURCES_API = "https://platform.foodhelpline.org/api/resources";
 
 const parseArrayData = <T,>(payload: unknown): T[] => {
   if (!payload || typeof payload !== "object") return [];
@@ -43,96 +40,6 @@ const parseArrayData = <T,>(payload: unknown): T[] => {
   if (Array.isArray(root.items)) return root.items as T[];
   if (Array.isArray(payload)) return payload as T[];
   return [];
-};
-
-const toNumber = (value: unknown): number | null => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-    const parsed = Number(trimmed);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-};
-
-const haversineKm = (a: LngLat, b: LngLat): number => {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-
-  const sinDLat = Math.sin(dLat / 2);
-  const sinDLng = Math.sin(dLng / 2);
-  const aa = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
-  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
-  return R * c;
-};
-
-const parseFoodHelplinePins = (payload: unknown, centerPoint: LngLat): FoodPantryPin[] => {
-  if (!payload || typeof payload !== "object") return [];
-
-  const root = payload as Record<string, unknown>;
-  const dataNode = root.data;
-  const jsonNode = root.json;
-  const resourcesNode =
-    (dataNode && typeof dataNode === "object" && Array.isArray((dataNode as Record<string, unknown>).resources)
-      ? (dataNode as Record<string, unknown>).resources
-      : null) ||
-    (jsonNode && typeof jsonNode === "object" && Array.isArray((jsonNode as Record<string, unknown>).resources)
-      ? (jsonNode as Record<string, unknown>).resources
-      : null) ||
-    (Array.isArray(root.resources) ? root.resources : null) ||
-    (Array.isArray(root.data) ? root.data : null) ||
-    (Array.isArray(payload) ? payload : null);
-
-  if (!Array.isArray(resourcesNode)) return [];
-
-  const parsed = resourcesNode
-    .map((item, index) => {
-      if (!item || typeof item !== "object") return null;
-      const candidate = item as Record<string, unknown>;
-      const location = candidate.location as Record<string, unknown> | undefined;
-
-      const latitude =
-        toNumber(candidate.latitude) ?? toNumber(candidate.lat) ?? toNumber(location?.latitude) ?? toNumber(location?.lat);
-      const longitude =
-        toNumber(candidate.longitude) ?? toNumber(candidate.lng) ?? toNumber(location?.longitude) ?? toNumber(location?.lng);
-
-      if (latitude === null || longitude === null) return null;
-
-      const distance = haversineKm(centerPoint, { lat: latitude, lng: longitude });
-
-      const name =
-        (typeof candidate.name === "string" && candidate.name.trim()) ||
-        (typeof candidate.title === "string" && candidate.title.trim()) ||
-        `Food Resource ${index + 1}`;
-
-      const addressParts = [
-        typeof candidate.addressStreet1 === "string" ? candidate.addressStreet1 : "",
-        typeof candidate.city === "string" ? candidate.city : "",
-        typeof candidate.state === "string" ? candidate.state : "",
-      ].filter(Boolean);
-
-      const pin: FoodPantryPin = {
-        id: `fh-${String(candidate.id ?? index)}`,
-        name,
-        latitude,
-        longitude,
-        address: addressParts.join(", ") || "Food Helpline Resource",
-        source: "foodhelpline",
-      };
-
-      return { pin, distance };
-    })
-    .filter((entry): entry is { pin: FoodPantryPin; distance: number } => entry !== null)
-    .sort((a, b) => a.distance - b.distance)
-    .slice(0, MAX_FOODHELPLINE_PINS)
-    .map((entry) => entry.pin);
-
-  return parsed;
 };
 
 const createPinMarker = (color: string, label?: string): HTMLDivElement => {
@@ -243,12 +150,11 @@ export default function HomeDiscoverPage() {
       setError("");
 
       try {
-        const [campaignRes, pantryRes, resourceRes] = await Promise.allSettled([
+        const [campaignRes, pantryRes] = await Promise.allSettled([
           fetch(
             `${API_BASE}/map/campaigns?lat=${center.lat}&lng=${center.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
           ),
           fetch(`${API_BASE}/map/food-pantries?lat=${center.lat}&lng=${center.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
-          fetch(FOODHELPLINE_RESOURCES_API),
         ]);
 
         const issues: string[] = [];
@@ -264,29 +170,12 @@ export default function HomeDiscoverPage() {
         let backendPantries: FoodPantryPin[] = [];
         if (pantryRes.status === "fulfilled" && pantryRes.value.ok) {
           const pantryPayload = await pantryRes.value.json();
-          backendPantries = parseArrayData<FoodPantryPin>(pantryPayload).map((pin) => ({
-            ...pin,
-            source: "backend" as const,
-          }));
+          backendPantries = parseArrayData<FoodPantryPin>(pantryPayload);
         } else {
           issues.push("Pantry endpoint unavailable");
         }
 
-        let foodHelplinePantries: FoodPantryPin[] = [];
-        if (resourceRes.status === "fulfilled" && resourceRes.value.ok) {
-          const resourcePayload = await resourceRes.value.json();
-          foodHelplinePantries = parseFoodHelplinePins(resourcePayload, {
-            lat: center.lat,
-            lng: center.lng,
-          });
-          if (foodHelplinePantries.length === 0) {
-            issues.push("Food Helpline returned 0 coordinates");
-          }
-        } else {
-          issues.push("Food Helpline endpoint unavailable");
-        }
-
-        const dedupedPantries = [...backendPantries, ...foodHelplinePantries].filter(
+        const dedupedPantries = backendPantries.filter(
           (pin, index, all) =>
             all.findIndex(
               (candidate) =>
@@ -344,8 +233,7 @@ export default function HomeDiscoverPage() {
       });
 
       pantryPins.forEach((pin) => {
-        const pinColor = pin.source === "foodhelpline" ? "#f59e0b" : "#eab308";
-        const pinMarker = createPinMarker(pinColor, pin.source === "foodhelpline" ? pin.name : undefined);
+        const pinMarker = createPinMarker("#eab308");
 
         const popup = new mapboxglModule.Popup({ offset: 14 }).setHTML(
           `<div style="font-family:system-ui;min-width:210px"><strong>${pin.name}</strong><br/><span style="font-size:12px;color:#475569">${pin.address ?? "Food pantry"}</span></div>`
@@ -388,7 +276,7 @@ export default function HomeDiscoverPage() {
         <section className="rounded-3xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60">
           <h1 className="text-3xl font-bold text-[#0F172A]">Discover Nearby Impact</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Campaign pins are fetched from <span className="font-medium">/map/campaigns</span>, pantry pins from <span className="font-medium">/map/food-pantries</span>, plus Food Helpline resources API coordinates.
+            Campaign pins are fetched from <span className="font-medium">/map/campaigns</span> and pantry pins from <span className="font-medium">/map/food-pantries</span>.
           </p>
 
           {!MAPBOX_TOKEN ? (
@@ -409,8 +297,7 @@ export default function HomeDiscoverPage() {
 
           <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
             <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-600" /> Campaign</span>
-            <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" /> Food Pantry (backend)</span>
-            <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" /> Food Helpline Resource</span>
+            <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" /> Food Pantry</span>
             {loading ? <span>Refreshing pins...</span> : null}
           </div>
         </section>

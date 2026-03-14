@@ -1,10 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion, useInView, useMotionValue, animate } from "framer-motion";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
 
 const featureItems = [
   {
@@ -61,24 +61,19 @@ function StatNumber({ value, suffix }: { value: number; suffix: string }) {
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const requestedMode = searchParams.get("mode");
+  const isCreatedBanner = searchParams.get("created") === "1";
+  const initialMode = requestedMode === "signup" ? "signup" : "signin";
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    const requestedMode = searchParams.get("mode");
-    if (requestedMode === "signin" || requestedMode === "signup") {
-      setMode(requestedMode);
-    }
-
-    if (searchParams.get("created") === "1") {
-      setStatus("success");
-      setMessage("Account created successfully. Please sign in.");
-    }
-  }, [searchParams]);
+  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
+    isCreatedBanner ? "success" : "idle"
+  );
+  const [message, setMessage] = useState(
+    isCreatedBanner ? "Account created successfully. Please sign in." : ""
+  );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -87,32 +82,14 @@ export default function AuthPage() {
     setMessage("");
 
     try {
-      const endpoint = mode === "signup" ? "/auth/signup" : "/auth/signin";
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => ({}));
-        throw new Error(errorPayload.detail || "Authentication failed.");
+      if (mode === "signup") {
+        await signUpWithEmail(email, password);
+      } else {
+        await signInWithEmail(email, password);
       }
-
-      const payload = await response.json();
 
       if (email) {
         localStorage.setItem("tracka.user_email", email);
-      }
-
-      if (payload?.session?.access_token) {
-        localStorage.setItem("tracka.access_token", payload.session.access_token);
       }
 
       if (mode === "signup") {
@@ -137,7 +114,7 @@ export default function AuthPage() {
       <header className="sticky top-0 z-20">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-3 text-2xl font-bold text-[#065F46] sm:text-3xl">
-            <img src="/logo.svg" alt="Lemontree" className="h-10 w-10" />
+            <Image src="/logo.svg" alt="Lemontree" width={40} height={40} className="h-10 w-10" />
             Lemontree
           </div>
           <a

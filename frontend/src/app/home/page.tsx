@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { authFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 type PostType = "upcoming_event" | "event_summary";
 
@@ -28,6 +30,110 @@ type Post = {
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+};
+
+type FeedCampaign = {
+  id: string;
+  title?: string | null;
+  description?: string | null;
+  location?: string | null;
+  date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  max_volunteers?: number | null;
+  signup_count?: number | null;
+  organizer_name?: string | null;
+  created_at?: string | null;
+  likes?: number | null;
+  comments?: number | null;
+};
+
+const DEFAULT_FEED_COORDS = { lat: 40.7128, lng: -74.006 };
+
+const formatDateLabel = (value?: string | null) => {
+  if (!value) return "TBD";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString(undefined, {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const formatTimeLabel = (value?: string | null) => {
+  if (!value) return "TBD";
+  const normalized = value.length >= 5 ? value.slice(0, 5) : value;
+  const parsed = new Date(`1970-01-01T${normalized}`);
+  if (Number.isNaN(parsed.getTime())) return normalized;
+  return parsed.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const formatRelativeLabel = (value?: string | null) => {
+  if (!value) return "Recently";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Recently";
+
+  const diffMs = Date.now() - parsed.getTime();
+  const diffMins = Math.max(1, Math.floor(diffMs / 60000));
+  if (diffMins < 60) return `${diffMins} min ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+};
+
+const extractFeedCampaigns = (payload: unknown): FeedCampaign[] => {
+  if (!payload || typeof payload !== "object") return [];
+  const candidate = payload as Record<string, unknown>;
+
+  if (candidate.success === true && Array.isArray(candidate.data)) {
+    return candidate.data as FeedCampaign[];
+  }
+
+  if (candidate.success === true && candidate.data && typeof candidate.data === "object") {
+    const inner = candidate.data as Record<string, unknown>;
+    if (Array.isArray(inner.items)) return inner.items as FeedCampaign[];
+  }
+
+  if (Array.isArray(candidate.data)) return candidate.data as FeedCampaign[];
+  if (Array.isArray(payload)) return payload as FeedCampaign[];
+  return [];
+};
+
+const campaignToPost = (campaign: FeedCampaign): Post => {
+  const spotsTotal = Math.max(1, campaign.max_volunteers ?? 10);
+  const spotsFilled = Math.max(0, Math.min(spotsTotal, campaign.signup_count ?? 0));
+  const startLabel = formatTimeLabel(campaign.start_time);
+  const endLabel = formatTimeLabel(campaign.end_time);
+
+  return {
+    id: campaign.id,
+    author: {
+      name: campaign.organizer_name?.trim() || "Organizer",
+      avatar: null,
+      role: "organizer",
+    },
+    type: "upcoming_event",
+    content:
+      campaign.description?.trim() ||
+      campaign.title?.trim() ||
+      "Join this local flyering campaign and help spread pantry access information.",
+    event: {
+      location: campaign.location?.trim() || "Location TBD",
+      date: formatDateLabel(campaign.date),
+      time: `${startLabel} – ${endLabel}`,
+      spotsTotal,
+      spotsFilled,
+    },
+    likes: Math.max(0, campaign.likes ?? 0),
+    comments: Math.max(0, campaign.comments ?? 0),
+    createdAt: formatRelativeLabel(campaign.created_at ?? campaign.date),
+  };
 };
 
 const mockPosts: Post[] = [
@@ -141,7 +247,7 @@ const initialForm: PostFormState = {
 const CHAT_API_BASE =
   process.env.NEXT_PUBLIC_AI_BEDROCK_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+  "";
 
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
@@ -167,6 +273,8 @@ export default function HomePage() {
   const [chatBooting, setChatBooting] = useState(false);
   const [chatInitializedForOpen, setChatInitializedForOpen] = useState(false);
   const [chatError, setChatError] = useState("");
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedError, setFeedError] = useState("");
   const [formState, setFormState] = useState<PostFormState>(initialForm);
   const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
@@ -176,13 +284,73 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
-      router.push("/auth");
-      return;
-    }
+    const ensureSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/auth");
+      }
+    };
 
+    void ensureSession();
   }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchFeed = async (lat: number, lng: number) => {
+      setFeedLoading(true);
+      setFeedError("");
+
+      try {
+        const payload = await authFetch<FeedCampaign[]>(`/feed?lat=${lat}&lng=${lng}`);
+        const campaigns = extractFeedCampaigns(payload);
+
+        if (campaigns.length === 0) {
+          throw new Error("Feed endpoint returned no campaigns.");
+        }
+
+        const mappedPosts = campaigns.map(campaignToPost);
+        if (!cancelled) {
+          setPosts(mappedPosts);
+          setFeedError("");
+        }
+      } catch {
+        if (!cancelled) {
+          setFeedError("Feed API not merged yet. Showing local demo feed until backend merge.");
+          setPosts(mockPosts);
+        }
+      } finally {
+        if (!cancelled) {
+          setFeedLoading(false);
+        }
+      }
+    };
+
+    const fetchWithFallbackLocation = () => {
+      if (!navigator.geolocation) {
+        void fetchFeed(DEFAULT_FEED_COORDS.lat, DEFAULT_FEED_COORDS.lng);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          void fetchFeed(position.coords.latitude, position.coords.longitude);
+        },
+        () => {
+          void fetchFeed(DEFAULT_FEED_COORDS.lat, DEFAULT_FEED_COORDS.lng);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    };
+
+    fetchWithFallbackLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase]);
 
   const trendingCampaigns = useMemo(
     () =>
@@ -274,22 +442,24 @@ export default function HomePage() {
       .filter((message): message is ChatMessage => Boolean(message));
   };
 
-  const getChatAuthHeaders = (includeJsonContentType = false): HeadersInit => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
+  const getChatAuthHeaders = useCallback(async (includeJsonContentType = false): Promise<HeadersInit> => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
       throw new Error("Please sign in to use the chatbot.");
     }
 
     return {
       ...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${session.access_token}`,
     };
-  };
+  }, []);
 
   const createChatSession = useCallback(async () => {
     const response = await fetch(`${apiBase}/chat/session`, {
       method: "POST",
-      headers: getChatAuthHeaders(true),
+      headers: await getChatAuthHeaders(true),
     });
 
     if (!response.ok) {
@@ -312,13 +482,13 @@ export default function HomePage() {
         : [{ role: "assistant", content: "Hi! Ask me anything about your campaign." }]
     );
     return sessionId;
-  }, [apiBase]);
+  }, [apiBase, getChatAuthHeaders]);
 
   const loadChatSession = useCallback(
     async (sessionId: string) => {
       const response = await fetch(`${apiBase}/chat/session/${sessionId}`, {
         method: "GET",
-        headers: getChatAuthHeaders(),
+        headers: await getChatAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -331,7 +501,7 @@ export default function HomePage() {
       setChatSessionId(sessionId);
       setChatMessages(loadedMessages);
     },
-    [apiBase]
+    [apiBase, getChatAuthHeaders]
   );
 
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -357,7 +527,7 @@ export default function HomePage() {
 
       const response = await fetch(`${apiBase}/chat/message`, {
         method: "POST",
-        headers: getChatAuthHeaders(true),
+        headers: await getChatAuthHeaders(true),
         body: JSON.stringify({
           session_id: activeSessionId,
           message,
@@ -534,6 +704,18 @@ export default function HomePage() {
 
         <main className="flex-1 px-5 pb-24 pt-6 lg:ml-72 md:ml-24 xl:mr-[340px]">
           <div className="mx-auto max-w-4xl space-y-6">
+            {feedLoading && (
+              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                Loading feed from API...
+              </div>
+            )}
+
+            {feedError && (
+              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                {feedError}
+              </div>
+            )}
+
             <div className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/70">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">

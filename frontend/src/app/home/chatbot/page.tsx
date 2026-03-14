@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type ChatRole = "user" | "assistant";
 
@@ -16,7 +17,7 @@ type ChatContext = Record<string, unknown>;
 const API_BASE =
 	process.env.NEXT_PUBLIC_AI_BEDROCK_API_URL ||
 	process.env.NEXT_PUBLIC_API_URL ||
-	"http://localhost:8000";
+	"";
 
 const readPayloadData = (payload: unknown): Record<string, unknown> => {
 	if (!payload || typeof payload !== "object") return {};
@@ -61,22 +62,24 @@ export default function ChatbotPage() {
 	const [booting, setBooting] = useState(true);
 	const [error, setError] = useState("");
 
-	const getAuthHeaders = useCallback((includeJsonContentType = false): HeadersInit => {
-		const token = localStorage.getItem("tracka.access_token");
-		if (!token) {
-			throw new Error("Missing auth token. Please sign in again.");
+	const getAuthHeaders = useCallback(async (includeJsonContentType = false): Promise<HeadersInit> => {
+		const {
+			data: { session },
+		} = await supabase.auth.getSession();
+		if (!session?.access_token) {
+			throw new Error("Missing auth session. Please sign in again.");
 		}
 
 		return {
 			...(includeJsonContentType ? { "Content-Type": "application/json" } : {}),
-			Authorization: `Bearer ${token}`,
+			Authorization: `Bearer ${session.access_token}`,
 		};
 	}, []);
 
 	const createSession = useCallback(async () => {
 		const response = await fetch(`${API_BASE}/chat/session`, {
 			method: "POST",
-			headers: getAuthHeaders(),
+			headers: await getAuthHeaders(),
 		});
 
 		if (!response.ok) {
@@ -101,7 +104,7 @@ export default function ChatbotPage() {
 		async (existingSessionId: string) => {
 			const response = await fetch(`${API_BASE}/chat/session/${existingSessionId}`, {
 				method: "GET",
-				headers: getAuthHeaders(),
+				headers: await getAuthHeaders(),
 			});
 
 			if (!response.ok) {
@@ -118,18 +121,19 @@ export default function ChatbotPage() {
 	);
 
 	useEffect(() => {
-		const token = localStorage.getItem("tracka.access_token");
-		if (!token) {
-			router.push("/auth");
-			return;
-		}
-
-		const existingSessionId = localStorage.getItem("tracka.chat_session_id") || "";
-
 		const init = async () => {
 			setBooting(true);
 			setError("");
 			try {
+				const {
+					data: { session },
+				} = await supabase.auth.getSession();
+				if (!session) {
+					router.push("/auth");
+					return;
+				}
+
+				const existingSessionId = localStorage.getItem("tracka.chat_session_id") || "";
 				if (existingSessionId) {
 					await loadSession(existingSessionId);
 				} else {
@@ -169,7 +173,7 @@ export default function ChatbotPage() {
 		try {
 			const response = await fetch(`${API_BASE}/chat/message`, {
 				method: "POST",
-				headers: getAuthHeaders(true),
+				headers: await getAuthHeaders(true),
 				body: JSON.stringify({
 					session_id: sessionId,
 					message: trimmed,

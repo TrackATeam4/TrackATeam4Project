@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { authFetch } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 type LeaderboardEntry = {
   rank: number;
@@ -18,8 +20,6 @@ type PointsTransaction = {
   campaign_title?: string;
   awarded_at?: string;
 };
-
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
@@ -60,41 +60,30 @@ export default function HomeProfilePage() {
     return root;
   };
 
-  const authHeaders = (): HeadersInit => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
-      throw new Error("Missing auth token.");
-    }
-    return {
-      Authorization: `Bearer ${token}`,
-    };
-  };
-
   useEffect(() => {
-    const token = localStorage.getItem("tracka.access_token");
-    if (!token) {
-      router.push("/auth");
-      return;
-    }
-
     const loadProfileData = async () => {
       setLoading(true);
       setError("");
 
       try {
-        const [meRes, pointsRes, levelRes, leaderboardRes] = await Promise.all([
-          fetch(`${API_BASE}/auth/me`, { headers: authHeaders() }),
-          fetch(`${API_BASE}/me/points`, { headers: authHeaders() }),
-          fetch(`${API_BASE}/me/level`, { headers: authHeaders() }),
-          fetch(`${API_BASE}/leaderboard?scope=global&period=monthly`, {
-            headers: authHeaders(),
-          }),
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/auth");
+          return;
+        }
+
+        const [mePayload, pointsPayload, levelPayload, leaderboardPayload] = await Promise.all([
+          authFetch<Record<string, unknown>>("/auth/me"),
+          authFetch<Record<string, unknown>>("/me/points"),
+          authFetch<Record<string, unknown>>("/me/level"),
+          authFetch<Record<string, unknown>>("/leaderboard?scope=global&period=monthly"),
         ]);
 
-        if (meRes.ok) {
-          const mePayload = await meRes.json();
+        {
           const meData = parseData(mePayload);
-          const userNode = (meData.user ?? mePayload.user) as Record<string, unknown> | undefined;
+          const userNode = meData.user as Record<string, unknown> | undefined;
           const nestedUser = (userNode?.user as Record<string, unknown> | undefined) ?? userNode;
           const userEmail =
             typeof nestedUser?.email === "string"
@@ -106,8 +95,7 @@ export default function HomeProfilePage() {
           }
         }
 
-        if (pointsRes.ok) {
-          const pointsPayload = await pointsRes.json();
+        {
           const pointsData = parseData(pointsPayload);
           const total = pointsData.total;
           if (typeof total === "number") {
@@ -118,8 +106,7 @@ export default function HomeProfilePage() {
           }
         }
 
-        if (levelRes.ok) {
-          const levelPayload = await levelRes.json();
+        {
           const levelData = parseData(levelPayload);
           const nextLevelName = typeof levelData.name === "string" ? levelData.name : "-";
           const nextLevelNumber = typeof levelData.level === "number" ? levelData.level : null;
@@ -130,8 +117,7 @@ export default function HomeProfilePage() {
           setProgressPct(nextProgress);
         }
 
-        if (leaderboardRes.ok) {
-          const leaderboardPayload = await leaderboardRes.json();
+        {
           const leaderboardData = parseData(leaderboardPayload);
           const entries = Array.isArray(leaderboardData)
             ? leaderboardData
