@@ -10,6 +10,7 @@ instantiated when the first message arrives (not on server startup).
 
 from __future__ import annotations
 
+import logging
 import os
 
 from langchain_aws import ChatBedrockConverse
@@ -17,6 +18,26 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 
 from agents.tools import AGENT_TOOLS
+
+logger = logging.getLogger(__name__)
+
+def _is_bedrock_error(exc: Exception) -> bool:
+    """Return True for any AWS Bedrock / boto3 error."""
+    module = type(exc).__module__ or ""
+    return (
+        "botocore" in module
+        or "boto3" in module
+        or "langchain_aws" in module
+        or type(exc).__name__ in {
+            "AccessDeniedException",
+            "ExpiredTokenException",
+            "UnrecognizedClientException",
+            "ResourceNotFoundException",
+            "ValidationException",
+            "ServiceUnavailableException",
+            "ThrottlingException",
+        }
+    )
 
 _SYSTEM_TEMPLATE = """\
 You are a campaign creation assistant for Lemontree, a volunteer flyering platform.
@@ -76,10 +97,68 @@ class _AgentExecutorCompat:
         )
         messages = [system, *chat_history, HumanMessage(content=user_input)]
 
-        result = self._graph.invoke({"messages": messages})
-        last = result["messages"][-1]
-        output = last.content if hasattr(last, "content") else str(last)
-        return {"output": output}
+        try:
+            result = self._graph.invoke({"messages": messages})
+            last = result["messages"][-1]
+            output = last.content if hasattr(last, "content") else str(last)
+            return {"output": output}
+        except Exception as exc:
+            if _is_bedrock_error(exc):
+                logger.warning("Bedrock unavailable (%s), falling back to rule-based agent", type(exc).__name__)
+                return _rule_based_fallback(user_input, chat_history, session_id, token)
+            raise
+
+
+def _rule_based_fallback(user_input: str, chat_history: list, session_id: str, token: str) -> dict:
+    """Standalone rule-based fallback — no Bedrock, no external session store needed."""
+    import re
+
+    required_fields = ["title", "location", "address", "date", "start_time", "end_time"]
+    prompts = {
+        "title":      "What should the campaign title be?",
+        "location":   "Which neighbourhood or area will it be in?",
+        "address":    "What's the full street address?",
+        "date":       "What date is the event? (YYYY-MM-DD)",
+        "start_time": "What time does it start? (HH:MM)",
+        "end_time":   "What time does it end? (HH:MM)",
+    }
+
+    # Rebuild context from prior assistant turns that mention "saved X"
+    context: dict = {}
+    for msg in chat_history:
+        text = (msg.content if hasattr(msg, "content") else "") or ""
+        for field in required_fields:
+            if field not in context and re.search(rf"\b{field}\b.*saved|saved.*\b{field}\b", text, re.I):
+                context[field] = True  # approximate — just track presence
+
+    # Extract obvious values from current message
+    lowered = user_input.lower()
+    if re.search(r"flyering|campaign|event", lowered) and "title" not in context:
+        m = re.search(r'"([^"]+)"', user_input)
+        if m:
+            context["title"] = m.group(1)
+    date_m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", user_input)
+    if date_m:
+        context["date"] = date_m.group(1)
+    time_m = re.search(r"\b(\d{1,2}:\d{2})\b", user_input)
+    if time_m:
+        if "start_time" not in context:
+            context["start_time"] = time_m.group(1)
+
+    missing = [f for f in required_fields if f not in context]
+    if missing:
+        greeting = ""
+        if not chat_history:
+            greeting = "Hi! I'm your campaign creation assistant. Let's get your flyering event set up. "
+        reply = greeting + prompts[missing[0]]
+    else:
+        reply = (
+            "Great — I have all the required details. "
+            "Note: the AI assistant is running in limited mode right now. "
+            "Please use the Create Campaign form to finalise and publish your event."
+        )
+
+    return {"output": reply}
 
 
 def build_agent_executor() -> _AgentExecutorCompat:
