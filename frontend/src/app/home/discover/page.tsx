@@ -42,38 +42,23 @@ const parseArrayData = <T,>(payload: unknown): T[] => {
   return [];
 };
 
-const createPinMarker = (color: string, label?: string): HTMLDivElement => {
+const createPinMarker = (): HTMLDivElement => {
   const pinMarker = document.createElement("div");
-  pinMarker.style.display = "flex";
+  pinMarker.style.display = "inline-flex";
   pinMarker.style.alignItems = "center";
-  pinMarker.style.gap = "6px";
+  pinMarker.style.justifyContent = "center";
+  pinMarker.style.transform = "translateY(-50%)";
 
   const pinImage = document.createElement("img");
   pinImage.src = "/pinMarker.jpg";
   pinImage.alt = "Pin marker";
-  pinImage.width = 28;
-  pinImage.height = 28;
-  pinImage.style.width = "28px";
-  pinImage.style.height = "28px";
+  pinImage.width = 36;
+  pinImage.height = 36;
+  pinImage.style.width = "36px";
+  pinImage.style.height = "36px";
   pinImage.style.objectFit = "contain";
-  pinImage.style.filter = `drop-shadow(0 2px 6px rgba(15,23,42,0.25)) drop-shadow(0 0 0 ${color})`;
+  pinImage.style.filter = "drop-shadow(0 2px 6px rgba(15,23,42,0.25))";
   pinMarker.appendChild(pinImage);
-
-  if (label) {
-    const pinLabel = document.createElement("span");
-    pinLabel.textContent = label;
-    pinLabel.style.fontSize = "10px";
-    pinLabel.style.fontWeight = "600";
-    pinLabel.style.color = "#92400e";
-    pinLabel.style.background = "rgba(254,243,199,.95)";
-    pinLabel.style.padding = "1px 6px";
-    pinLabel.style.borderRadius = "999px";
-    pinLabel.style.maxWidth = "130px";
-    pinLabel.style.whiteSpace = "nowrap";
-    pinLabel.style.overflow = "hidden";
-    pinLabel.style.textOverflow = "ellipsis";
-    pinMarker.appendChild(pinLabel);
-  }
 
   return pinMarker;
 };
@@ -83,7 +68,8 @@ export default function HomeDiscoverPage() {
   const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<MapboxMarker[]>([]);
 
-  const [center, setCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [initialCenter, setInitialCenter] = useState<LngLat>(DEFAULT_CENTER);
+  const [viewportCenter, setViewportCenter] = useState<LngLat>(DEFAULT_CENTER);
   const [campaignPins, setCampaignPins] = useState<MapPin[]>([]);
   const [pantryPins, setPantryPins] = useState<FoodPantryPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,10 +82,12 @@ export default function HomeDiscoverPage() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCenter({
+        const nextCenter = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        });
+        };
+        setInitialCenter(nextCenter);
+        setViewportCenter(nextCenter);
       },
       () => {
         // Keep default center when location permission is denied.
@@ -121,8 +109,13 @@ export default function HomeDiscoverPage() {
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: "mapbox://styles/mapbox/streets-v12",
-        center: [center.lng, center.lat],
+        center: [initialCenter.lng, initialCenter.lat],
         zoom: 11,
+      });
+
+      map.on("moveend", () => {
+        const nextCenter = map.getCenter();
+        setViewportCenter({ lat: nextCenter.lat, lng: nextCenter.lng });
       });
 
       mapRef.current = map;
@@ -137,12 +130,14 @@ export default function HomeDiscoverPage() {
         mapRef.current = null;
       }
     };
-  }, [center.lat, center.lng]);
+  }, [initialCenter.lat, initialCenter.lng]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
-    mapRef.current.flyTo({ center: [center.lng, center.lat], zoom: 11, duration: 800 });
-  }, [center.lat, center.lng]);
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.flyTo({ center: [initialCenter.lng, initialCenter.lat], zoom: 11, duration: 800 });
+  }, [initialCenter.lat, initialCenter.lng]);
 
   useEffect(() => {
     const fetchPins = async () => {
@@ -152,9 +147,9 @@ export default function HomeDiscoverPage() {
       try {
         const [campaignRes, pantryRes] = await Promise.allSettled([
           fetch(
-            `${API_BASE}/map/campaigns?lat=${center.lat}&lng=${center.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
+            `${API_BASE}/map/campaigns?lat=${viewportCenter.lat}&lng=${viewportCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}&status=published`
           ),
-          fetch(`${API_BASE}/map/food-pantries?lat=${center.lat}&lng=${center.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
+          fetch(`${API_BASE}/map/food-pantries?lat=${viewportCenter.lat}&lng=${viewportCenter.lng}&radius_km=${DEFAULT_RADIUS_KM}`),
         ]);
 
         const issues: string[] = [];
@@ -201,7 +196,7 @@ export default function HomeDiscoverPage() {
     };
 
     void fetchPins();
-  }, [center.lat, center.lng]);
+  }, [viewportCenter.lat, viewportCenter.lng]);
 
   useEffect(() => {
     if (!mapRef.current || !MAPBOX_TOKEN) return;
@@ -217,7 +212,7 @@ export default function HomeDiscoverPage() {
       const allPoints: Array<[number, number]> = [];
 
       campaignPins.forEach((pin) => {
-        const pinMarker = createPinMarker("#059669");
+        const pinMarker = createPinMarker();
 
         const popup = new mapboxglModule.Popup({ offset: 14 }).setHTML(
           `<div style="font-family:system-ui;min-width:210px"><strong>${pin.title}</strong><br/><span style="font-size:12px;color:#475569">${pin.date}</span><br/><span style="font-size:12px;color:#047857">${pin.signup_count}/${pin.max_volunteers ?? "-"} joined</span></div>`
@@ -233,7 +228,7 @@ export default function HomeDiscoverPage() {
       });
 
       pantryPins.forEach((pin) => {
-        const pinMarker = createPinMarker("#eab308");
+        const pinMarker = createPinMarker();
 
         const popup = new mapboxglModule.Popup({ offset: 14 }).setHTML(
           `<div style="font-family:system-ui;min-width:210px"><strong>${pin.name}</strong><br/><span style="font-size:12px;color:#475569">${pin.address ?? "Food pantry"}</span></div>`
