@@ -21,6 +21,15 @@ type FlyerGenerateResponse = {
   thumbnail_url?: string;
 };
 
+type CampaignSummary = {
+  id: string;
+  title?: string;
+  location?: string;
+  date?: string;
+  start_time?: string;
+  status?: string;
+};
+
 type EditableLocalDetails = {
   title: string;
   event_date: string;
@@ -33,7 +42,7 @@ type EditableLocalDetails = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-const DEFAULT_LANGUAGES = ["en", "es", "zh"];
+const DEFAULT_LANGUAGES = ["en", "es"];
 
 const EMPTY_DETAILS: EditableLocalDetails = {
   title: "",
@@ -58,60 +67,56 @@ const languageLabel = (code: string) => {
 };
 
 export default function CustomFlyerPage() {
-  const [templates, setTemplates] = useState<FlyerTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const [campaignId, setCampaignId] = useState("");
+  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [language, setLanguage] = useState("en");
   const [details, setDetails] = useState<EditableLocalDetails>(EMPTY_DETAILS);
 
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [generatingFlyer, setGeneratingFlyer] = useState(false);
   const [previewMode, setPreviewMode] = useState(true);
   const [generatedFlyerUrl, setGeneratedFlyerUrl] = useState("");
   const [generatedThumbnailUrl, setGeneratedThumbnailUrl] = useState("");
   const [error, setError] = useState("");
 
-  const selectedTemplate = useMemo(
-    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
-    [templates, selectedTemplateId]
+  const selectedCampaign = useMemo(
+    () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
+    [campaigns, selectedCampaignId]
   );
 
-  const availableLanguages = useMemo(() => {
-    const fromTemplate = selectedTemplate?.supported_languages;
-    if (fromTemplate && fromTemplate.length > 0) return fromTemplate;
-    return DEFAULT_LANGUAGES;
-  }, [selectedTemplate]);
+  const availableLanguages = DEFAULT_LANGUAGES;
+
+  // Template selection UI removed per request; /flyers will use the active template automatically.
 
   useEffect(() => {
-    const loadTemplates = async () => {
-      setLoadingTemplates(true);
+    const loadCampaigns = async () => {
+      setLoadingCampaigns(true);
       setError("");
       try {
-        let list: FlyerTemplate[] = [];
+        let list: CampaignSummary[] = [];
 
         try {
-          const response = await authFetch<{ flyer_templates?: FlyerTemplate[] }>("/admin/flyer-templates");
-          list = response.data?.flyer_templates ?? [];
+          const response = await authFetch<CampaignSummary[]>("/campaigns/mine");
+          list = response.data ?? [];
         } catch {
-          const fallback = await apiFetch<unknown>("/flyer-templates");
-          const payload = fallback.data;
-          list = Array.isArray(payload)
-            ? (payload as FlyerTemplate[])
-            : Array.isArray((payload as { flyer_templates?: unknown[] })?.flyer_templates)
-            ? (((payload as { flyer_templates?: unknown[] }).flyer_templates ?? []) as FlyerTemplate[])
-            : [];
+          const response = await apiFetch<CampaignSummary[]>("/campaigns?page=1&limit=50");
+          list = response.data ?? [];
         }
 
-        setTemplates(list);
-        if (list.length > 0) setSelectedTemplateId(list[0].id);
+        setCampaigns(list);
+        if (!selectedCampaignId && list.length > 0) {
+          setSelectedCampaignId(list[0].id);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load flyer templates.");
+        setCampaigns([]);
+        setError(err instanceof Error ? err.message : "Could not load campaigns.");
       } finally {
-        setLoadingTemplates(false);
+        setLoadingCampaigns(false);
       }
     };
 
-    void loadTemplates();
+    void loadCampaigns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -122,8 +127,8 @@ export default function CustomFlyerPage() {
 
   const generateFlyer = async () => {
     if (generatingFlyer) return;
-    if (!campaignId.trim()) {
-      setError("Campaign ID is required to generate flyer via /flyers endpoint.");
+    if (!selectedCampaignId.trim()) {
+      setError("Select a campaign to generate a flyer.");
       return;
     }
 
@@ -134,11 +139,8 @@ export default function CustomFlyerPage() {
       if (!API_BASE) throw new Error("Missing NEXT_PUBLIC_API_URL");
 
       const body: Record<string, string> = {
-        campaign_id: campaignId.trim(),
+        campaign_id: selectedCampaignId.trim(),
       };
-      if (selectedTemplateId.trim()) {
-        body.template_id = selectedTemplateId.trim();
-      }
 
       const response = await fetch(`${API_BASE}/flyers`, {
         method: "POST",
@@ -215,29 +217,30 @@ export default function CustomFlyerPage() {
             <section>
               <div className="space-y-6">
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-800">Approved Template</h2>
+                  <h2 className="text-lg font-semibold text-slate-800">Campaign</h2>
                   <select
                     className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    value={selectedTemplateId}
-                    onChange={(event) => setSelectedTemplateId(event.target.value)}
-                    disabled={loadingTemplates || templates.length === 0}
+                    value={selectedCampaignId}
+                    onChange={(event) => setSelectedCampaignId(event.target.value)}
+                    disabled={loadingCampaigns || campaigns.length === 0}
                   >
-                    {templates.length === 0 ? (
-                      <option value="">No templates loaded</option>
+                    {campaigns.length === 0 ? (
+                      <option value="">{loadingCampaigns ? "Loading campaigns..." : "No campaigns found"}</option>
                     ) : (
-                      templates.map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.name || template.id}
+                      campaigns.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.title || "Untitled campaign"}
+                          {campaign.date ? ` • ${campaign.date}` : ""}
+                          {campaign.location ? ` • ${campaign.location}` : ""}
                         </option>
                       ))
                     )}
                   </select>
-                  <div className="mt-2 text-xs text-slate-500">
-                    {loadingTemplates ? "Loading templates..." : `${templates.length} templates loaded`}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    {selectedTemplate?.description || "Template description unavailable."}
-                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {selectedCampaign
+                      ? `Selected: ${selectedCampaign.title || "Untitled"}`
+                      : "Pick a campaign to generate the flyer PDF."}
+                  </p>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -309,18 +312,6 @@ export default function CustomFlyerPage() {
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-800">Campaign</h2>
-                  <input
-                    type="text"
-                    placeholder="Campaign ID (required by /flyers endpoint)"
-                    value={campaignId}
-                    onChange={(event) => setCampaignId(event.target.value)}
-                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                  />
-                  <p className="mt-2 text-xs text-slate-500">Use an existing campaign UUID to generate the flyer PDF.</p>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-800">Flyer Actions</h2>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
@@ -353,7 +344,7 @@ export default function CustomFlyerPage() {
                     <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
                       <p className="text-xs uppercase tracking-wide text-emerald-700">Preview Mode</p>
                       <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                        {selectedTemplate?.name || "Generated Flyer"}
+                        {selectedCampaign?.title || "Generated Flyer"}
                       </span>
                     </div>
                     <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
