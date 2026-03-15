@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { authFetch } from "@/lib/api";
+import HomeSidebar from "@/components/home/HomeSidebar";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
@@ -368,19 +368,12 @@ export default function HomeCreatePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FFFEF5] text-slate-700">
+    <>
+      <HomeSidebar />
+      <main className="min-h-screen bg-[#FFFEF5] text-slate-700 md:ml-24 lg:ml-72">
       {/* Top nav */}
       <div className="sticky top-0 z-30 border-b border-yellow-100 bg-[#FFFEF5]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3">
-          <Link
-            href="/home"
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-slate-500 transition-colors hover:bg-yellow-50 hover:text-slate-800"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
-              <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Back
-          </Link>
           <span className="text-sm font-semibold text-slate-700">New Campaign</span>
           <div className="w-16" />
         </div>
@@ -584,16 +577,11 @@ export default function HomeCreatePage() {
                 "Create Campaign"
               )}
             </button>
-            <Link
-              href="/home"
-              className="rounded-2xl border border-yellow-100 px-5 py-3 text-sm font-semibold text-slate-500 transition-colors hover:bg-yellow-50 hover:text-slate-700"
-            >
-              Cancel
-            </Link>
           </div>
 
         </form>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

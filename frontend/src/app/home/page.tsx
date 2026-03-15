@@ -1,12 +1,25 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, animate, motion, useInView, useMotionValue } from "framer-motion";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+
+const dmSerif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--home-display",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--home-body",
+});
 
 type PostType = "upcoming_event" | "event_summary";
 
@@ -47,8 +60,6 @@ type FeedCampaign = {
   likes?: number | null;
   comments?: number | null;
 };
-
-const DEFAULT_FEED_COORDS = { lat: 40.7128, lng: -74.006 };
 
 const formatDateLabel = (value?: string | null) => {
   if (!value) return "TBD";
@@ -136,88 +147,22 @@ const campaignToPost = (campaign: FeedCampaign): Post => {
   };
 };
 
-const mockPosts: Post[] = [
-  {
-    id: "1",
-    author: { name: "Sarah Chen", avatar: null, role: "organizer" },
-    type: "upcoming_event",
-    content:
-      "Hey everyone! I'm organizing a flyering campaign near Jefferson Elementary this Saturday. We'll be covering the blocks around the school and nearby park. Looking for 5 more volunteers to help hand out flyers — it's a high-need area with several pantries nearby. Let's spread the word! 🍋",
-    event: {
-      location: "Jefferson Elementary, Sunset Park, Brooklyn",
-      date: "Saturday, March 21, 2026",
-      time: "10:00 AM – 1:00 PM",
-      spotsTotal: 8,
-      spotsFilled: 3,
-    },
-    likes: 12,
-    comments: 4,
-    createdAt: "2 hours ago",
-  },
-  {
-    id: "2",
-    author: { name: "Marcus Rivera", avatar: null, role: "volunteer" },
-    type: "event_summary",
-    content:
-      "Just wrapped up an amazing flyering session in Washington Heights! Our team of 6 covered 14 blocks and handed out about 120 flyers. Had some great conversations with parents near the community center — many didn't know about the 3 food pantries within walking distance. One mom was almost in tears. This is why we do it. 💛",
-    event: null,
-    likes: 28,
-    comments: 7,
-    createdAt: "5 hours ago",
-  },
-  {
-    id: "3",
-    author: { name: "Priya Patel", avatar: null, role: "organizer" },
-    type: "upcoming_event",
-    content:
-      "Planning a flyering blitz in the East Village next weekend! We'll focus on the area around Tompkins Square Park where there's a cluster of soup kitchens. Need volunteers who can commit to the full morning. Flyer materials will be ready for pickup the day before.",
-    event: {
-      location: "Tompkins Square Park, East Village, Manhattan",
-      date: "Sunday, March 22, 2026",
-      time: "9:00 AM – 12:00 PM",
-      spotsTotal: 10,
-      spotsFilled: 7,
-    },
-    likes: 19,
-    comments: 11,
-    createdAt: "1 day ago",
-  },
-  {
-    id: "4",
-    author: { name: "James Okonkwo", avatar: null, role: "volunteer" },
-    type: "event_summary",
-    content:
-      "Completed our Bushwick flyering campaign! 4 volunteers, 80 flyers distributed, 9 blocks covered near the Myrtle-Broadway area. Noticed a lot of new families in the neighborhood who hadn't heard of Lemontree before. The QR codes on the flyers are a game-changer — saw a few people scanning right away.",
-    event: null,
-    likes: 15,
-    comments: 3,
-    createdAt: "2 days ago",
-  },
-  {
-    id: "5",
-    author: { name: "Emily Tran", avatar: null, role: "organizer" },
-    type: "upcoming_event",
-    content:
-      "Who's ready to help out in Astoria? I'm setting up a campaign near the Steinway Street corridor. There are 5 pantries in the area but barely any awareness. First-timers welcome — I'll walk you through everything!",
-    event: {
-      location: "Steinway St & 30th Ave, Astoria, Queens",
-      date: "Saturday, March 28, 2026",
-      time: "11:00 AM – 2:00 PM",
-      spotsTotal: 6,
-      spotsFilled: 1,
-    },
-    likes: 8,
-    comments: 2,
-    createdAt: "3 days ago",
-  },
-];
 
 const navItems = [
   { label: "Feed", icon: "🏠", href: "/home" },
   { label: "Discover", icon: "🗺️", href: "/home/discover" },
   { label: "Create Campaign", icon: "➕", href: "/home/create" },
+  { label: "Campaign Builder", icon: "🤖", href: "/chat" },
   { label: "Leaderboard", icon: "📊", href: "/home/leaderboard" },
   { label: "My Profile", icon: "👤", href: "/home/profile" },
+];
+
+const mobileNavItems = [
+  { label: "Feed", icon: "🏠", href: "/home" },
+  { label: "Discover", icon: "🗺️", href: "/home/discover" },
+  { label: "Create", icon: "➕", href: "/home/create" },
+  { label: "Chat", icon: "🤖", href: "/chat" },
+  { label: "Profile", icon: "👤", href: "/home/profile" },
 ];
 
 type PostFormState = {
@@ -262,8 +207,9 @@ const getLocalStorageValue = (key: string, fallback: string) => {
 
 export default function HomePage() {
   const router = useRouter();
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+  const [joinedPosts, setJoinedPosts] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
@@ -299,27 +245,23 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchFeed = async (lat: number, lng: number) => {
+    const fetchFeed = async () => {
       setFeedLoading(true);
       setFeedError("");
 
       try {
-        const payload = await authFetch<FeedCampaign[]>(`/feed?lat=${lat}&lng=${lng}`);
+        const payload = await authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`);
         const campaigns = extractFeedCampaigns(payload);
-
-        if (campaigns.length === 0) {
-          throw new Error("Feed endpoint returned no campaigns.");
-        }
 
         const mappedPosts = campaigns.map(campaignToPost);
         if (!cancelled) {
           setPosts(mappedPosts);
           setFeedError("");
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setFeedError("Feed API not merged yet. Showing local demo feed until backend merge.");
-          setPosts(mockPosts);
+          setFeedError(error instanceof Error ? error.message : "Unable to load the feed right now.");
+          setPosts([]);
         }
       } finally {
         if (!cancelled) {
@@ -328,29 +270,12 @@ export default function HomePage() {
       }
     };
 
-    const fetchWithFallbackLocation = () => {
-      if (!navigator.geolocation) {
-        void fetchFeed(DEFAULT_FEED_COORDS.lat, DEFAULT_FEED_COORDS.lng);
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          void fetchFeed(position.coords.latitude, position.coords.longitude);
-        },
-        () => {
-          void fetchFeed(DEFAULT_FEED_COORDS.lat, DEFAULT_FEED_COORDS.lng);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    };
-
-    fetchWithFallbackLocation();
+    void fetchFeed();
 
     return () => {
       cancelled = true;
     };
-  }, [apiBase]);
+  }, []);
 
   const trendingCampaigns = useMemo(
     () =>
@@ -384,6 +309,18 @@ export default function HomePage() {
     });
   };
 
+  const toggleJoin = (postId: string) => {
+    setJoinedPosts((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
   const openModal = (type?: PostType) => {
     setFormState((prev) => ({
       ...prev,
@@ -396,6 +333,19 @@ export default function HomePage() {
     setIsModalOpen(false);
     setFormState(initialForm);
   };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isModalOpen]);
 
   const toggleChatPopup = () => {
     setIsChatOpen((prev) => {
@@ -635,65 +585,89 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFEF5] text-slate-700">
+    <div
+      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5] text-[#334155]`}
+      style={{ fontFamily: "var(--home-body)" }}
+    >
       <div className="flex">
         <motion.aside
-          className="fixed left-0 top-0 hidden h-screen w-72 flex-col border-r border-yellow-100 bg-white px-6 py-8 lg:flex"
+          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white flex"
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xl font-bold text-[#065F46]">
-                <Image src="/logo.svg" alt="Lemontree" width={24} height={24} className="h-6 w-6" />
-              Lemontree
+            <div
+              className="flex items-center gap-2 text-xl font-bold"
+              style={{ fontFamily: "var(--home-display)" }}
+            >
+              <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
+              LEMONTREE
             </div>
-            <p className="text-xs text-slate-400">Volunteer Hub</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
           </div>
 
-          <nav className="mt-10 flex flex-1 flex-col gap-2 text-sm">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-2xl px-3 py-2 transition ${
-                  item.label === "Feed"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </nav>
+          <motion.nav
+            className="mt-10 flex flex-1 flex-col gap-2 text-sm"
+            initial="hidden"
+            animate="show"
+            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+          >
+            {navItems.map((item) => {
+              const isActive = item.label === "Feed";
+              return (
+                <motion.div
+                  key={item.label}
+                  variants={{ hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0 } }}
+                  whileHover={{ x: 4 }}
+                >
+                  <Link
+                    href={item.href}
+                    className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
+                      isActive
+                        ? "bg-gradient-to-r from-emerald-500/20 to-transparent text-white font-semibold"
+                        : "text-white/60 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    {isActive ? (
+                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#FCD34D]" />
+                    ) : null}
+                    <span className="text-[20px]">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
+                </motion.div>
+              );
+            })}
+          </motion.nav>
 
           <div className="mt-6 space-y-3">
-            <Link href="/home/profile" className="flex items-center gap-3 rounded-2xl bg-[#FFFEF5] px-3 py-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
-                {userName.charAt(0).toUpperCase()}
+            <div className="flex items-center justify-between rounded-xl bg-white/10 p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{userName}</p>
+                  <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-xs text-emerald-200">
+                    Volunteer
+                  </span>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-700">{userName}</p>
-                <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-[#065F46]">
-                  Volunteer
-                </span>
-              </div>
-            </Link>
-            <button className="text-xs text-slate-400 hover:text-slate-600">Logout</button>
+              <button className="text-lg text-white/40 transition hover:text-white">⎋</button>
+            </div>
           </div>
         </motion.aside>
 
-        <aside className="fixed left-0 top-0 hidden h-screen w-24 flex-col border-r border-yellow-100 bg-white px-3 py-8 md:flex lg:hidden">
+        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 flex">
           <div className="flex flex-col items-center gap-4 text-xl">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
                   item.label === "Feed"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "text-slate-500 hover:bg-slate-100"
+                    ? "bg-white/15 text-white"
+                    : "text-white/60 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 {item.icon}
@@ -702,8 +676,8 @@ export default function HomePage() {
           </div>
         </aside>
 
-        <main className="flex-1 px-5 pb-24 pt-6 lg:ml-72 md:ml-24 xl:mr-[340px]">
-          <div className="mx-auto max-w-4xl space-y-6">
+        <main className="flex-1 px-5 pb-24 pt-8 lg:ml-72 md:ml-24 xl:mr-[300px]">
+          <div className="mx-auto max-w-2xl space-y-8">
             {feedLoading && (
               <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
                 Loading feed from API...
@@ -716,36 +690,48 @@ export default function HomePage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/70">
+            {!feedLoading && !feedError && posts.length === 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-sm text-slate-500">
+                No campaigns yet. Be the first to post an event update.
+              </div>
+            )}
+
+            <motion.div
+              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+              whileHover={{ scale: 1.005 }}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
                   {userName.charAt(0).toUpperCase()}
                 </div>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => openModal()}
-                  className="flex-1 rounded-full border border-yellow-100 bg-[#FFFEF5] px-4 py-3 text-left text-sm text-slate-400 hover:border-emerald-200"
+                  whileHover={{ scale: 1.01 }}
+                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-gray-100"
                 >
                   Share an upcoming event or campaign update...
-                </button>
+                </motion.button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button
+                <motion.button
                   type="button"
                   onClick={() => openModal("upcoming_event")}
-                  className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700"
+                  whileHover={{ y: -1 }}
+                  className="rounded-full border border-yellow-200 bg-[#FEF9C3] px-3 py-1.5 text-xs font-semibold text-yellow-700"
                 >
                   📍 Upcoming Event
-                </button>
-                <button
+                </motion.button>
+                <motion.button
                   type="button"
                   onClick={() => openModal("event_summary")}
-                  className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700"
+                  whileHover={{ y: -1 }}
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
                 >
                   📝 Event Summary
-                </button>
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
 
             <motion.div
               initial="hidden"
@@ -758,6 +744,7 @@ export default function HomePage() {
             >
               {posts.map((post) => {
                 const isLiked = likedPosts.has(post.id);
+                const isJoined = joinedPosts.has(post.id);
                 const progress = post.event
                   ? Math.round((post.event.spotsFilled / post.event.spotsTotal) * 100)
                   : 0;
@@ -769,11 +756,26 @@ export default function HomePage() {
                       hidden: { opacity: 0, y: 16 },
                       show: { opacity: 1, y: 0 },
                     }}
-                    className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60"
+                    whileHover={{ y: -2, boxShadow: "0 20px 40px -30px rgba(27, 67, 50, 0.45)" }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
                   >
+                    <div
+                      className={`absolute left-0 top-0 h-[3px] w-full ${
+                        post.type === "upcoming_event"
+                          ? "bg-gradient-to-r from-yellow-400 to-amber-500"
+                          : "bg-gradient-to-r from-emerald-400 to-teal-500"
+                      }`}
+                    />
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white ${
+                            post.author.role === "organizer"
+                              ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                              : "bg-gradient-to-br from-yellow-400 to-amber-500"
+                          }`}
+                        >
                           {post.author.name.charAt(0)}
                         </div>
                         <div>
@@ -796,20 +798,20 @@ export default function HomePage() {
 
                     <div className="mt-4">
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                        className={`inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${
                           post.type === "upcoming_event"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-emerald-100 text-emerald-700"
+                            ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700"
+                            : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700"
                         }`}
                       >
                         {post.type === "upcoming_event" ? "📍 Upcoming Event" : "📝 Event Summary"}
                       </span>
-                      <p className="mt-3 text-sm text-slate-600">{post.content}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-700">{post.content}</p>
                     </div>
 
                     {post.event && (
-                      <div className="mt-4 space-y-3 rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-4">
-                        <div className="text-sm text-slate-600">📍 {post.event.location}</div>
+                      <div className="mt-4 space-y-3 rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50 to-gray-100/50 p-4">
+                        <div className="text-sm font-medium text-[#F97316]">📍 {post.event.location}</div>
                         <div className="text-sm text-slate-600">
                           📅 {post.event.date} • {post.event.time}
                         </div>
@@ -819,34 +821,55 @@ export default function HomePage() {
                             <span>{progress}%</span>
                           </div>
                           <div className="h-2 w-full rounded-full bg-emerald-100">
-                            <div
-                              className="h-2 rounded-full bg-emerald-500"
-                              style={{ width: `${progress}%` }}
+                            <motion.div
+                              className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut" }}
                             />
                           </div>
                         </div>
-                        <button className="rounded-full bg-emerald-600 px-4 py-2 text-xs font-semibold text-white">
-                          Join Campaign
-                        </button>
+                        <motion.button
+                          type="button"
+                          onClick={() => toggleJoin(post.id)}
+                          whileHover={{ y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className={`rounded-xl px-5 py-2.5 text-xs font-semibold transition ${
+                            isJoined
+                              ? "bg-gray-100 text-gray-500"
+                              : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
+                          }`}
+                        >
+                          {isJoined ? "✓ Joined" : "Join Campaign"}
+                        </motion.button>
                       </div>
                     )}
 
                     <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
                       <motion.button
                         type="button"
-                        whileTap={{ scale: 0.9 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => toggleLike(post.id)}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 transition hover:text-slate-600"
                       >
-                        <span className={isLiked ? "text-rose-500" : "text-slate-400"}>
+                        <motion.span
+                          animate={
+                            isLiked
+                              ? { scale: [1, 1.3, 1], color: "#F43F5E" }
+                              : { scale: 1, color: "#94A3B8" }
+                          }
+                          transition={{ duration: 0.3 }}
+                        >
                           {isLiked ? "❤️" : "🤍"}
-                        </span>
+                        </motion.span>
                         {post.likes} likes
                       </motion.button>
-                      <button type="button" className="flex items-center gap-2">
+                      <span className="text-slate-300">·</span>
+                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
                         💬 {post.comments} comments
                       </button>
-                      <button type="button" className="flex items-center gap-2">
+                      <span className="text-slate-300">·</span>
+                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
                         🔗 Share
                       </button>
                     </div>
@@ -857,43 +880,60 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[340px] flex-col gap-6 overflow-y-auto border-l border-yellow-100 bg-white px-7 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFFEF5] px-6 py-8 xl:flex">
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5 shadow-lg shadow-yellow-100/60"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h3 className="text-base font-semibold text-[#065F46]">🍋 Community Impact</h3>
-            <div className="mt-3 space-y-2 text-base text-slate-500">
+            <h3
+              className="text-base font-semibold text-[#1B4332]"
+              style={{ fontFamily: "var(--home-display)" }}
+            >
+              🍋 Community Impact
+            </h3>
+            <div className="mt-3 h-[2px] w-full rounded-full bg-gradient-to-r from-[#FCD34D] to-[#10B981]" />
+            <div className="mt-4 space-y-3 text-sm text-slate-500">
               <div className="flex justify-between">
                 <span>Campaigns completed</span>
-                <span className="font-semibold text-emerald-600">142</span>
+                <StatCounter value={142} className="text-[#1B4332]" />
               </div>
               <div className="flex justify-between">
                 <span>Volunteers mobilized</span>
-                <span className="font-semibold text-emerald-600">1,840</span>
+                <StatCounter value={1840} className="text-emerald-600" />
               </div>
               <div className="flex justify-between">
                 <span>Flyers distributed</span>
-                <span className="font-semibold text-emerald-600">24,500</span>
+                <StatCounter value={24500} className="text-amber-500" />
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
+            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.45 }}
           >
-            <h3 className="text-base font-semibold text-[#0F172A]">🔥 Trending Campaigns</h3>
-            <div className="mt-4 space-y-3 text-base">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-[#0F172A]" style={{ fontFamily: "var(--home-display)" }}>
+              <motion.span
+                animate={{ y: [0, -2, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                🔥
+              </motion.span>
+              Trending Campaigns
+            </h3>
+            <div className="mt-4 space-y-3 text-sm">
               {trendingCampaigns.map((post) => (
-                <div key={post.id} className="rounded-xl bg-[#FFFEF5] p-4">
-                  <p className="font-semibold text-slate-700">{post.event?.location}</p>
-                  <p className="text-sm text-slate-500">{post.event?.date}</p>
-                  <p className="text-sm text-emerald-600">
+                <div
+                  key={post.id}
+                  className="rounded-xl border-l-2 border-yellow-400 bg-[#FFFEF5] p-3 pl-4 transition hover:bg-gray-50"
+                >
+                  <p className="font-semibold text-slate-800">{post.event?.location}</p>
+                  <p className="text-xs text-slate-500">{post.event?.date}</p>
+                  <p className="text-xs font-medium text-emerald-600">
                     {post.event
                       ? `${post.event.spotsTotal - post.event.spotsFilled} spots left`
                       : ""}
@@ -904,24 +944,23 @@ export default function HomePage() {
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6 }}
           >
-            <h3 className="text-base font-semibold text-[#0F172A]">Quick Links</h3>
-            <div className="mt-4 space-y-3 text-base text-slate-600">
-              
+            <h3 className="text-base font-semibold text-[#0F172A]" style={{ fontFamily: "var(--home-display)" }}>Quick Links</h3>
+            <div className="mt-4 space-y-3 text-sm text-slate-600">
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 hover:text-emerald-600"
+                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 transition hover:text-emerald-600"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -929,18 +968,22 @@ export default function HomePage() {
         </aside>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-yellow-100 bg-white py-3 md:hidden">
-        {navItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={`text-xl ${
-              item.label === "Feed" ? "text-emerald-600" : "text-slate-400"
-            }`}
-          >
-            {item.icon}
-          </Link>
-        ))}
+      <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center justify-around border-t border-gray-200 bg-white py-2 md:hidden">
+        {mobileNavItems.map((item) => {
+          const isActive = item.label === "Feed";
+          return (
+            <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1">
+              <span className={`text-xl ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
+                {item.icon}
+              </span>
+              <span
+                className={`h-1 w-1 rounded-full ${
+                  isActive ? "bg-emerald-600" : "bg-transparent"
+                }`}
+              />
+            </Link>
+          );
+        })}
       </nav>
 
       <AnimatePresence>
@@ -950,146 +993,151 @@ export default function HomePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            onClick={closeModal}
           >
             <motion.div
-              className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 240, damping: 24 }}
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[#0F172A]">Create a Post</h3>
-                <button
+                <h3 className="text-xl font-semibold text-[#0F172A]" style={{ fontFamily: "var(--home-display)" }}>
+                  Create a Post
+                </h3>
+                <motion.button
                   type="button"
                   onClick={closeModal}
+                  whileHover={{ rotate: 90 }}
                   className="text-sm text-slate-400 hover:text-slate-600"
                 >
                   ✕
-                </button>
+                </motion.button>
               </div>
 
-              <div className="mt-5 flex rounded-full bg-yellow-50 p-1 text-sm">
+              <div className="relative mt-6 flex rounded-full border border-gray-200 p-1 text-sm">
+                <motion.div
+                  layoutId="postTypeTab"
+                  className={`absolute top-1 bottom-1 rounded-full ${
+                    formState.type === "upcoming_event"
+                      ? "left-1 w-[calc(50%-4px)] bg-gradient-to-r from-yellow-400 to-amber-500"
+                      : "left-[50%] w-[calc(50%-4px)] bg-gradient-to-r from-emerald-500 to-emerald-600"
+                  }`}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
                 <button
                   type="button"
                   onClick={() => setFormState((prev) => ({ ...prev, type: "upcoming_event" }))}
-                  className={`flex-1 rounded-full px-4 py-2 font-medium ${
-                    formState.type === "upcoming_event"
-                      ? "bg-white text-[#0F172A] shadow"
-                      : "text-slate-500"
-                  }`}
+                  className="relative z-10 flex-1 rounded-full py-2.5 font-semibold"
+                  style={{ color: formState.type === "upcoming_event" ? "white" : "#64748b" }}
                 >
                   📍 Upcoming Event
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormState((prev) => ({ ...prev, type: "event_summary" }))}
-                  className={`flex-1 rounded-full px-4 py-2 font-medium ${
-                    formState.type === "event_summary"
-                      ? "bg-white text-[#0F172A] shadow"
-                      : "text-slate-500"
-                  }`}
+                  className="relative z-10 flex-1 rounded-full py-2.5 font-semibold"
+                  style={{ color: formState.type === "event_summary" ? "white" : "#64748b" }}
                 >
                   📝 Event Summary
                 </button>
               </div>
 
-              <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-                <div>
-                  <label className="text-xs font-medium text-slate-500">
-                    {formState.type === "upcoming_event"
+              <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+                <FloatingTextArea
+                  label={
+                    formState.type === "upcoming_event"
                       ? "Tell volunteers about your campaign..."
-                      : "How did the event go? Share your experience..."}
-                  </label>
-                  <textarea
-                    value={formState.content}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, content: event.target.value }))
-                    }
-                    rows={formState.type === "upcoming_event" ? 4 : 6}
-                    className="mt-2 w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                  />
-                  {formState.type === "event_summary" && (
-                    <p className="mt-2 text-xs text-slate-400">🤖 AI summary coming soon</p>
-                  )}
-                </div>
+                      : "How did the event go? Share your experience..."
+                  }
+                  value={formState.content}
+                  onChange={(event) =>
+                    setFormState((prev) => ({ ...prev, content: event.target.value }))
+                  }
+                  rows={formState.type === "upcoming_event" ? 4 : 6}
+                />
+                {formState.type === "event_summary" && (
+                  <p className="text-xs text-slate-400">🤖 AI summary coming soon</p>
+                )}
 
                 {formState.type === "upcoming_event" ? (
-                  <div className="space-y-3">
-                    <input
+                  <div className="space-y-2">
+                    <FloatingInput
+                      label="Location"
                       value={formState.location}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, location: event.target.value }))
                       }
                       placeholder="📍 Where?"
-                      className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     />
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <input
+                    <div className="grid gap-6 sm:grid-cols-[1.4fr_1fr_1fr]">
+                      <FloatingInput
+                        label="Date"
                         type="date"
                         value={formState.date}
                         onChange={(event) =>
                           setFormState((prev) => ({ ...prev, date: event.target.value }))
                         }
-                        className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                       />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="time"
-                          value={formState.startTime}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, startTime: event.target.value }))
-                          }
-                          className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                        />
-                        <input
-                          type="time"
-                          value={formState.endTime}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, endTime: event.target.value }))
-                          }
-                          className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                        />
-                      </div>
+                      <FloatingInput
+                        label="Start"
+                        type="time"
+                        value={formState.startTime}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, startTime: event.target.value }))
+                        }
+                      />
+                      <FloatingInput
+                        label="End"
+                        type="time"
+                        value={formState.endTime}
+                        onChange={(event) =>
+                          setFormState((prev) => ({ ...prev, endTime: event.target.value }))
+                        }
+                      />
                     </div>
-                    <input
+                    <FloatingInput
+                      label="Volunteer spots"
                       type="number"
                       value={formState.spots}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, spots: event.target.value }))
                       }
                       placeholder="How many volunteers do you need?"
-                      className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     />
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <input
+                  <div className="space-y-2">
+                    <FloatingInput
+                      label="Flyers"
                       type="number"
                       value={formState.flyers}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, flyers: event.target.value }))
                       }
                       placeholder="Approximately how many flyers?"
-                      className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     />
-                    <input
+                    <FloatingInput
+                      label="Blocks"
                       type="number"
                       value={formState.blocks}
                       onChange={(event) =>
                         setFormState((prev) => ({ ...prev, blocks: event.target.value }))
                       }
                       placeholder="How many blocks/streets?"
-                      className="w-full rounded-2xl border border-yellow-100 px-4 py-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     />
                   </div>
                 )}
 
-                <button
+                <motion.button
                   type="submit"
-                  className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
                 >
                   Post to Feed →
-                </button>
+                </motion.button>
               </form>
             </motion.div>
           </motion.div>
@@ -1189,6 +1237,134 @@ export default function HomePage() {
           </motion.section>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+type StatCounterProps = {
+  value: number;
+  className?: string;
+};
+
+function StatCounter({ value, className }: StatCounterProps) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const inView = useInView(ref, { once: true, margin: "-20%" });
+  const motionValue = useMotionValue(0);
+  const [display, setDisplay] = useState("0");
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(motionValue, value, {
+      duration: 1.5,
+      ease: "easeOut",
+      onUpdate: (latest) => {
+        setDisplay(Math.round(latest).toLocaleString());
+      },
+    });
+
+    return () => controls.stop();
+  }, [inView, motionValue, value]);
+
+  return (
+    <span ref={ref} className={`font-bold ${className ?? ""}`}>
+      {display}
+    </span>
+  );
+}
+
+type FloatingInputProps = {
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+};
+
+function FloatingInput({ label, type = "text", value, onChange, placeholder }: FloatingInputProps) {
+  const [focused, setFocused] = useState(false);
+  const isActive = focused || value.length > 0;
+  const isDateTime = type === "date" || type === "time";
+
+  return (
+    <div className="relative mt-6">
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        placeholder=""
+        className={`w-full border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm outline-none transition-colors focus:border-transparent ${
+          isDateTime ? "[color-scheme:light]" : ""
+        } ${isActive ? "text-slate-900" : "text-slate-400"}`}
+      />
+      <motion.div
+        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        initial={false}
+        animate={{
+          width: focused ? "100%" : "0%",
+          x: focused ? "-50%" : "0%",
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        style={{ translateX: "-50%" }}
+      />
+      <motion.label
+        className="absolute left-0 pointer-events-none origin-left"
+        animate={{
+          y: isActive ? -24 : isDateTime ? 6 : 14,
+          scale: isActive ? 0.85 : 1,
+          color: isActive ? "#065F46" : "#9CA3AF",
+        }}
+        transition={{ duration: 0.2 }}
+      >
+        {label}
+      </motion.label>
+    </div>
+  );
+}
+
+type FloatingTextAreaProps = {
+  label: string;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  rows?: number;
+};
+
+function FloatingTextArea({ label, value, onChange, rows = 4 }: FloatingTextAreaProps) {
+  const [focused, setFocused] = useState(false);
+  const isActive = focused || value.length > 0;
+
+  return (
+    <div className="relative mt-6">
+      <textarea
+        value={value}
+        onChange={onChange}
+        rows={rows}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="w-full resize-none border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm text-gray-900 outline-none transition-colors focus:border-transparent"
+      />
+      <motion.div
+        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        initial={false}
+        animate={{
+          width: focused ? "100%" : "0%",
+          x: focused ? "-50%" : "0%",
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        style={{ translateX: "-50%" }}
+      />
+      <motion.label
+        className="absolute left-0 pointer-events-none origin-left"
+        animate={{
+          y: isActive ? -24 : 14,
+          scale: isActive ? 0.85 : 1,
+          color: isActive ? "#065F46" : "#9CA3AF",
+        }}
+        transition={{ duration: 0.2 }}
+      >
+        {label}
+      </motion.label>
     </div>
   );
 }

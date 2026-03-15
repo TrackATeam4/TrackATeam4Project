@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
+import HomeSidebar from "@/components/home/HomeSidebar";
 import { supabase } from "@/lib/supabase";
 
 type LeaderboardEntry = {
@@ -137,12 +137,10 @@ export default function HomeProfilePage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <Link href="/home" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
-          ← Back to Home
-        </Link>
-
+    <>
+      <HomeSidebar />
+      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700 md:ml-24 lg:ml-72">
+        <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-lg shadow-yellow-100/60">
           <h1 className="text-3xl font-bold text-[#0F172A]">My Profile</h1>
 
@@ -229,7 +227,8 @@ export default function HomeProfilePage() {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }

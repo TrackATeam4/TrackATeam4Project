@@ -197,6 +197,43 @@ def post_campaign_to_bluesky(
     return result
 
 
+@tool
+def post_campaign_to_bluesky(
+    session_id: str, token: str, custom_text: str = ""
+) -> dict:
+    """Create a Bluesky post for the campaign saved in this session.
+
+    Call this after create_campaign succeeds so the post can use the saved
+    campaign title, date, time, and location. Optionally provide custom_text
+    to override the default opening line while still including campaign details.
+    """
+    session_response = httpx.get(
+        f"{BASE_URL}/chat/session/{session_id}",
+        headers=_headers(token),
+    )
+    session_data = session_response.json()
+    session = session_data.get("session", {})
+    context = session.get("context", {})
+    if not context.get("campaign_id"):
+        return {
+            "success": False,
+            "detail": "No campaign created yet in this session.",
+        }
+
+    content = _format_campaign_bsky_post(context, custom_text)
+    post_response = httpx.post(
+        f"{BASE_URL}/bsky/post",
+        json={"content": content},
+    )
+
+    response_data = post_response.json()
+    return {
+        "success": post_response.is_success,
+        "content": content,
+        **response_data,
+    }
+
+
 # ── Invitation & email tools ──────────────────────────────────────────────────
 
 

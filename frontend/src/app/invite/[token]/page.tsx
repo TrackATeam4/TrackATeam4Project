@@ -22,7 +22,7 @@ interface InviteData {
   google_calendar_url: string
 }
 
-type RsvpState = 'idle' | 'accepted' | 'declined' | 'loading' | 'error'
+type RsvpState = 'idle' | 'accepted' | 'declined' | 'loading' | 'error' | 'expired'
 
 function formatDate(dateStr: string): string {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
@@ -85,6 +85,8 @@ export default function InvitePage() {
         if (data.data.invitation.status === 'accepted') {
           setRsvpState('accepted')
           setCalendarUrl(data.data.google_calendar_url)
+        } else if (data.data.invitation.status === 'expired') {
+          setRsvpState('expired')
         }
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : 'Failed to load invitation')
@@ -137,6 +139,16 @@ export default function InvitePage() {
   }
 
   const { campaign, google_calendar_url } = inviteData
+
+  if (rsvpState === 'expired') {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow p-8 text-center">
+          <p className="text-gray-600">This invitation has expired.</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
