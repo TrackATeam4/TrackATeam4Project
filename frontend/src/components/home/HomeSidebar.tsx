@@ -43,7 +43,7 @@ export default function HomeSidebar() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xl font-bold">
             <span className="text-[28px]">🍋</span>
-            Lemontree
+            <img src="/wordmark.svg" alt="Lemontree" className="h-5 w-auto" />
           </div>
           <p className="text-xs uppercase tracking-[0.24em] text-[#6B7280]">Volunteer Hub</p>
         </div>

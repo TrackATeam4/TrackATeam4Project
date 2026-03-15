@@ -724,7 +724,7 @@ export default function HomePage() {
               style={{ fontFamily: "var(--home-display)" }}
             >
               <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
-              LEMONTREE
+              <img src="/wordmark.svg" alt="Lemontree" className="h-5 w-auto brightness-0 invert" />
             </div>
             <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
           </div>

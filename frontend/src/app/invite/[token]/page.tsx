@@ -125,7 +125,7 @@ export default function InvitePage() {
         >
           <div className="flex items-center gap-2 text-white/80">
             <span className="text-3xl">🍋</span>
-            <span className="text-xl font-bold tracking-tight">Lemontree</span>
+            <img src="/wordmark.svg" alt="Lemontree" className="h-6 w-auto brightness-0 invert opacity-80" />
           </div>
         </motion.div>
 
