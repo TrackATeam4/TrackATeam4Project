@@ -359,27 +359,58 @@ async def register_pantry_owner(payload: PantryRegistrationRequest):
             }
         )
     except Exception as exc:
-        error_response(f"Failed to create auth user: {str(exc)}", "AUTH_SIGNUP_FAILED", 400)
+        error_response(
+            f"Failed to create auth user: {str(exc)}",
+            "AUTH_SIGNUP_FAILED",
+            400,
+        )
 
     auth_user = getattr(auth_response, "user", None)
     if not auth_user or not getattr(auth_user, "id", None):
-        error_response("Auth signup succeeded but user payload is missing", "AUTH_USER_MISSING", 500)
+        error_response(
+            "Auth signup succeeded but user payload is missing",
+            "AUTH_USER_MISSING",
+            500,
+        )
 
     user_id = auth_user.id
 
     try:
-        app_user_result = (
+        existing_user_result = (
             supabase.table("users")
-            .insert(
-                {
+            .select("id, email, name, role, created_at")
+            .eq("id", user_id)
+            .execute()
+        )
+
+        existing_users = existing_user_result.data or []
+
+        if existing_users:
+            created_user = existing_users[0]
+        else:
+            inserted_user_result = (
+                supabase.table("users")
+                .insert(
+                    {
+                        "id": user_id,
+                        "email": str(payload.email),
+                        "name": owner_name,
+                    }
+                )
+                .execute()
+            )
+
+            inserted_users = inserted_user_result.data or []
+            created_user = (
+                inserted_users[0]
+                if inserted_users
+                else {
                     "id": user_id,
                     "email": str(payload.email),
                     "name": owner_name,
+                    "role": "volunteer",
                 }
-            )
-            .select("id, email, name, role, created_at")
-            .execute()
-        )
+            ) 
     except Exception as exc:
         error_response(
             f"Auth user created but failed to create app user record: {str(exc)}",
@@ -387,15 +418,47 @@ async def register_pantry_owner(payload: PantryRegistrationRequest):
             500,
         )
 
-    created_users = app_user_result.data or []
-    if not created_users:
-        error_response("Failed to create app user record", "APP_USER_CREATE_FAILED", 500)
-
     try:
-        pantry_result = (
+        existing_pantry_result = (
             supabase.table("food_pantries")
-            .insert(
-                {
+            .select(
+                "id, owner_id, name, description, address, latitude, longitude, "
+                "phone, website, hours, services, is_verified, created_at"
+            )
+            .eq("owner_id", user_id)
+            .eq("name", pantry_name)
+            .execute()
+        )
+
+        existing_pantries = existing_pantry_result.data or []
+
+        if existing_pantries:
+            created_pantry = existing_pantries[0]
+        else:
+            inserted_pantry_result = (
+                supabase.table("food_pantries")
+                .insert(
+                    {
+                        "owner_id": user_id,
+                        "name": pantry_name,
+                        "description": payload.description,
+                        "address": address,
+                        "latitude": payload.latitude,
+                        "longitude": payload.longitude,
+                        "phone": payload.phone,
+                        "website": payload.website,
+                        "hours": payload.hours or {},
+                        "services": services,
+                    }
+                )
+                .execute()
+            )
+
+            inserted_pantries = inserted_pantry_result.data or []
+            created_pantry = (
+                inserted_pantries[0]
+                if inserted_pantries
+                else {
                     "owner_id": user_id,
                     "name": pantry_name,
                     "description": payload.description,
@@ -408,12 +471,6 @@ async def register_pantry_owner(payload: PantryRegistrationRequest):
                     "services": services,
                 }
             )
-            .select(
-                "id, owner_id, name, description, address, latitude, longitude, phone, website, "
-                "hours, services, is_verified, created_at"
-            )
-            .execute()
-        )
     except Exception as exc:
         error_response(
             f"User created but failed to create pantry profile: {str(exc)}",
@@ -421,16 +478,12 @@ async def register_pantry_owner(payload: PantryRegistrationRequest):
             500,
         )
 
-    pantry_rows = pantry_result.data or []
-    if not pantry_rows:
-        error_response("Failed to create pantry profile", "PANTRY_CREATE_FAILED", 500)
-
     session = getattr(auth_response, "session", None)
 
     return success_response(
         {
-            "user": created_users[0],
-            "pantry": pantry_rows[0],
+            "user": created_user,
+            "pantry": created_pantry,
             "session": session,
         }
     )
