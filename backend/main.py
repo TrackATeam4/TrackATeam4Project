@@ -5,10 +5,8 @@ from pydantic import BaseModel, EmailStr, Field
 import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
-from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, x, map
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map, bsky
 from services.scheduler import start_scheduler, stop_scheduler
-from atproto import Client as ATClient
-from bsky_client import BSKY_PASSWORD, BSKY_USERNAME, get_bsky_client
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,8 +31,7 @@ app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
 app.include_router(map.router)
-app.include_router(x.router)
-
+app.include_router(bsky.router)
 
 @app.on_event("startup")
 def on_startup():
@@ -62,17 +59,6 @@ class ResetPasswordRequest(BaseModel):
 @app.get("/")
 def root():
     return {"message": "TrackA API is running"}
-
-@app.get("/bsky")
-def bsky_endpoint(atclient=Depends(get_bsky_client)):
-    try:
-        profile = atclient.login(BSKY_USERNAME, BSKY_PASSWORD)
-        print(f"Logged in as: {profile.handle}")
-        atclient.post("TrackA API again!")
-        return {"message": "Successfully posted to Bluesky!"}
-    except Exception as exc:
-        logger.error("Failed to post to Bluesky: %s", exc)
-        raise HTTPException(status_code=502, detail="Failed to post to Bluesky.")
 
 @app.get("/health")
 def health():
