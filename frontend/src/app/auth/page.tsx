@@ -1,62 +1,30 @@
 "use client";
 
-import { AnimatePresence, motion, useInView, useMotionValue, animate } from "framer-motion";
-import Image from "next/image";
+import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
+import { Suspense, useMemo, useState } from "react";
 
-const featureItems = [
-  {
-    title: "Launch campaigns",
-    description: "Pick a location, set a date, and go live in minutes",
-    emoji: "📍",
-  },
-  {
-    title: "Rally your crew",
-    description: "Invite friends, track RSVPs, coordinate logistics",
-    emoji: "👥",
-  },
-  {
-    title: "Track your impact",
-    description: "Log results and see your community contribution grow",
-    emoji: "📊",
-  },
-];
+const dmSerif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--auth-display",
+});
 
-const stats = [
-  { label: "families helped", value: 900000, suffix: "+" },
-  { label: "cities", value: 11, suffix: "" },
-  { label: "corporate partners", value: 30, suffix: "+" },
-];
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--auth-body",
+});
 
-function StatNumber({ value, suffix }: { value: number; suffix: string }) {
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: "-20%" });
-  const motionValue = useMotionValue(0);
-  const [display, setDisplay] = useState("0");
+const headline = ["Every", "flyer", "feeds", "a", "neighborhood."];
 
-  useEffect(() => {
-    if (!inView) return;
+const tickerText = "🍋 Chelsea • Harlem • Bronx • Washington Heights • Sunset Park • East Village • Astoria • Newark • Philadelphia • Boston • Baltimore •";
 
-    const controls = animate(motionValue, value, {
-      duration: 1.4,
-      ease: "easeOut",
-      onUpdate: (latest) => {
-        setDisplay(Math.floor(latest).toLocaleString());
-      },
-    });
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-    return () => controls.stop();
-  }, [inView, motionValue, value]);
-
-  return (
-    <span ref={ref} className="text-emerald-600">
-      {display}
-      {suffix}
-    </span>
-  );
-}
+type AuthStatus = "idle" | "loading" | "error" | "success";
 
 export default function AuthPage() {
   return (
@@ -70,303 +38,563 @@ function AuthPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedMode = searchParams.get("mode");
-  const isCreatedBanner = searchParams.get("created") === "1";
   const initialMode = requestedMode === "signup" ? "signup" : "signin";
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+  const [showCursor, setShowCursor] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">(
-    isCreatedBanner ? "success" : "idle"
+  const [status, setStatus] = useState<AuthStatus>("idle");
+  const [message, setMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const animatedHeadline = useMemo(
+    () => headline.map((wordText, index) => ({ wordText, index })),
+    []
   );
-  const [message, setMessage] = useState(
-    isCreatedBanner ? "Account created successfully. Please sign in." : ""
-  );
+
+  const buttonX = useMotionValue(0);
+  const buttonY = useMotionValue(0);
+  const springX = useSpring(buttonX, { stiffness: 120, damping: 12 });
+  const springY = useSpring(buttonY, { stiffness: 120, damping: 12 });
+
+  const cursorX = useMotionValue(0);
+  const cursorY = useMotionValue(0);
+  const lemonX = useSpring(cursorX, { stiffness: 50, damping: 20 });
+  const lemonY = useSpring(cursorY, { stiffness: 50, damping: 20 });
+
+  const passwordStrength = useMemo(() => {
+    const length = password.length;
+    if (length >= 12) return { width: "100%", color: "bg-emerald-500" };
+    if (length >= 8) return { width: "75%", color: "bg-yellow-400" };
+    if (length >= 4) return { width: "50%", color: "bg-orange-400" };
+    return { width: "25%", color: "bg-rose-400" };
+  }, [password]);
+
+  const handleMouse = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dx = event.clientX - rect.left - rect.width / 2;
+    const dy = event.clientY - rect.top - rect.height / 2;
+    buttonX.set(dx * 0.15);
+    buttonY.set(dy * 0.15);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     setStatus("loading");
     setMessage("");
+    setShowSuccess(false);
 
     try {
       if (mode === "signup") {
-        await signUpWithEmail(email, password, name);
-      } else {
-        await signInWithEmail(email, password);
-      }
+        const signupResponse = await fetch(`${API_BASE}/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
 
-      if (email) {
-        localStorage.setItem("tracka.user_email", email);
-      }
+        if (!signupResponse.ok) {
+          throw new Error("Unable to create account.");
+        }
 
-      if (mode === "signup") {
         localStorage.setItem("tracka.signup_name", name);
-        setStatus("success");
-        setMessage("Account created successfully. Please sign in.");
-        setPassword("");
-        router.push("/auth?mode=signin&created=1");
-        return;
       }
 
-      router.push("/home");
+      const signinResponse = await fetch(`${API_BASE}/auth/signin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!signinResponse.ok) {
+        throw new Error("Invalid email or password.");
+      }
+
+      const payload = (await signinResponse.json()) as {
+        session?: { access_token?: string };
+      };
+
+      const accessToken = payload.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Missing access token.");
+      }
+
+      localStorage.setItem("tracka.access_token", accessToken);
+      localStorage.setItem("tracka.user_email", email);
+
+      setStatus("success");
+      setTimeout(() => setShowSuccess(true), 500);
+      setTimeout(() => router.push("/home"), 1200);
     } catch (error) {
       setStatus("error");
-      const raw = error instanceof Error ? error.message : "Something went wrong.";
-      const friendly: Record<string, string> = {
-        "User already registered": "An account with this email already exists. Please sign in instead.",
-        "Invalid login credentials": "Incorrect email or password.",
-        "Email not confirmed": "Please confirm your email before signing in.",
-        "Password should be at least 6 characters": "Password must be at least 6 characters.",
-      };
-      setMessage(friendly[raw] ?? raw);
+      setMessage(error instanceof Error ? error.message : "Something went wrong.");
     }
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#FFF9D6] text-slate-700">
-
-      <header className="sticky top-0 z-20">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3 text-2xl font-bold text-[#065F46] sm:text-3xl">
-            <Image src="/logo.svg" alt="Lemontree" width={40} height={40} className="h-10 w-10" />
-            Lemontree
+    <div className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5]`}>
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+        <section className="relative flex min-h-[30vh] flex-col justify-center overflow-hidden bg-[#1B4332] px-8 py-16 text-white lg:min-h-screen">
+          <div className="absolute inset-0">
+            <motion.div
+              animate={{ y: [0, -18, 0], x: [0, 12, 0] }}
+              transition={{ duration: 12, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+              className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-yellow-300/20 blur-3xl"
+            />
+            <motion.div
+              animate={{ y: [0, 22, 0], x: [0, -16, 0] }}
+              transition={{ duration: 14, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+              className="absolute right-0 top-32 h-64 w-64 rounded-full bg-emerald-400/15 blur-3xl"
+            />
+            <motion.div
+              animate={{ y: [0, -25, 0] }}
+              transition={{ duration: 10, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+              className="absolute bottom-10 left-10 h-48 w-48 rounded-full bg-yellow-200/10 blur-3xl"
+            />
           </div>
-          <a
-            href="https://www.foodhelpline.org"
-            className="text-base font-semibold text-slate-600 transition hover:text-[#065F46]"
-          >
-            About Lemontree
-          </a>
-        </div>
-      </header>
 
-      <div className="relative mx-auto grid min-h-[calc(100vh-96px)] max-w-6xl grid-cols-1 gap-12 px-6 pb-16 pt-6 lg:grid-cols-2 lg:items-center lg:gap-16">
-        <div className="w-full space-y-8">
-          <motion.span
-            className="inline-flex items-center rounded-full bg-yellow-100 px-4 py-2 text-sm font-medium text-[#065F46]"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            🍋 Volunteer Flyering Platform
-          </motion.span>
+          <div className="relative z-10 max-w-md space-y-6">
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}
+            >
+              <h1 className="text-4xl font-semibold leading-tight lg:text-6xl" style={{ fontFamily: "var(--auth-display)" }}>
+                {animatedHeadline.map(({ wordText, index }) => (
+                  <motion.span
+                    key={`${wordText}-${index}`}
+                    className={`mr-2 inline-block ${wordText === "neighborhood." ? "text-[#FCD34D]" : "text-white"}`}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
+                  >
+                    {wordText}
+                  </motion.span>
+                ))}
+              </h1>
+            </motion.div>
 
-          <motion.h1
-            className="text-4xl font-bold tracking-tight text-[#0F172A] sm:text-5xl lg:text-6xl"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-          >
-            Spread the word. Feed your neighborhood.
-          </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 0.6, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="text-sm"
+            >
+              900,000+ families connected to free food
+            </motion.p>
+          </div>
+
+          <div className="relative z-10 mt-10 w-full overflow-hidden border-y border-white/10 py-2 text-xs text-white/30">
+            <div className="flex w-[200%] animate-[ticker_30s_linear_infinite] whitespace-nowrap">
+              {[tickerText, tickerText].map((text, index) => (
+                <span key={`${text}-${index}`} className="mx-4">
+                  {text}
+                </span>
+              ))}
+            </div>
+          </div>
 
           <motion.p
-            className="text-lg text-slate-500"
             initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            animate={{ opacity: 0.4, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="relative z-10 mt-8 text-sm italic text-[#FCD34D]"
           >
-            Organize flyering campaigns, rally volunteers, and help families find free food — all in one place.
+            “You never know who needs the help.”
           </motion.p>
+        </section>
 
-          <motion.div
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            variants={{
-              hidden: {},
-              show: {
-                transition: {
-                  staggerChildren: 0.12,
-                },
-              },
-            }}
-          >
-            {featureItems.map((feature) => (
-              <motion.div
-                key={feature.title}
-                variants={{
-                  hidden: { opacity: 0, y: 16 },
-                  show: { opacity: 1, y: 0 },
-                }}
-                className="rounded-2xl border border-yellow-100 bg-white p-4 shadow-lg shadow-yellow-100/60"
-              >
-                <div className="text-2xl">{feature.emoji}</div>
-                <h3 className="mt-3 text-base font-semibold text-[#0F172A]">
-                  {feature.title}
-                </h3>
-                <p className="mt-2 text-sm text-slate-500">{feature.description}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <div className="flex flex-wrap gap-4 text-sm text-slate-400">
-            {stats.map((stat) => (
-              <div key={stat.label} className="flex items-center gap-2">
-                <span className="font-semibold text-emerald-600">
-                  <StatNumber value={stat.value} suffix={stat.suffix} />
-                </span>
-                <span>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <motion.div
-          className="w-full"
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        <section
+          className="relative flex items-center justify-center bg-[#FFFEF5] px-6 py-16 lg:px-10"
+          onMouseMove={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setMousePos({
+              x: ((event.clientX - rect.left) / rect.width) * 100,
+              y: ((event.clientY - rect.top) / rect.height) * 100,
+            });
+            cursorX.set(event.clientX - 8);
+            cursorY.set(event.clientY - 8);
+          }}
+          onMouseEnter={() => setShowCursor(true)}
+          onMouseLeave={() => setShowCursor(false)}
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(27, 67, 50, 0.06) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
         >
-          <div className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-2xl shadow-yellow-200/50 sm:p-10">
-            <div className="flex items-center justify-between rounded-full bg-yellow-50 p-1 text-sm">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("signin");
-                  setStatus("idle");
-                  setMessage("");
-                }}
-                className={`flex-1 rounded-full px-4 py-2 font-medium transition ${
-                  mode === "signin"
-                    ? "bg-white text-[#0F172A] shadow"
-                    : "text-slate-500"
-                }`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("signup");
-                  setStatus("idle");
-                  setMessage("");
-                }}
-                className={`flex-1 rounded-full px-4 py-2 font-medium transition ${
-                  mode === "signup"
-                    ? "bg-white text-[#0F172A] shadow"
-                    : "text-slate-500"
-                }`}
-              >
-                Sign up
-              </button>
-            </div>
+          <motion.div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: `radial-gradient(600px circle at ${mousePos.x}% ${mousePos.y}%, rgba(252, 211, 77, 0.07), transparent 60%)`,
+            }}
+          />
+          <motion.span
+            className="pointer-events-none fixed z-50 text-base opacity-40"
+            style={{ x: lemonX, y: lemonY }}
+            animate={{ opacity: showCursor ? 0.4 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            🍋
+          </motion.span>
 
-            <div className="mt-8 space-y-6">
-              <div>
-                <h2 className="text-2xl font-semibold text-[#0F172A]">
-                  {mode === "signin" ? "Welcome back" : "Create your account"}
-                </h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  {mode === "signin"
-                    ? "Sign in to manage campaigns and volunteers."
-                    : "Get started in under a minute."}
-                </p>
-              </div>
+          <div className="relative z-10 w-full max-w-md">
+            <div className="relative rounded-3xl p-[1px]">
+              <div
+                className="auth-border absolute inset-0 rounded-3xl"
+                style={{
+                  background:
+                    "conic-gradient(from var(--angle), #FCD34D, #10B981, #1B4332, #F97316, #FCD34D)",
+                }}
+              />
+              <div className="relative rounded-3xl bg-white/80 p-10 backdrop-blur-xl">
+                <div className="relative flex rounded-full border border-gray-200 p-1">
+                  <motion.div
+                    layoutId="authTab"
+                    className={`absolute top-1 bottom-1 rounded-full ${
+                      mode === "signin"
+                        ? "left-1 w-[calc(50%-4px)] bg-gradient-to-r from-emerald-500 to-emerald-600"
+                        : "left-[50%] w-[calc(50%-4px)] bg-gradient-to-r from-yellow-400 to-amber-500"
+                    }`}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signin");
+                      setStatus("idle");
+                      setMessage("");
+                      setShowSuccess(false);
+                    }}
+                    className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
+                    style={{ color: mode === "signin" ? "white" : "#64748b" }}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signup");
+                      setStatus("idle");
+                      setMessage("");
+                      setShowSuccess(false);
+                    }}
+                    className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
+                    style={{ color: mode === "signup" ? "white" : "#64748b" }}
+                  >
+                    Sign up
+                  </button>
+                </div>
 
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <AnimatePresence initial={false}>
-                  {mode === "signup" && (
-                    <motion.div
-                      key="name-field"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2 overflow-hidden"
+                <div className="mt-10">
+                  <AnimatePresence mode="wait">
+                    <motion.h2
+                      key={mode}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-3xl font-semibold text-gray-900"
+                      style={{ fontFamily: "var(--auth-display)" }}
                     >
-                      <label className="text-sm font-medium text-slate-600" htmlFor="name">
-                        Full name
-                      </label>
-                      <input
-                        id="name"
-                        type="text"
-                        placeholder="Jane Organizer"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                      />
+                      {mode === "signin" ? "Welcome back" : "Join the movement"}
+                    </motion.h2>
+                  </AnimatePresence>
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={`${mode}-subtext`}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      transition={{ duration: 0.3 }}
+                      className="mt-2 text-sm text-[#334155]"
+                    >
+                      {mode === "signin"
+                        ? "Sign in to manage your campaigns."
+                        : "Start organizing campaigns in under a minute."}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
+
+                <AnimatePresence>
+                  {status === "error" && message ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setMessage("")}
+                        className="float-right text-xs text-red-400"
+                      >
+                        ✕
+                      </button>
+                      {message}
                     </motion.div>
-                  )}
+                  ) : null}
                 </AnimatePresence>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="email">
-                    Email address
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="you@lemontree.org"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                  />
-                </div>
+                <AnimatePresence mode="wait">
+                  {showSuccess ? (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="mt-10 flex flex-col items-center gap-4"
+                    >
+                      <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                        <motion.circle
+                          cx="60"
+                          cy="60"
+                          r="52"
+                          stroke="#10B981"
+                          strokeWidth="6"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.6 }}
+                        />
+                        <motion.path
+                          d="M40 62L54 76L82 46"
+                          stroke="#10B981"
+                          strokeWidth="6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          initial={{ pathLength: 0 }}
+                          animate={{ pathLength: 1 }}
+                          transition={{ duration: 0.6, delay: 0.3 }}
+                        />
+                      </svg>
+                      <p className="text-base font-semibold text-[#1B4332]">You’re in! Redirecting…</p>
+                    </motion.div>
+                  ) : (
+                    <motion.form
+                      key="form"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.4 }}
+                      className="mt-6 space-y-6"
+                      onSubmit={handleSubmit}
+                    >
+                      <AnimatePresence mode="wait">
+                        {mode === "signup" && (
+                          <motion.div
+                            key="name-field"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden"
+                          >
+                            <FloatingInput
+                              label="Full name"
+                              value={name}
+                              onChange={(event) => setName(event.target.value)}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-600" htmlFor="password">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                  />
-                </div>
+                      <FloatingInput
+                        label="Email"
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                      />
 
-                {mode === "signin" && (
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 text-slate-500">
-                      <input type="checkbox" className="h-4 w-4 rounded border-slate-300" />
-                      Remember me
-                    </label>
-                    <button type="button" className="text-emerald-600 hover:text-emerald-700">
-                      Forgot password?
-                    </button>
-                  </div>
-                )}
+                      <div className="space-y-2">
+                        <FloatingInput
+                          label="Password"
+                          type={showPassword ? "text" : "password"}
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          rightElement={
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((prev) => !prev)}
+                              className="text-xs text-gray-500"
+                            >
+                              {showPassword ? "Hide" : "Show"}
+                            </button>
+                          }
+                        />
+                        {mode === "signup" && (
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                            <motion.div
+                              className={`h-full ${passwordStrength.color}`}
+                              initial={false}
+                              animate={{ width: passwordStrength.width }}
+                              transition={{ duration: 0.3, ease: "easeOut" }}
+                            />
+                          </div>
+                        )}
+                      </div>
 
-                <motion.button
-                  type="submit"
-                  disabled={status === "loading"}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {status === "loading"
-                    ? "Please wait..."
-                    : mode === "signin"
-                      ? "Sign in →"
-                      : "Create account →"}
-                </motion.button>
-              </form>
+                      {mode === "signin" && (
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <label className="flex items-center gap-2">
+                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300" />
+                            Remember me
+                          </label>
+                          <Link href="/auth" className="text-emerald-700 hover:text-emerald-900">
+                            Forgot password?
+                          </Link>
+                        </div>
+                      )}
 
-              {status === "error" && message ? (
-                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
-                  {message}
-                </div>
-              ) : null}
+                      <motion.button
+                        type="submit"
+                        disabled={status === "loading"}
+                        onMouseMove={handleMouse}
+                        onMouseLeave={() => {
+                          buttonX.set(0);
+                          buttonY.set(0);
+                        }}
+                        style={{ x: springX, y: springY }}
+                        whileTap={{ scale: 0.97 }}
+                        className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                          status === "success"
+                            ? "bg-emerald-600"
+                            : "bg-gradient-to-r from-[#1B4332] to-[#2D6A4F]"
+                        }`}
+                      >
+                        {status !== "success" ? (
+                          <>
+                            <span className="absolute inset-0 bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] bg-[length:200%_200%] transition-all duration-500 group-hover:bg-[position:100%_50%]" />
+                            <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition group-hover:opacity-100" />
+                          </>
+                        ) : null}
+                        <span className="relative z-10">
+                          {status === "loading" ? (
+                            <div className="flex items-center justify-center gap-1">
+                              {[0, 1, 2].map((i) => (
+                                <motion.div
+                                  key={`dot-${i}`}
+                                  className="h-2 w-2 rounded-full bg-white"
+                                  animate={{ y: [0, -8, 0] }}
+                                  transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.15 }}
+                                />
+                              ))}
+                            </div>
+                          ) : status === "success" ? (
+                            <motion.span
+                              initial={{ scale: 0.6 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                            >
+                              ✓
+                            </motion.span>
+                          ) : (
+                            <span>{mode === "signin" ? "Sign in" : "Create account"}</span>
+                          )}
+                        </span>
+                      </motion.button>
 
-              {status === "success" && message ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700">
-                  {message}
-                </div>
-              ) : null}
-
-              <div className="rounded-2xl border border-dashed border-yellow-100 bg-[#FFFEF5] p-4 text-xs text-slate-500">
-                {mode === "signin"
-                  ? "New here? Switch to sign up above."
-                  : "By signing up you agree to Lemontree’s volunteer guidelines."}
+                      <p className="text-xs text-gray-500">
+                        {mode === "signin"
+                          ? "New here? Switch to sign up above."
+                          : "By signing up you agree to Lemontree’s volunteer guidelines."}
+                      </p>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 0.6, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-6 text-center text-[11px] text-slate-500"
+            >
+              🍋 Powered by Lemontree • helping 900k+ families find free food
+            </motion.p>
           </div>
-        </motion.div>
+        </section>
       </div>
+
+      <style jsx global>{`
+        body {
+          font-family: var(--auth-body, 'DM Sans', sans-serif);
+        }
+        @property --angle {
+          syntax: "<angle>";
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes spin-gradient {
+          to { --angle: 360deg; }
+        }
+        @keyframes spin-rotate {
+          to { transform: rotate(360deg); }
+        }
+        .auth-border {
+          animation: spin-gradient 4s linear infinite;
+        }
+        @supports not (background: conic-gradient(from 0deg, #000, #fff)) {
+          .auth-border {
+            animation: spin-rotate 12s linear infinite;
+          }
+        }
+        @keyframes ticker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+type FloatingInputProps = {
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  rightElement?: React.ReactNode;
+};
+
+function FloatingInput({ label, type = "text", value, onChange, rightElement }: FloatingInputProps) {
+  const [focused, setFocused] = useState(false);
+  const isActive = focused || value.length > 0;
+
+  return (
+    <div className="relative mt-6">
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        className="w-full border-b-2 border-gray-200 bg-transparent py-3 pr-12 text-sm text-gray-900 outline-none transition-colors focus:border-transparent"
+      />
+      {rightElement ? (
+        <div className="absolute right-0 top-1/2 -translate-y-1/2">{rightElement}</div>
+      ) : null}
+      <motion.div
+        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        initial={false}
+        animate={{
+          width: focused ? "100%" : "0%",
+          x: focused ? "-50%" : "0%",
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        style={{ translateX: "-50%" }}
+      />
+      <motion.label
+        className="absolute left-0 pointer-events-none origin-left"
+        animate={{
+          y: isActive ? -24 : 8,
+          scale: isActive ? 0.85 : 1,
+          color: isActive ? "#065F46" : "#9CA3AF",
+        }}
+        transition={{ duration: 0.2 }}
+      >
+        {label}
+      </motion.label>
     </div>
   );
 }

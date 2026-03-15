@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { authFetch } from "@/lib/api";
+import HomeSidebar from "@/components/home/HomeSidebar";
 import { supabase } from "@/lib/supabase";
 
 type LeaderboardEntry = {
@@ -97,12 +97,10 @@ export default function HomeLeaderboardPage() {
   }, [fetchGlobal, fetchNearby, router, scope]);
 
   return (
-    <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <Link href="/home" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
-          ← Back to Home
-        </Link>
-
+    <>
+      <HomeSidebar />
+      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700 md:ml-24 lg:ml-72">
+        <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-lg shadow-yellow-100/60">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -194,7 +192,8 @@ export default function HomeLeaderboardPage() {
             </div>
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }

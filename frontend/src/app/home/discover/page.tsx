@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import HomeSidebar from "@/components/home/HomeSidebar";
 
 type MapboxMap = import("mapbox-gl").Map;
 type MapboxMarker = import("mapbox-gl").Marker;
@@ -334,12 +334,11 @@ export default function HomeDiscoverPage() {
   }, [userLocation, mapReady]);
 
   return (
-    <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700">
-      <div className="mx-auto max-w-6xl space-y-5">
+    <>
+      <HomeSidebar />
+      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700 md:ml-24 lg:ml-72">
+        <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex items-center justify-between">
-          <Link href="/home" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
-            ← Back to Home
-          </Link>
           <div className="flex items-center gap-2 text-xs flex-wrap">
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">Events: {totalCampaigns}</span>
             <span className="rounded-full bg-yellow-100 px-3 py-1 text-yellow-700">Pantries: {totalPantries}</span>
@@ -429,7 +428,8 @@ export default function HomeDiscoverPage() {
             {loading ? <span className="text-slate-400">Refreshing pins…</span> : null}
           </div>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
