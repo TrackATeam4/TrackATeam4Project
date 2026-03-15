@@ -25,6 +25,9 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         const res = await authFetch<{ id: string; email: string; role?: string }>("/auth/me");
         const role = res.data?.role ?? "volunteer";
         localStorage.setItem("tracka.user_role", role);
+        // storage event only fires cross-tab — dispatch manually so same-tab
+        // useSyncExternalStore subscribers (HomeSidebar) pick up the new value
+        window.dispatchEvent(new StorageEvent("storage", { key: "tracka.user_role", newValue: role }));
       } catch {
         localStorage.setItem("tracka.user_role", "volunteer");
       }
