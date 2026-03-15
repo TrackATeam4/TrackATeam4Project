@@ -46,7 +46,7 @@ type ImpactReport = {
   notes?: string | null;
 };
 
-type TabId = "tasks" | "impact" | "calendar";
+type TabId = "tasks" | "impact" | "calendar" | "checkin";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -359,7 +359,7 @@ export default function CampaignDetailPage() {
             <div className="sticky top-[49px] z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
               <div className="mx-auto max-w-3xl px-6">
                 <div className="flex gap-0">
-                  {(["tasks", "impact", "calendar"] as TabId[]).map((tab) => (
+                  {(["tasks", "impact", "calendar", "checkin"] as TabId[]).map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -370,7 +370,7 @@ export default function CampaignDetailPage() {
                           : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
-                      {tab === "tasks" ? "📋 Tasks" : tab === "impact" ? "📊 Impact" : "📅 Calendar"}
+                      {tab === "tasks" ? "📋 Tasks" : tab === "impact" ? "📊 Impact" : tab === "calendar" ? "📅 Calendar" : "📱 Check In"}
                       {activeTab === tab && (
                         <motion.div
                           layoutId="tab-underline"
@@ -582,6 +582,70 @@ export default function CampaignDetailPage() {
                         <li>👥 {spotsTotal} volunteer spots</li>
                       </ul>
                     </div>
+                  </motion.div>
+                )}
+                {/* Check In */}
+                {activeTab === "checkin" && (
+                  <motion.div
+                    key="checkin"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-6"
+                  >
+                    {/* QR Code card */}
+                    <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm text-center">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Scan to Check In</p>
+                      <div className="flex justify-center">
+                        <div className="rounded-2xl border border-gray-200 p-3 shadow-sm inline-block bg-white">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                              typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : `/checkin/${id}`
+                            )}&color=1B4332&bgcolor=ffffff`}
+                            alt="Check-in QR Code"
+                            width={220}
+                            height={220}
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#0F172A]">Show this to volunteers on arrival</p>
+                      <p className="mt-1 text-xs text-slate-400">or share the link below</p>
+                      <div className="mt-4 flex items-center gap-2 justify-center">
+                        <code className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs text-slate-600">
+                          {typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : `/checkin/${id}`}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : "";
+                            void navigator.clipboard.writeText(url);
+                          }}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-gray-50 transition"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    {/* Self check-in button */}
+                    {isJoined && (
+                      <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+                        <p className="text-sm text-emerald-700 font-semibold mb-3">You&apos;re signed up — check yourself in when you arrive</p>
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.97 }}
+                          onClick={async () => {
+                            try {
+                              await authFetch(`/campaigns/${id}/checkin`, { method: "POST" });
+                            } catch { /* ignore */ }
+                          }}
+                          className="rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-md"
+                        >
+                          ✓ Check In Now
+                        </motion.button>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

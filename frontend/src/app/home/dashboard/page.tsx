@@ -105,6 +105,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   const [impactSubmitting, setImpactSubmitting] = useState(false);
   const [impactMsg, setImpactMsg] = useState("");
   const [impactExists, setImpactExists] = useState(false);
+  const [shareCard, setShareCard] = useState<{ flyers: number; families: number; volunteers: number } | null>(null);
 
   // Promote
   const [promoting, setPromoting] = useState(false);
@@ -230,6 +231,11 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
       });
       setImpactMsg("Impact report submitted! +10 points earned.");
       setImpactExists(true);
+      setShareCard({
+        flyers: Number(impactDraft.flyers_distributed) || 0,
+        families: Number(impactDraft.families_reached) || 0,
+        volunteers: Number(impactDraft.volunteers_attended) || 0,
+      });
     } catch (e) {
       setImpactMsg(e instanceof Error ? e.message : "Failed to submit report.");
     } finally { setImpactSubmitting(false); }
@@ -784,7 +790,142 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Impact Share Card Overlay ── */}
+      <AnimatePresence>
+        {shareCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          >
+            {/* Confetti dots */}
+            {Array.from({ length: 20 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 1, y: 0, x: 0 }}
+                animate={{
+                  opacity: 0,
+                  y: Math.random() * 400 - 100,
+                  x: Math.random() * 600 - 300,
+                }}
+                transition={{ duration: 1.8 + Math.random() * 0.8, ease: "easeOut" }}
+                className="pointer-events-none absolute"
+                style={{
+                  top: `${20 + Math.random() * 60}%`,
+                  left: `${10 + Math.random() * 80}%`,
+                  width: 8,
+                  height: 8,
+                  borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                  backgroundColor: ["#FCD34D", "#34D399", "#60A5FA", "#F87171", "#A78BFA", "#FB923C"][
+                    Math.floor(Math.random() * 6)
+                  ],
+                }}
+              />
+            ))}
+
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 22 }}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F2D1F] to-[#1B4332] shadow-2xl"
+            >
+              {/* Header */}
+              <div className="px-8 pt-8 pb-4 text-center">
+                <p className="text-4xl">🍋</p>
+                <h2 className="mt-3 text-2xl font-bold text-white">We Made an Impact!</h2>
+                <p className="mt-1 text-sm font-semibold text-emerald-300">{campaign.title}</p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3 px-6 py-4">
+                {[
+                  { icon: "📄", label: "Flyers", value: shareCard.flyers },
+                  { icon: "👨‍👩‍👧", label: "Families", value: shareCard.families },
+                  { icon: "🙌", label: "Volunteers", value: shareCard.volunteers },
+                ].map(({ icon, label, value }) => (
+                  <div key={label} className="rounded-2xl bg-white/10 px-3 py-4 text-center">
+                    <p className="text-xl">{icon}</p>
+                    <AnimatedShareNumber value={value} />
+                    <p className="mt-1 text-xs text-emerald-200/70">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 px-6 pb-4">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    const text = encodeURIComponent(
+                      `🍋 Just made an impact with ${campaign.title}! 📄 ${shareCard.flyers} flyers, 👨‍👩‍👧 ${shareCard.families} families, 🙌 ${shareCard.volunteers} volunteers. #volunteer #community`
+                    );
+                    window.open(`https://bsky.app/intent/compose?text=${text}`, "_blank");
+                  }}
+                  className="flex-1 rounded-2xl bg-[#0085FF] py-3 text-xs font-bold text-white transition hover:bg-[#0066cc]"
+                >
+                  🦋 Share on Bluesky
+                </motion.button>
+                <CopyLinkButton campaignId={campaign.id} />
+              </div>
+
+              {/* Close */}
+              <div className="px-6 pb-8">
+                <button
+                  type="button"
+                  onClick={() => setShareCard(null)}
+                  className="w-full rounded-2xl border border-white/20 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/10"
+                >
+                  Celebrate &amp; Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// ── Helpers for share card ─────────────────────────────────────────────────────
+
+function AnimatedShareNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let frame: number;
+    const start = performance.now();
+    const duration = 1000;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(ease * value));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <p className="mt-1 text-2xl font-bold text-white">{display.toLocaleString()}</p>;
+}
+
+function CopyLinkButton({ campaignId }: { campaignId: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      onClick={async () => {
+        const url = `${window.location.origin}/c/${campaignId}`;
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="flex-1 rounded-2xl bg-white/10 py-3 text-xs font-bold text-white transition hover:bg-white/20 border border-white/20"
+    >
+      {copied ? "Copied!" : "🔗 Copy Public Link"}
+    </motion.button>
   );
 }
 
