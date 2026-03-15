@@ -143,7 +143,7 @@ export default function HomeSidebar() {
 
         {/* User */}
         <div className="mt-4 flex items-center gap-3 rounded-xl bg-[#FFFBEB] px-3 py-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#F97316] text-sm font-bold text-white shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-sm font-bold text-white shadow-sm">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -175,7 +175,7 @@ export default function HomeSidebar() {
             );
           })}
         </nav>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#F97316] text-sm font-bold text-white">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-sm font-bold text-white">
           {userName.charAt(0).toUpperCase()}
         </div>
       </aside>

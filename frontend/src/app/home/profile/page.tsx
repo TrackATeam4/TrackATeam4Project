@@ -148,7 +148,7 @@ export default function HomeProfilePage() {
             <div className="h-24 bg-gradient-to-r from-[#1B4332] to-[#2D6A4F]" />
             <div className="px-8 pb-8">
               <div className="-mt-10 flex items-end gap-5">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542] to-[#F97316] text-3xl font-bold text-white shadow-md ring-4 ring-white">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-3xl font-bold text-white shadow-md ring-4 ring-white">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <div className="mb-1">
@@ -192,7 +192,7 @@ export default function HomeProfilePage() {
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
                     <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-[#F5C542] to-[#F97316]"
+                      className="h-full rounded-full bg-gradient-to-r from-[#F5C542] to-[#E5A800]"
                       initial={{ width: 0 }}
                       animate={{ width: `${progressPct}%` }}
                       transition={{ duration: 0.8, ease: "easeOut" }}
@@ -264,7 +264,7 @@ export default function HomeProfilePage() {
                       className="flex items-center gap-3 rounded-xl bg-[#FFFEF5] px-3 py-2.5"
                     >
                       <span className="w-6 text-center text-xs font-bold text-[#6B7280]">#{entry.rank}</span>
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#F97316] text-xs font-bold text-white">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-xs font-bold text-white">
                         {(entry.user?.name ?? "?").charAt(0).toUpperCase()}
                       </div>
                       <p className="flex-1 text-sm text-[#111827]">{entry.user?.name ?? "Volunteer"}</p>

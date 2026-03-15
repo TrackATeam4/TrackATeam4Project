@@ -37,7 +37,7 @@ const MEDAL_BG = [
 ];
 const MEDAL_TEXT = ["text-amber-600", "text-slate-500", "text-orange-500"];
 const AVATAR_COLORS = [
-  "from-[#F5C542] to-[#F97316]",
+  "from-[#F5C542] to-[#E5A800]",
   "from-emerald-400 to-teal-500",
   "from-violet-400 to-purple-500",
   "from-rose-400 to-pink-500",
