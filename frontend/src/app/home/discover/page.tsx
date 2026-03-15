@@ -44,6 +44,13 @@ const parseArrayData = <T,>(payload: unknown): T[] => {
   if (!payload || typeof payload !== "object") return [];
   const root = payload as Record<string, unknown>;
   if (Array.isArray(root.data)) return root.data as T[];
+  // handle { data: { pantries: [...] } } shape
+  if (root.data && typeof root.data === "object") {
+    const inner = root.data as Record<string, unknown>;
+    for (const val of Object.values(inner)) {
+      if (Array.isArray(val)) return val as T[];
+    }
+  }
   if (Array.isArray(root.items)) return root.items as T[];
   if (Array.isArray(payload)) return payload as T[];
   return [];
