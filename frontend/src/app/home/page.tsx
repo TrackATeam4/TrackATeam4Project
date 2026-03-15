@@ -757,78 +757,6 @@ export default function HomePage() {
 
         <main className="flex-1 px-5 pb-24 pt-8 lg:ml-72 md:ml-24 xl:mr-[300px]">
           <div className="mx-auto max-w-2xl space-y-8">
-            {/* ── Trending Carousel ── */}
-            {trendingCampaigns.length > 0 && !searchQuery && (
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">🔥 Trending Now</p>
-                <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-                  {trendingCampaigns.map((c) => (
-                    <Link
-                      key={c.id}
-                      href={`/home/campaign/${c.id}`}
-                      className="group relative flex-shrink-0 w-52 overflow-hidden rounded-2xl border border-yellow-100 bg-gradient-to-br from-yellow-50 to-amber-50 p-4 shadow-sm transition hover:shadow-md hover:border-yellow-200"
-                    >
-                      <div className="absolute top-3 right-3 rounded-full bg-amber-400/20 border border-amber-300/40 px-1.5 py-0.5 text-xs font-bold text-amber-700">
-                        🔥
-                      </div>
-                      <p className="pr-8 text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-emerald-800 transition">{c.title}</p>
-                      <p className="mt-2 text-xs text-slate-500 line-clamp-1">{c.location ?? "Location TBD"}</p>
-                      <p className="mt-1 text-xs text-amber-600 font-medium">{(c as { recent_signups?: number }).recent_signups ?? 0} recent joins</p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ── Feed mode + Search ── */}
-            <div className="space-y-3">
-              {/* Mode toggle */}
-              <div className="flex items-center gap-2">
-                <div className="flex rounded-xl border border-gray-200 bg-white p-1 text-xs font-semibold">
-                  {(["all", "nearby"] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setFeedMode(mode);
-                        if (mode === "nearby" && nearbyPosts.length === 0) loadNearby();
-                      }}
-                      className={`rounded-lg px-4 py-1.5 transition ${
-                        feedMode === mode
-                          ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {mode === "all" ? "📋 All" : "📍 Nearby"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Search input */}
-              <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search campaigns..."
-                  value={searchQuery}
-                  onChange={(e) => { void handleSearch(e.target.value); }}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:text-slate-600"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
             {feedLoading && (
               <div className="rounded-2xl border border-[#E5E7EB] bg-[#FEF3C7] px-4 py-3 text-sm text-[#92400E]">
                 Loading feed from API...
@@ -844,24 +772,6 @@ export default function HomePage() {
             {!feedLoading && !feedError && posts.length === 0 && (
               <div className="rounded-2xl border border-gray-200 bg-white px-4 py-6 text-sm text-[#6B7280]">
                 No campaigns yet. Be the first to post an event update.
-              </div>
-            )}
-
-            {searchQuery && !isSearching && searchResults.length === 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                No campaigns found for &quot;{searchQuery}&quot;
-              </div>
-            )}
-
-            {feedMode === "nearby" && nearbyLoading && (
-              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-                Finding campaigns near you...
-              </div>
-            )}
-
-            {feedMode === "nearby" && !nearbyLoading && nearbyPosts.length === 0 && (
-              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                No campaigns found within 20 km of your location.
               </div>
             )}
 
@@ -911,7 +821,7 @@ export default function HomePage() {
               }}
               className="space-y-6"
             >
-              {(searchQuery ? searchResults : feedMode === "nearby" ? nearbyPosts : posts).map((post) => {
+              {posts.map((post) => {
                 const isLiked = likedPosts.has(post.id);
                 const isJoined = joinedPosts.has(post.id);
                 const progress = post.event

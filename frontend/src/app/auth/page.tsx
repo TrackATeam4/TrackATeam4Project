@@ -39,7 +39,7 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const requestedMode = searchParams.get("mode");
   const initialMode = requestedMode === "signup" ? "signup" : "signin";
-  const [mode, setMode] = useState<"signin" | "signup" | "reset">(initialMode);
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
