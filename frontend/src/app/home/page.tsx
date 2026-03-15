@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import HomeSidebar from "@/components/home/HomeSidebar";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -712,102 +713,18 @@ export default function HomePage() {
 
   return (
     <div
-      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5] text-[#334155]`}
+      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFF8E1] text-[#1A1A1A]`}
       style={{ fontFamily: "var(--home-body)" }}
     >
+      <HomeSidebar />
+
       <div className="flex">
-        <motion.aside
-          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white flex"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="space-y-1">
-            <div
-              className="flex items-center gap-2 text-xl font-bold"
-              style={{ fontFamily: "var(--home-display)" }}
-            >
-              <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
-              LEMONTREE
-            </div>
-            <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
-          </div>
-
-          <motion.nav
-            className="mt-10 flex flex-1 flex-col gap-2 text-sm"
-            initial="hidden"
-            animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
-          >
-            {navItems.map((item) => {
-              const isActive = item.label === "Feed";
-              return (
-                <motion.div
-                  key={item.label}
-                  variants={{ hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0 } }}
-                  whileHover={{ x: 4 }}
-                >
-                  <Link
-                    href={item.href}
-                    className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
-                      isActive
-                        ? "bg-gradient-to-r from-emerald-500/20 to-transparent text-white font-semibold"
-                        : "text-white/60 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    {isActive ? (
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#FCD34D]" />
-                    ) : null}
-                    <span className="text-[20px]">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.nav>
-
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-white/10 p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{userName}</p>
-                  <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-xs text-emerald-200">
-                    Volunteer
-                  </span>
-                </div>
-              </div>
-              <button className="text-lg text-white/40 transition hover:text-white">⎋</button>
-            </div>
-          </div>
-        </motion.aside>
-
-        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 flex">
-          <div className="flex flex-col items-center gap-4 text-xl">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
-                  item.label === "Feed"
-                    ? "bg-white/15 text-white"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                {item.icon}
-              </Link>
-            ))}
-          </div>
-        </aside>
-
         <main className="flex-1 px-5 pb-24 pt-8 lg:ml-72 md:ml-24 xl:mr-[300px]">
           <div className="mx-auto max-w-2xl space-y-8">
             {/* ── Trending Carousel ── */}
             {trendingCampaigns.length > 0 && !searchQuery && (
               <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">🔥 Trending Now</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#6B7280]">🔥 Trending Now</p>
                 <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
                   {trendingCampaigns.map((c) => (
                     <Link
@@ -843,8 +760,8 @@ export default function HomePage() {
                       }}
                       className={`rounded-lg px-4 py-1.5 transition ${
                         feedMode === mode
-                          ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
+                          ? "bg-[#F5C542] text-[#1A1A1A] shadow-sm font-bold"
+                          : "text-[#6B7280] hover:text-[#1A1A1A]"
                       }`}
                     >
                       {mode === "all" ? "📋 All" : mode === "foryou" ? "✨ For You" : "📍 Nearby"}
@@ -855,7 +772,7 @@ export default function HomePage() {
 
               {/* Search input */}
               <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -863,7 +780,7 @@ export default function HomePage() {
                   placeholder="Search campaigns..."
                   value={searchQuery}
                   onChange={(e) => { void handleSearch(e.target.value); }}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-[#1A1A1A] placeholder-[#9CA3AF] shadow-sm focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/40"
                 />
                 {searchQuery && (
                   <button
@@ -938,7 +855,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal()}
                   whileHover={{ scale: 1.01 }}
-                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-gray-100"
+                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-[#9CA3AF] transition hover:bg-gray-100"
                 >
                   Share an upcoming event or campaign update...
                 </motion.button>
@@ -1173,7 +1090,7 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFFEF5] px-6 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-6 py-8 xl:flex">
           <motion.div
             className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
@@ -1245,14 +1162,14 @@ export default function HomePage() {
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 transition hover:text-emerald-600"
+                className="block rounded-xl bg-gray-50 px-4 py-3 transition hover:text-[#1B4332]"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -1265,12 +1182,12 @@ export default function HomePage() {
           const isActive = item.label === "Feed";
           return (
             <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1">
-              <span className={`text-xl ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
+              <span className={`text-xl ${isActive ? "text-[#1B4332]" : "text-[#9CA3AF]"}`}>
                 {item.icon}
               </span>
               <span
                 className={`h-1 w-1 rounded-full ${
-                  isActive ? "bg-emerald-600" : "bg-transparent"
+                  isActive ? "bg-[#F5C542]" : "bg-transparent"
                 }`}
               />
             </Link>

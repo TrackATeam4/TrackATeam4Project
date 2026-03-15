@@ -207,7 +207,7 @@ function AuthPageInner() {
         </section>
 
         <section
-          className="relative flex items-center justify-center bg-[#FFFEF5] px-6 py-16 lg:px-10"
+          className="relative flex items-center justify-center bg-[#FFF8E1] px-6 py-16 lg:px-10"
           onMouseMove={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             setMousePos({
@@ -220,7 +220,7 @@ function AuthPageInner() {
           onMouseEnter={() => setShowCursor(true)}
           onMouseLeave={() => setShowCursor(false)}
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(27, 67, 50, 0.06) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(circle, rgba(27, 67, 50, 0.05) 1px, transparent 1px)",
             backgroundSize: "24px 24px",
           }}
         >
@@ -241,21 +241,14 @@ function AuthPageInner() {
 
           <div className="relative z-10 w-full max-w-md">
             <div className="relative rounded-3xl p-[1px]">
-              <div
-                className="auth-border absolute inset-0 rounded-3xl"
-                style={{
-                  background:
-                    "conic-gradient(from var(--angle), #FCD34D, #10B981, #1B4332, #F97316, #FCD34D)",
-                }}
-              />
-              <div className="relative rounded-3xl bg-white/80 p-10 backdrop-blur-xl">
-                <div className="relative flex rounded-full border border-gray-200 p-1">
+              <div className="relative rounded-3xl bg-white p-10 shadow-sm border border-gray-200">
+                <div className="relative flex rounded-full border border-gray-200 bg-gray-50 p-1">
                   <motion.div
                     layoutId="authTab"
                     className={`absolute top-1 bottom-1 rounded-full ${
                       mode === "signin"
-                        ? "left-1 w-[calc(50%-4px)] bg-gradient-to-r from-emerald-500 to-emerald-600"
-                        : "left-[50%] w-[calc(50%-4px)] bg-gradient-to-r from-yellow-400 to-amber-500"
+                        ? "left-1 w-[calc(50%-4px)] bg-[#1B4332]"
+                        : "left-[50%] w-[calc(50%-4px)] bg-[#F5C542]"
                     }`}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   />
@@ -268,7 +261,7 @@ function AuthPageInner() {
                       setShowSuccess(false);
                     }}
                     className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
-                    style={{ color: mode === "signin" ? "white" : "#64748b" }}
+                    style={{ color: mode === "signin" ? "white" : "#6B7280" }}
                   >
                     Sign in
                   </button>
@@ -281,7 +274,7 @@ function AuthPageInner() {
                       setShowSuccess(false);
                     }}
                     className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
-                    style={{ color: mode === "signup" ? "white" : "#64748b" }}
+                    style={{ color: mode === "signup" ? "#1A1A1A" : "#6B7280" }}
                   >
                     Sign up
                   </button>
@@ -412,7 +405,7 @@ function AuthPageInner() {
                             setMessage(e instanceof Error ? e.message : "Something went wrong.");
                           }
                         }}
-                        className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-50"
+                        className="w-full rounded-2xl bg-[#1B4332] py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50 hover:bg-[#163828] transition"
                       >
                         {status === "loading" ? "Sending..." : "Send Reset Link"}
                       </motion.button>
@@ -514,17 +507,16 @@ function AuthPageInner() {
                         }}
                         style={{ x: springX, y: springY }}
                         whileTap={{ scale: 0.97 }}
-                        className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${
                           status === "success"
-                            ? "bg-emerald-600"
-                            : "bg-gradient-to-r from-[#1B4332] to-[#2D6A4F]"
+                            ? "bg-emerald-600 text-white"
+                            : mode === "signup"
+                            ? "bg-[#F5C542] text-[#1A1A1A]"
+                            : "bg-[#1B4332] text-white"
                         }`}
                       >
                         {status !== "success" ? (
-                          <>
-                            <span className="absolute inset-0 bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] bg-[length:200%_200%] transition-all duration-500 group-hover:bg-[position:100%_50%]" />
-                            <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition group-hover:opacity-100" />
-                          </>
+                          <span className="absolute inset-0 rounded-xl bg-black/5 opacity-0 transition group-hover:opacity-100" />
                         ) : null}
                         <span className="relative z-10">
                           {status === "loading" ? (
@@ -578,25 +570,6 @@ function AuthPageInner() {
       <style jsx global>{`
         body {
           font-family: var(--auth-body, 'DM Sans', sans-serif);
-        }
-        @property --angle {
-          syntax: "<angle>";
-          initial-value: 0deg;
-          inherits: false;
-        }
-        @keyframes spin-gradient {
-          to { --angle: 360deg; }
-        }
-        @keyframes spin-rotate {
-          to { transform: rotate(360deg); }
-        }
-        .auth-border {
-          animation: spin-gradient 4s linear infinite;
-        }
-        @supports not (background: conic-gradient(from 0deg, #000, #fff)) {
-          .auth-border {
-            animation: spin-rotate 12s linear infinite;
-          }
         }
         @keyframes ticker {
           0% { transform: translateX(0); }
