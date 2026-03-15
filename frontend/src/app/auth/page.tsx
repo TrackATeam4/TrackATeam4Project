@@ -39,7 +39,7 @@ function AuthPageInner() {
   const searchParams = useSearchParams();
   const requestedMode = searchParams.get("mode");
   const initialMode = requestedMode === "signup" ? "signup" : "signin";
-  const [mode, setMode] = useState<"signin" | "signup" | "reset">(initialMode);
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
   const [showCursor, setShowCursor] = useState(false);
   const [name, setName] = useState("");
@@ -298,7 +298,7 @@ function AuthPageInner() {
                       className="text-3xl font-semibold text-gray-900"
                       style={{ fontFamily: "var(--auth-display)" }}
                     >
-                      {mode === "signin" ? "Welcome back" : mode === "reset" ? "Reset password" : "Join the movement"}
+                      {mode === "signin" ? "Welcome back" : "Join the movement"}
                     </motion.h2>
                   </AnimatePresence>
                   <AnimatePresence mode="wait">
@@ -312,8 +312,6 @@ function AuthPageInner() {
                     >
                       {mode === "signin"
                         ? "Sign in to manage your campaigns."
-                        : mode === "reset"
-                        ? "Enter your email and we'll send a reset link."
                         : "Start organizing campaigns in under a minute."}
                     </motion.p>
                   </AnimatePresence>
@@ -371,58 +369,6 @@ function AuthPageInner() {
                         />
                       </svg>
                       <p className="text-base font-semibold text-[#1B4332]">You’re in! Redirecting…</p>
-                    </motion.div>
-                  ) : mode === "reset" ? (
-                    <motion.div
-                      key="reset"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.4 }}
-                      className="mt-6 space-y-4"
-                    >
-                      <input
-                        type="email"
-                        placeholder="Your email address"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
-                      />
-                      {message && (
-                        <p className={`text-xs ${status === "error" ? "text-rose-600" : "text-emerald-700"}`}>{message}</p>
-                      )}
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.97 }}
-                        disabled={status === "loading" || !email.trim()}
-                        onClick={async () => {
-                          setStatus("loading");
-                          setMessage("");
-                          try {
-                            const res = await fetch(`${API_BASE}/auth/reset-password`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ email }),
-                            });
-                            if (!res.ok) throw new Error("Unable to send reset email.");
-                            setStatus("success");
-                            setMessage("Reset link sent! Check your inbox.");
-                          } catch (e) {
-                            setStatus("error");
-                            setMessage(e instanceof Error ? e.message : "Something went wrong.");
-                          }
-                        }}
-                        className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-md disabled:opacity-50"
-                      >
-                        {status === "loading" ? "Sending..." : "Send Reset Link"}
-                      </motion.button>
-                      <button
-                        type="button"
-                        onClick={() => { setMode("signin"); setMessage(""); setStatus("idle"); }}
-                        className="w-full text-center text-sm text-slate-500 hover:text-slate-700 transition"
-                      >
-                        ← Back to sign in
-                      </button>
                     </motion.div>
                   ) : (
                     <motion.form
@@ -494,13 +440,9 @@ function AuthPageInner() {
                             <input type="checkbox" className="h-4 w-4 rounded border-gray-300" />
                             Remember me
                           </label>
-                          <button
-                            type="button"
-                            onClick={() => { setMode("reset"); setMessage(""); setStatus("idle"); }}
-                            className="text-emerald-700 hover:text-emerald-900 transition"
-                          >
+                          <Link href="/auth" className="text-emerald-700 hover:text-emerald-900">
                             Forgot password?
-                          </button>
+                          </Link>
                         </div>
                       )}
 
