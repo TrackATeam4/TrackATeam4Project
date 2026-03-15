@@ -50,7 +50,7 @@ const getLocalStorageValue = (key: string, fallback: string) => {
 
 export default function HomeProfilePage() {
   const router = useRouter();
-  const [email, setEmail] = useState(() => getLocalStorageValue("tracka.user_email", "Not available"));
+  const [email, setEmail] = useState("Not available");
   const [pointsTotal, setPointsTotal] = useState<number | null>(null);
   const [levelName, setLevelName] = useState("-");
   const [levelNumber, setLevelNumber] = useState<number | null>(null);
@@ -74,6 +74,12 @@ export default function HomeProfilePage() {
     if (data && typeof data === "object") return data as Record<string, unknown>;
     return root;
   };
+
+  // Seed email from localStorage after mount (avoids SSR/client hydration mismatch)
+  useEffect(() => {
+    const stored = localStorage.getItem("tracka.user_email");
+    if (stored) setEmail(stored);
+  }, []);
 
   useEffect(() => {
     const loadProfileData = async () => {
