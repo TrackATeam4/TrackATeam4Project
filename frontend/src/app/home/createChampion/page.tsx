@@ -51,10 +51,10 @@ const MONTHS = [
 
 // Shared input class aligned with the rest of the app
 const inputCls =
-  "w-full rounded-2xl border border-yellow-100 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-400";
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition-colors focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30 placeholder:text-[#9CA3AF]";
 
 const selectCls =
-  "w-full appearance-none rounded-2xl border border-yellow-100 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm outline-none transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 cursor-pointer";
+  "w-full appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] shadow-sm outline-none transition-colors focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30 cursor-pointer";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -82,32 +82,32 @@ function TimePicker({
     onChange(`${String(h24).padStart(2, "0")}:${newM}`);
   };
 
-  const selCls = "appearance-none border-none bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer";
+  const selCls = "appearance-none border-none bg-transparent text-sm font-medium text-[#1A1A1A] outline-none cursor-pointer";
 
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</span>
-      <div className="flex items-center gap-0.5 rounded-2xl border border-yellow-100 bg-white px-3 py-2.5 shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-200">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">{label}</span>
+      <div className="flex items-center gap-0.5 rounded-2xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition-all focus-within:border-[#F5C542] focus-within:ring-2 focus-within:ring-[#F5C542]/30">
         <select value={h} onChange={(e) => emit(e.target.value, m, ampm)} className={selCls}>
           <option value="">--</option>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
             <option key={n} value={String(n)}>{String(n).padStart(2, "0")}</option>
           ))}
         </select>
-        <span className="select-none font-bold text-yellow-200">:</span>
+        <span className="select-none font-bold text-[#F5C542]">:</span>
         <select value={m} onChange={(e) => emit(h, e.target.value, ampm)} className={selCls}>
           {["00", "15", "30", "45"].map((min) => (
             <option key={min} value={min}>{min}</option>
           ))}
         </select>
-        <div className="ml-2 flex overflow-hidden rounded-lg border border-yellow-100 bg-[#FFFEF5]">
+        <div className="ml-2 flex overflow-hidden rounded-lg border border-gray-200 bg-[#FFF8E1]">
           {(["AM", "PM"] as const).map((p) => (
             <button
               key={p} type="button" onClick={() => emit(h, m, p)}
               className={`px-2.5 py-1 text-xs font-bold transition-all ${
                 ampm === p
-                  ? "bg-emerald-600 text-white"
-                  : "text-slate-400 hover:text-slate-600"
+                  ? "bg-[#F5C542] text-[#1A1A1A]"
+                  : "text-[#9CA3AF] hover:text-[#1A1A1A]"
               }`}
             >
               {p}
@@ -193,15 +193,15 @@ function StatusPicker({
   ];
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">Visibility</span>
-      <div className="flex gap-1.5 rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-1">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">Visibility</span>
+      <div className="flex gap-1.5 rounded-2xl border border-gray-200 bg-[#FFF8E1] p-1">
         {opts.map((o) => (
           <button
             key={o.value} type="button" onClick={() => onChange(o.value)}
             className={`flex-1 rounded-xl py-2 text-sm font-semibold transition-all ${
               value === o.value
-                ? "bg-white text-slate-900 shadow-sm shadow-yellow-100"
-                : "text-slate-400 hover:text-slate-600"
+                ? "bg-white text-[#1A1A1A] shadow-sm"
+                : "text-[#9CA3AF] hover:text-[#1A1A1A]"
             }`}
           >
             {o.label}
@@ -222,13 +222,13 @@ function Stepper({
   const num = value === "" ? null : parseInt(value, 10);
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</span>
-      <div className="flex items-center overflow-hidden rounded-2xl border border-yellow-100 bg-white shadow-sm">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">{label}</span>
+      <div className="flex items-center overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <button
           type="button"
           onClick={() => num !== null && num > min && onChange(String(num - 1))}
           disabled={num === null || num <= min}
-          className="w-10 shrink-0 py-2.5 text-center text-lg font-light text-slate-400 transition-colors hover:bg-[#FFFEF5] hover:text-slate-700 disabled:opacity-30"
+          className="w-10 shrink-0 py-2.5 text-center text-lg font-light text-[#9CA3AF] transition-colors hover:bg-[#FFF8E1] hover:text-[#1A1A1A] disabled:opacity-30"
         >
           −
         </button>
@@ -236,17 +236,17 @@ function Stepper({
           type="number" value={value} min={min}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full border-none bg-transparent py-2.5 text-center text-sm font-semibold text-slate-700 outline-none placeholder:font-normal placeholder:text-slate-400"
+          className="w-full border-none bg-transparent py-2.5 text-center text-sm font-semibold text-[#1A1A1A] outline-none placeholder:font-normal placeholder:text-[#9CA3AF]"
         />
         <button
           type="button"
           onClick={() => onChange(String((num ?? (min - 1)) + 1))}
-          className="w-10 shrink-0 py-2.5 text-center text-lg font-light text-slate-400 transition-colors hover:bg-[#FFFEF5] hover:text-slate-700"
+          className="w-10 shrink-0 py-2.5 text-center text-lg font-light text-[#9CA3AF] transition-colors hover:bg-[#FFF8E1] hover:text-[#1A1A1A]"
         >
           +
         </button>
       </div>
-      {hint && <p className="mt-1.5 text-xs text-slate-400">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-[#6B7280]">{hint}</p>}
     </div>
   );
 }
@@ -255,7 +255,7 @@ function Stepper({
 
 const toDbTime = (v: string) => (v.length === 5 ? `${v}:00` : v);
 
-const cardCls = "rounded-3xl border border-yellow-100 bg-white px-6 py-5 shadow-lg shadow-yellow-100/60";
+const cardCls = "rounded-3xl border border-gray-200 bg-white px-6 py-5 shadow-sm";
 
 export default function HomeCreatePage() {
   const [form, setForm] = useState<CampaignFormState>(INITIAL_FORM);
@@ -370,11 +370,11 @@ export default function HomeCreatePage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFFEF5] text-slate-700 md:ml-24 lg:ml-72">
+      <main className="min-h-screen bg-[#FFF8E1] text-[#1A1A1A] md:ml-24 lg:ml-72">
       {/* Top nav */}
-      <div className="sticky top-0 z-30 border-b border-yellow-100 bg-[#FFFEF5]/90 backdrop-blur-md">
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#FFF8E1]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3">
-          <span className="text-sm font-semibold text-slate-700">New Campaign</span>
+          <span className="text-sm font-semibold text-[#1A1A1A]">New Campaign</span>
           <div className="w-16" />
         </div>
       </div>
@@ -388,37 +388,37 @@ export default function HomeCreatePage() {
               value={form.title}
               onChange={(e) => updateField("title", e.target.value)}
               required
-              className="w-full border-none bg-transparent text-2xl font-bold text-slate-900 outline-none placeholder:font-medium placeholder:text-slate-300"
+              className="w-full border-none bg-transparent text-2xl font-bold text-[#1A1A1A] outline-none placeholder:font-medium placeholder:text-[#9CA3AF]"
               placeholder="Campaign title…"
             />
-            <div className="mt-2 h-px bg-yellow-100" />
+            <div className="mt-2 h-px bg-[#E5E7EB]" />
             <textarea
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
               rows={2}
-              className="mt-3 w-full resize-none border-none bg-transparent text-sm text-slate-500 outline-none placeholder:text-slate-300"
+              className="mt-3 w-full resize-none border-none bg-transparent text-sm text-[#6B7280] outline-none placeholder:text-[#9CA3AF]"
               placeholder="Add a description for your volunteers (optional)"
             />
           </div>
 
           {/* ── Location ────────────────────────────────────────────────────── */}
           <div className={cardCls}>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Location</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6B7280]">Location</p>
             <div className="relative">
               <div className={`flex items-center gap-2 rounded-2xl border bg-white px-4 py-2.5 transition-all ${
                 geoState === "found"
                   ? "border-emerald-300 ring-2 ring-emerald-200"
-                  : "border-yellow-100 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-200"
+                  : "border-gray-200 focus-within:border-[#F5C542] focus-within:ring-2 focus-within:ring-[#F5C542]/30"
               }`}>
                 {geoState === "loading" ? (
-                  <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-emerald-500" />
+                  <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-[#F5C542]" />
                 ) : geoState === "found" ? (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-emerald-500">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[#16A34A]">
                     <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4"/>
                     <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-slate-300">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[#9CA3AF]">
                     <path d="M8 1.5A4.5 4.5 0 0 1 12.5 6c0 3-4.5 8.5-4.5 8.5S3.5 9 3.5 6A4.5 4.5 0 0 1 8 1.5Z" stroke="currentColor" strokeWidth="1.4"/>
                     <circle cx="8" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.4"/>
                   </svg>
@@ -437,7 +437,7 @@ export default function HomeCreatePage() {
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   required
                   autoComplete="off"
-                  className="flex-1 border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  className="flex-1 border-none bg-transparent text-sm text-[#1A1A1A] outline-none placeholder:text-[#9CA3AF]"
                   placeholder="Search a US address or neighborhood…"
                 />
                 {addressQuery && (
@@ -450,7 +450,7 @@ export default function HomeCreatePage() {
                       setForm((prev) => ({ ...prev, address: "", location: "" }));
                       setSuggestions([]);
                     }}
-                    className="shrink-0 text-slate-300 transition-colors hover:text-slate-500"
+                    className="shrink-0 text-[#9CA3AF] transition-colors hover:text-[#6B7280]"
                   >
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                       <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -460,14 +460,14 @@ export default function HomeCreatePage() {
               </div>
 
               {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-yellow-100 bg-white shadow-lg shadow-yellow-100/80">
+                <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                   {suggestions.map((s, i) => {
                     const [primary, ...rest] = s.display_name.split(",");
                     return (
                       <li
                         key={i}
                         onMouseDown={() => selectSuggestion(s)}
-                        className="flex cursor-pointer items-start gap-3 border-b border-yellow-50 px-4 py-3 transition-colors hover:bg-[#FFFEF5] last:border-0"
+                        className="flex cursor-pointer items-start gap-3 border-b border-gray-100 px-4 py-3 transition-colors hover:bg-[#FFF8E1] last:border-0"
                       >
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0 text-slate-300">
                           <path d="M8 1.5A4.5 4.5 0 0 1 12.5 6c0 3-4.5 8.5-4.5 8.5S3.5 9 3.5 6A4.5 4.5 0 0 1 8 1.5Z" stroke="currentColor" strokeWidth="1.4"/>
@@ -523,15 +523,15 @@ export default function HomeCreatePage() {
           </div>
 
           {/* ── Advanced ──────────────────────────────────────────────────────── */}
-          <details className="group rounded-3xl border border-yellow-100 bg-white shadow-lg shadow-yellow-100/60">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-xs font-semibold uppercase tracking-wider text-slate-400 transition-colors hover:text-slate-600">
+          <details className="group rounded-3xl border border-gray-200 bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#6B7280] transition-colors hover:text-[#1A1A1A]">
               Advanced (optional)
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="transition-transform group-open:rotate-180">
                 <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </summary>
-            <div className="border-t border-yellow-50 px-6 py-4">
-              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-400">Flyer Template ID</span>
+            <div className="border-t border-gray-200 px-6 py-4">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">Flyer Template ID</span>
               <input
                 value={form.flyerTemplateId}
                 onChange={(e) => updateField("flyerTemplateId", e.target.value)}
@@ -552,12 +552,12 @@ export default function HomeCreatePage() {
             </div>
           )}
           {successMessage && (
-            <div className="flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0 text-emerald-500">
+            <div className="flex items-start gap-3 rounded-2xl border border-[#BBF7D0] bg-[#E8F5E9] px-4 py-3">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0 text-[#16A34A]">
                 <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/>
                 <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <p className="text-sm font-medium text-emerald-700">{successMessage}</p>
+              <p className="text-sm font-medium text-[#16A34A]">{successMessage}</p>
             </div>
           )}
 
@@ -566,7 +566,7 @@ export default function HomeCreatePage() {
             <button
               type="submit"
               disabled={submitting || isMissingRequired}
-              className="flex-1 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+              className="flex-1 rounded-2xl bg-[#F5C542] py-3 text-sm font-bold text-[#1A1A1A] shadow-sm transition-all hover:bg-[#E5B53A] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">

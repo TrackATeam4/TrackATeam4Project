@@ -14,7 +14,7 @@ const volunteers = [
 
 export default function Testimonials() {
   return (
-    <section className="bg-[#FCD34D] py-20 text-[#1B4332]">
+    <section className="bg-[#F5C542] py-20 text-[#1A1A1A]">
       <div className="mx-auto max-w-6xl px-6">
         <motion.p
           initial="hidden"
@@ -45,7 +45,7 @@ export default function Testimonials() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.5 }}
-              className="min-w-[220px] rounded-2xl bg-white/60 p-4 shadow-md"
+              className="min-w-[220px] rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm"
             >
               <p className="text-lg font-semibold">{volunteer.name}</p>
               <p className="mt-2 text-sm">Events attended: {volunteer.events}</p>

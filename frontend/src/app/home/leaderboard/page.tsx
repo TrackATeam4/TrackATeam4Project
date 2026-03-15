@@ -99,13 +99,13 @@ export default function HomeLeaderboardPage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700 md:ml-24 lg:ml-72">
+      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
         <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-lg shadow-yellow-100/60">
+        <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Community Rankings</p>
-              <h1 className="mt-1 text-3xl font-bold text-[#0F172A]">Leaderboard</h1>
+              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Community Rankings</p>
+              <h1 className="mt-1 text-3xl font-bold text-[#1A1A1A]">Leaderboard</h1>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -114,8 +114,8 @@ export default function HomeLeaderboardPage() {
                 onClick={() => setScope("global")}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                   scope === "global"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    ? "bg-[#F5C542] text-[#1A1A1A]"
+                    : "border border-gray-200 text-[#6B7280] hover:bg-gray-50"
                 }`}
               >
                 Global
@@ -125,8 +125,8 @@ export default function HomeLeaderboardPage() {
                 onClick={() => setScope("nearby")}
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                   scope === "nearby"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                    ? "bg-[#F5C542] text-[#1A1A1A]"
+                    : "border border-gray-200 text-[#6B7280] hover:bg-gray-50"
                 }`}
               >
                 Nearby
@@ -143,8 +143,8 @@ export default function HomeLeaderboardPage() {
                   onClick={() => setPeriod(option)}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] ${
                     period === option
-                      ? "bg-yellow-300 text-slate-800"
-                      : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                      ? "bg-[#F5C542] text-[#1A1A1A]"
+                      : "border border-gray-200 text-[#6B7280] hover:bg-gray-50"
                   }`}
                 >
                   {option.replace("_", " ")}
@@ -159,8 +159,8 @@ export default function HomeLeaderboardPage() {
             </div>
           ) : null}
 
-          <div className="mt-6 overflow-hidden rounded-2xl border border-yellow-100">
-            <div className="grid grid-cols-[72px_1fr_130px_160px_120px] gap-3 bg-[#FFFEF5] px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200">
+            <div className="grid grid-cols-[72px_1fr_130px_160px_120px] gap-3 bg-[#FFF8E1] px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
               <p>Rank</p>
               <p>Volunteer</p>
               <p>Points</p>
@@ -168,24 +168,24 @@ export default function HomeLeaderboardPage() {
               <p>Badges</p>
             </div>
 
-            <div className="divide-y divide-yellow-100 bg-white">
+            <div className="divide-y divide-gray-200 bg-white">
               {loading ? (
-                <p className="px-4 py-6 text-sm text-slate-500">Loading leaderboard...</p>
+                <p className="px-4 py-6 text-sm text-[#6B7280]">Loading leaderboard...</p>
               ) : entries.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-slate-500">No leaderboard entries available.</p>
+                <p className="px-4 py-6 text-sm text-[#6B7280]">No leaderboard entries available.</p>
               ) : (
                 entries.map((entry) => (
                   <div
                     key={`${entry.rank}-${entry.user.id}`}
                     className="grid grid-cols-[72px_1fr_130px_160px_120px] items-center gap-3 px-4 py-4"
                   >
-                    <p className="text-sm font-semibold text-slate-700">#{entry.rank}</p>
-                    <p className="text-sm text-slate-700">{entry.user.name}</p>
-                    <p className="text-sm font-semibold text-emerald-700">{entry.total_points}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm font-semibold text-[#1A1A1A]">#{entry.rank}</p>
+                    <p className="text-sm text-[#1A1A1A]">{entry.user.name}</p>
+                    <p className="text-sm font-semibold text-[#1A1A1A]">{entry.total_points}</p>
+                    <p className="text-sm text-[#6B7280]">
                       Lv {entry.level.level} - {entry.level.name}
                     </p>
-                    <p className="text-sm text-slate-600">{entry.badge_count}</p>
+                    <p className="text-sm text-[#6B7280]">{entry.badge_count}</p>
                   </div>
                 ))
               )}

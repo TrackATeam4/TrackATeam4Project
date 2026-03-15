@@ -27,7 +27,7 @@ function MagneticButton({ label }: { label: string }) {
     >
       <Link
         href="/auth"
-        className="rounded-full bg-[#FCD34D] px-10 py-5 text-lg font-semibold text-[#1B4332] shadow-[0_25px_50px_rgba(252,211,77,0.4)] transition hover:scale-[1.02]"
+        className="rounded-lg bg-[#1A1A1A] px-10 py-5 text-lg font-semibold text-white shadow-sm transition hover:bg-[#111111]"
       >
         {label}
       </Link>
@@ -37,7 +37,7 @@ function MagneticButton({ label }: { label: string }) {
 
 export default function CTASection() {
   return (
-    <section className="bg-[#1B4332] py-24 text-white">
+    <section className="bg-[#F5C542] py-24 text-[#1A1A1A]">
       <div className="mx-auto max-w-4xl px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -46,7 +46,7 @@ export default function CTASection() {
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
           <h2 className="text-4xl font-semibold sm:text-5xl">Ready to make a difference?</h2>
-          <p className="mt-4 text-base text-emerald-100">
+          <p className="mt-4 text-base text-[#1A1A1A]/70">
             Join hundreds of volunteers spreading the word about free food resources.
           </p>
         </motion.div>
@@ -63,7 +63,7 @@ export default function CTASection() {
           </div>
         </motion.div>
 
-        <p className="mt-4 text-xs text-emerald-200">
+        <p className="mt-4 text-xs text-[#1A1A1A]/60">
           No credit card required. Just a desire to help.
         </p>
       </div>

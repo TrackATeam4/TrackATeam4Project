@@ -51,9 +51,9 @@ const initialUpdateForm: UpdateFormState = {
 	servicesCsv: "",
 };
 
-const panelCls = "rounded-3xl border border-yellow-100 bg-white p-6 shadow-lg shadow-yellow-100/60";
+const panelCls = "rounded-3xl border border-gray-200 bg-white p-6 shadow-sm";
 const inputCls =
-	"w-full rounded-xl border border-yellow-100 px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200";
+	"w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30";
 
 const parsePayloadData = <T,>(payload: unknown): T => {
 	if (payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)) {
@@ -215,15 +215,15 @@ export default function FoodPantryDashboardPage() {
 	};
 
 	return (
-		<main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700">
+		<main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A]">
 			<div className="mx-auto max-w-7xl space-y-6">
 				<section className={panelCls}>
 					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<p className="text-xs uppercase tracking-[0.18em] text-slate-400">Food Pantry Dashboard</p>
-							<h1 className="mt-1 text-3xl font-bold text-[#0F172A]">Manage Pantry Operations</h1>
+							<h1 className="mt-1 text-3xl font-bold text-[#1A1A1A]">Manage Pantry Operations</h1>
 						</div>
-						<div className="rounded-full bg-emerald-100 px-4 py-1.5 text-xs font-semibold text-emerald-700">
+						<div className="rounded-full bg-[#FEF3C7] px-4 py-1.5 text-xs font-semibold text-[#92400E]">
 							Owner Mode
 						</div>
 					</div>
@@ -231,8 +231,8 @@ export default function FoodPantryDashboardPage() {
 
 				<section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
 						<div className={panelCls}>
-							<h2 className="text-xl font-semibold text-[#0F172A]">Owner Profile</h2>
-							<p className="mt-1 text-sm text-slate-500">Endpoints: GET /pantry/me, PUT /pantry/me</p>
+							<h2 className="text-xl font-semibold text-[#1A1A1A]">Owner Profile</h2>
+							<p className="mt-1 text-sm text-[#6B7280]">Endpoints: GET /pantry/me, PUT /pantry/me</p>
 
 							<form className="mt-5 grid gap-3" onSubmit={handleOwnerUpdate}>
 								<input className={inputCls} placeholder="Pantry name" value={updateForm.name} onChange={(e) => setUpdateForm((p) => ({ ...p, name: e.target.value }))} required />
@@ -251,7 +251,7 @@ export default function FoodPantryDashboardPage() {
 									<button
 										type="submit"
 										disabled={ownerLoading}
-										className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-70"
+										className="rounded-xl bg-[#F5C542] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#E5B53A] disabled:opacity-70"
 									>
 										{ownerLoading ? "Saving..." : "Save Pantry Profile"}
 									</button>
@@ -260,7 +260,7 @@ export default function FoodPantryDashboardPage() {
 										type="button"
 										onClick={() => void loadOwnerDashboard()}
 										disabled={ownerLoading}
-										className="rounded-xl border border-yellow-200 bg-yellow-50 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-yellow-100 disabled:opacity-70"
+										className="rounded-xl border border-gray-200 bg-[#FEF3C7] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#FDE68A] disabled:opacity-70"
 									>
 										Refresh Owner Data
 									</button>
@@ -268,39 +268,39 @@ export default function FoodPantryDashboardPage() {
 							</form>
 
 							{me ? (
-								<div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+								<div className="mt-4 rounded-xl bg-[#FEF3C7] px-4 py-3 text-xs text-[#92400E]">
 									Pantry ID: {me.id} · Verified: {me.is_verified ? "Yes" : "No"}
 								</div>
 							) : null}
 
 							{ownerMessage ? (
-								<p className="mt-4 rounded-xl bg-yellow-50 px-4 py-3 text-sm text-slate-700">{ownerMessage}</p>
+								<p className="mt-4 rounded-xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#1A1A1A]">{ownerMessage}</p>
 							) : null}
 						</div>
 
 						<div className={panelCls}>
-							<h2 className="text-xl font-semibold text-[#0F172A]">Campaigns for This Pantry</h2>
-							<p className="mt-1 text-sm text-slate-500">
+							<h2 className="text-xl font-semibold text-[#1A1A1A]">Campaigns for This Pantry</h2>
+							<p className="mt-1 text-sm text-[#6B7280]">
 								Endpoints: GET /pantry/me/campaigns, POST /pantry/me/campaigns/{"{id}"}/link
 							</p>
 
 							<div className="mt-5 space-y-3">
 								{ownerCampaigns.length === 0 ? (
-									<p className="rounded-xl bg-yellow-50 px-4 py-3 text-sm text-slate-600">
+									<p className="rounded-xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#6B7280]">
 										No campaigns found for this owner pantry.
 									</p>
 								) : (
 									ownerCampaigns.map((campaign) => (
-										<div key={campaign.id} className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-4">
-											<p className="text-sm font-semibold text-slate-800">{campaign.title ?? "Untitled campaign"}</p>
-											<p className="mt-1 text-xs text-slate-500">
+										<div key={campaign.id} className="rounded-2xl border border-gray-200 bg-white p-4">
+											<p className="text-sm font-semibold text-[#1A1A1A]">{campaign.title ?? "Untitled campaign"}</p>
+											<p className="mt-1 text-xs text-[#6B7280]">
 												ID: {campaign.id} · Status: {campaign.status ?? "-"} · Pantry Link: {campaign.food_pantry_id ?? "None"}
 											</p>
 											<button
 												type="button"
 												onClick={() => void handleLinkCampaign(campaign.id)}
 												disabled={linkingCampaignId === campaign.id}
-												className="mt-3 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-70"
+												className="mt-3 rounded-lg bg-[#F5C542] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A] transition hover:bg-[#E5B53A] disabled:opacity-70"
 											>
 												{linkingCampaignId === campaign.id ? "Linking..." : "Link This Campaign"}
 											</button>
