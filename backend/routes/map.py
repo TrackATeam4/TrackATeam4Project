@@ -15,7 +15,7 @@ admin_analytics_router = APIRouter(prefix="/admin/analytics", tags=["Admin Analy
 
 MAX_RESULTS = 100
 VALID_CAMPAIGN_STATUSES = {"draft", "published", "cancelled", "completed"}
-VALID_USER_SORT_FIELDS = {"points"}
+VALID_USER_SORT_FIELDS = {"points", "name", "created_at"}
 VALID_SERVICES = [
     "produce",
     "canned_goods",
@@ -784,6 +784,7 @@ async def get_admin_users(
 
     user_ids = [user.get("id") for user in users if user.get("id")]
     points_by_user: Dict[str, int] = {}
+    volunteer_count_by_user: Dict[str, int] = {}
 
     if user_ids:
         points_result = (
@@ -800,6 +801,19 @@ async def get_admin_users(
             if isinstance(points, (int, float)):
                 points_by_user[user_id] = points_by_user.get(user_id, 0) + int(points)
 
+        signups_result = (
+            supabase.table("signups")
+            .select("user_id")
+            .in_("user_id", user_ids)
+            .neq("status", "cancelled")
+            .execute()
+        )
+        for row in signups_result.data or []:
+            user_id = row.get("user_id")
+            if not user_id:
+                continue
+            volunteer_count_by_user[user_id] = volunteer_count_by_user.get(user_id, 0) + 1
+
     response_users = [
         {
             "id": user.get("id"),
@@ -808,12 +822,17 @@ async def get_admin_users(
             "role": user.get("role"),
             "created_at": user.get("created_at"),
             "total_points": points_by_user.get(user.get("id"), 0),
+            "volunteer_count": volunteer_count_by_user.get(user.get("id"), 0),
         }
         for user in users
     ]
 
     if sort == "points":
         response_users.sort(key=lambda user: user["total_points"], reverse=True)
+    elif sort == "name":
+        response_users.sort(key=lambda user: (user.get("name") or "").lower())
+    elif sort == "created_at":
+        response_users.sort(key=lambda user: str(user.get("created_at") or ""), reverse=True)
 
     return success_response(
         {"users": response_users},
@@ -935,11 +954,45 @@ async def get_admin_campaign_by_id(
 
     signups_result = (
         supabase.table("signups")
-        .select("id")
+        .select("id, user_id, status, joined_at")
         .eq("campaign_id", campaign_id)
         .execute()
     )
-    signup_count = len(signups_result.data or [])
+    signups_rows = signups_result.data or []
+
+    user_ids = [row.get("user_id") for row in signups_rows if row.get("user_id")]
+    users_by_id: Dict[str, Dict[str, Any]] = {}
+
+    if user_ids:
+        users_result = (
+            supabase.table("users")
+            .select("id, name, email")
+            .in_("id", user_ids)
+            .execute()
+        )
+        users_by_id = {
+            row.get("id"): row
+            for row in (users_result.data or [])
+            if row.get("id")
+        }
+
+    response_signups = []
+    for row in signups_rows:
+        uid = row.get("user_id")
+        linked_user = users_by_id.get(uid, {})
+        status = str(row.get("status") or "").lower()
+        response_signups.append(
+            {
+                "user_id": uid,
+                "user_name": linked_user.get("name"),
+                "user_email": linked_user.get("email"),
+                "signed_up_at": row.get("joined_at"),
+                "attended": status == "confirmed",
+                "status": status,
+            }
+        )
+
+    signup_count = len(signups_rows)
 
     campaign_data = {
         **campaign,
@@ -951,6 +1004,7 @@ async def get_admin_campaign_by_id(
             "campaign": campaign_data,
             "tasks": tasks,
             "signup_count": signup_count,
+            "signups": response_signups,
         }
     )
 

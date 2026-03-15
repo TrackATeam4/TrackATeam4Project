@@ -41,7 +41,24 @@ app.include_router(leaderboard.router)
 app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
+<<<<<<< Updated upstream
 app.include_router(map.router)
+=======
+
+# routers/map.py must come before routes/map.py; both define /map/food-pantries
+# but routers/map.py returns {"data": [...]} (flat array) which the frontend expects.
+# routes/map.py returns {"data": {"pantries": [...]}} (nested), which parseArrayData
+# cannot handle and silently returns [].
+app.include_router(map.router)
+app.include_router(bsky.router)
+app.include_router(flyers.router)
+
+# Legacy map/pantry/admin routers; keep for admin endpoints not in routers/map.py
+app.include_router(map_router)
+app.include_router(pantry_router)
+app.include_router(admin_analytics_router)
+app.include_router(admin_campaign_router)
+>>>>>>> Stashed changes
 
 
 @app.on_event("startup")
