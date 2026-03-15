@@ -108,6 +108,10 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   const [promoteMsg, setPromoteMsg] = useState("");
   const isPromoted = !!campaign.promoted_at;
 
+  // Remind
+  const [reminding, setReminding] = useState(false);
+  const [remindMsg, setRemindMsg] = useState("");
+
   // Load panel data when opened
   useEffect(() => {
     if (!open) return;
@@ -212,6 +216,18 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
     } catch (e) {
       setImpactMsg(e instanceof Error ? e.message : "Failed to submit report.");
     } finally { setImpactSubmitting(false); }
+  };
+
+  const sendReminders = async () => {
+    setReminding(true);
+    setRemindMsg("");
+    try {
+      const res = await authFetch<{ sent: number; total: number }>(`/campaigns/${campaign.id}/remind`, { method: "POST" });
+      const d = res.data as unknown as { sent: number; total: number };
+      setRemindMsg(`Sent ${d?.sent ?? 0} reminder${(d?.sent ?? 0) !== 1 ? "s" : ""} to ${d?.total ?? 0} volunteer${(d?.total ?? 0) !== 1 ? "s" : ""}.`);
+    } catch (e) {
+      setRemindMsg(e instanceof Error ? e.message : "Failed to send reminders.");
+    } finally { setReminding(false); }
   };
 
   const promote = async () => {
@@ -344,6 +360,34 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                         </div>
                       </div>
                     ))
+                  )}
+
+                  {/* Send Reminder */}
+                  {signups.filter((s) => s.status !== "cancelled").length > 0 && (
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-blue-800">Send Reminder Email</p>
+                          <p className="text-xs text-blue-600 mt-0.5">
+                            Remind all active volunteers about this campaign.
+                          </p>
+                        </div>
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.95 }}
+                          disabled={reminding}
+                          onClick={sendReminders}
+                          className="shrink-0 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
+                        >
+                          {reminding ? "Sending..." : "📧 Send Reminder"}
+                        </motion.button>
+                      </div>
+                      {remindMsg && (
+                        <p className={`mt-2 text-xs ${remindMsg.includes("Failed") ? "text-rose-600" : "text-blue-700 font-semibold"}`}>
+                          {remindMsg}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
