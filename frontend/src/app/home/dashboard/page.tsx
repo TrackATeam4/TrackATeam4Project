@@ -381,14 +381,14 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                           placeholder="Task title"
                           value={newTask.title}
                           onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
                         />
                         <input
                           type="text"
                           placeholder="Description (optional)"
                           value={newTask.description}
                           onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
                         />
                         <div className="flex items-center gap-2">
                           <input
@@ -397,7 +397,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                             placeholder="Max people"
                             value={newTask.max_assignees}
                             onChange={(e) => setNewTask({ ...newTask, max_assignees: e.target.value })}
-                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
                           />
                           <motion.button
                             type="button"
