@@ -104,7 +104,7 @@ export default function HomeSidebar() {
         <div className="flex items-center gap-2.5 px-1">
           <LemonLogo size={30} />
           <div>
-            <p className="text-[15px] font-bold tracking-tight text-[#111827]">Lemontree</p>
+            <img src="/wordmark.svg" alt="Lemontree" className="h-5 w-auto" />
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#9CA3AF]">Volunteer Hub</p>
           </div>
         </div>

@@ -124,9 +124,10 @@ export default function InvitePage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex justify-center"
         >
+        
           <div className="flex items-center gap-2.5 text-white/90">
             <LemonLogo size={28} />
-            <span className="text-xl font-bold tracking-tight">Lemontree</span>
+            <img src="/wordmark.svg" alt="Lemontree" className="h-6 w-auto brightness-0 invert opacity-80" />
           </div>
         </motion.div>
 

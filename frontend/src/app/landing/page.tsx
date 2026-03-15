@@ -110,11 +110,13 @@ export default function LandingPage() {
                 height={36}
                 className="h-9 w-9"
               />
-              <span
-                className="text-2xl font-extrabold tracking-[0.08em] text-[#1A1A1A] transition-colors duration-300"
-              >
-                LEMONTREE
-              </span>
+              <Image
+                src="/wordmark.svg"
+                alt="Lemontree"
+                width={120}
+                height={28}
+                className="h-7 w-auto"
+              />
             </Link>
 
             <nav className="hidden items-center gap-8 text-base font-medium md:flex">
@@ -356,9 +358,13 @@ export default function LandingPage() {
                 height={28}
                 className="h-7 w-7"
               />
-              <span className="text-lg font-extrabold tracking-[0.06em] text-[#1A1A1A]">
-                LEMONTREE
-              </span>
+              <Image
+                src="/wordmark.svg"
+                alt="Lemontree"
+                width={100}
+                height={24}
+                className="h-6 w-auto"
+              />
             </div>
 
             <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#1A1A1A]">
