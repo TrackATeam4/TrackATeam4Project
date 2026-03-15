@@ -6,9 +6,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import HomeSidebar from "@/components/home/HomeSidebar";
 import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import HomeSidebar from "@/components/home/HomeSidebar";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -149,19 +149,11 @@ const campaignToPost = (campaign: FeedCampaign): Post => {
 };
 
 
-const navItems = [
-  { label: "Feed", icon: "🏠", href: "/home" },
-  { label: "Discover", icon: "🗺️", href: "/home/discover" },
-  { label: "Create Campaign", icon: "➕", href: "/home/create" },
-  { label: "Dashboard", icon: "⚙️", href: "/home/dashboard" },
-  { label: "Leaderboard", icon: "📊", href: "/home/leaderboard" },
-  { label: "My Profile", icon: "👤", href: "/home/profile" },
-];
-
 const mobileNavItems = [
   { label: "Feed", icon: "🏠", href: "/home" },
   { label: "Discover", icon: "🗺️", href: "/home/discover" },
   { label: "Create", icon: "➕", href: "/home/create" },
+  { label: "Flyer", icon: "🖼️", href: "/home/CustomFlyer" },
   { label: "Dashboard", icon: "⚙️", href: "/home/dashboard" },
   { label: "Profile", icon: "👤", href: "/home/profile" },
 ];
@@ -194,8 +186,6 @@ const CHAT_API_BASE =
   process.env.NEXT_PUBLIC_AI_BEDROCK_API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   "";
-
-const CHAT_AUTO_OPEN_TAB_KEY = "tracka.home_chat_auto_opened";
 
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
@@ -234,10 +224,6 @@ export default function HomePage() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [forYouPosts, setForYouPosts] = useState<Post[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
-  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
-  const [localComments, setLocalComments] = useState<Record<string, { author: string; text: string; ts: number }[]>>({});
-  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
     subscribeToStorage,
@@ -252,19 +238,7 @@ export default function HomePage() {
       } = await supabase.auth.getSession();
       if (!session) {
         router.push("/auth");
-        return;
       }
-
-      // Open chat once per browser tab to reduce repeated popup interruptions.
-      const shouldAutoOpenChat = sessionStorage.getItem(CHAT_AUTO_OPEN_TAB_KEY) !== "1";
-      if (!shouldAutoOpenChat) {
-        return;
-      }
-
-      sessionStorage.setItem(CHAT_AUTO_OPEN_TAB_KEY, "1");
-      setChatError("");
-      setChatInitializedForOpen(false);
-      setIsChatOpen(true);
     };
 
     void ensureSession();
@@ -369,39 +343,6 @@ export default function HomePage() {
       }
       return next;
     });
-  };
-
-  const toggleComments = (postId: string) => {
-    setExpandedComments((prev) => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-  };
-
-  const submitComment = (postId: string) => {
-    const text = (commentDrafts[postId] ?? "").trim();
-    if (!text) return;
-    const comment = { author: userName, text, ts: Date.now() };
-    setLocalComments((prev) => ({
-      ...prev,
-      [postId]: [...(prev[postId] ?? []), comment],
-    }));
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: p.comments + 1 } : p))
-    );
-    setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
-  };
-
-  const copyShare = (postId: string) => {
-    const url = `${window.location.origin}/c/${postId}`;
-    navigator.clipboard.writeText(url).catch(() => {});
-    setCopiedShare(postId);
-    setTimeout(() => setCopiedShare(null), 2000);
   };
 
   const toggleJoin = async (postId: string) => {
@@ -595,25 +536,6 @@ export default function HomePage() {
     [apiBase, getChatAuthHeaders]
   );
 
-  const startNewChatSession = useCallback(async () => {
-    if (chatLoading || chatBooting) return;
-
-    setChatBooting(true);
-    setChatError("");
-    setChatInput("");
-    setChatSessionId(null);
-    setChatMessages([]);
-    localStorage.removeItem("tracka.chat_session_id");
-
-    try {
-      await createChatSession();
-    } catch (error) {
-      setChatError(error instanceof Error ? error.message : "Unable to start a new chat session.");
-    } finally {
-      setChatBooting(false);
-    }
-  }, [chatBooting, chatLoading, createChatSession]);
-
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = chatInput.trim();
@@ -746,18 +668,18 @@ export default function HomePage() {
 
   return (
     <div
-      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFF8E1] text-[#1A1A1A]`}
+      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5] text-[#334155]`}
       style={{ fontFamily: "var(--home-body)" }}
     >
-      <HomeSidebar />
-
       <div className="flex">
+        <HomeSidebar />
+
         <main className="flex-1 px-5 pb-24 pt-8 lg:ml-72 md:ml-24 xl:mr-[300px]">
           <div className="mx-auto max-w-2xl space-y-8">
             {/* ── Trending Carousel ── */}
             {trendingCampaigns.length > 0 && !searchQuery && (
               <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#6B7280]">🔥 Trending Now</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">🔥 Trending Now</p>
                 <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
                   {trendingCampaigns.map((c) => (
                     <Link
@@ -793,8 +715,8 @@ export default function HomePage() {
                       }}
                       className={`rounded-lg px-4 py-1.5 transition ${
                         feedMode === mode
-                          ? "bg-[#F5C542] text-[#1A1A1A] shadow-sm font-bold"
-                          : "text-[#6B7280] hover:text-[#1A1A1A]"
+                          ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
                       {mode === "all" ? "📋 All" : mode === "foryou" ? "✨ For You" : "📍 Nearby"}
@@ -805,7 +727,7 @@ export default function HomePage() {
 
               {/* Search input */}
               <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -813,7 +735,7 @@ export default function HomePage() {
                   placeholder="Search campaigns..."
                   value={searchQuery}
                   onChange={(e) => { void handleSearch(e.target.value); }}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-[#1A1A1A] placeholder-[#9CA3AF] shadow-sm focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/40"
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
                 />
                 {searchQuery && (
                   <button
@@ -888,7 +810,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal()}
                   whileHover={{ scale: 1.01 }}
-                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-[#9CA3AF] transition hover:bg-gray-100"
+                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-gray-100"
                 >
                   Share an upcoming event or campaign update...
                 </motion.button>
@@ -1053,69 +975,14 @@ export default function HomePage() {
                         {post.likes} likes
                       </motion.button>
                       <span className="text-slate-300">·</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleComments(post.id)}
-                        className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-emerald-600 font-semibold" : ""}`}
-                      >
+                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
                         💬 {post.comments} comments
                       </button>
                       <span className="text-slate-300">·</span>
-                      <button
-                        type="button"
-                        onClick={() => copyShare(post.id)}
-                        className={`flex items-center gap-2 transition ${copiedShare === post.id ? "text-emerald-600 font-semibold" : "hover:text-slate-600"}`}
-                      >
-                        {copiedShare === post.id ? "✓ Copied!" : "🔗 Share"}
+                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
+                        🔗 Share
                       </button>
                     </div>
-
-                    <AnimatePresence>
-                      {expandedComments.has(post.id) && (
-                        <motion.div
-                          key={`comments-${post.id}`}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="mt-3 overflow-hidden"
-                        >
-                          <div className="space-y-2 border-t border-gray-100 pt-3">
-                            {(localComments[post.id] ?? []).length === 0 && (
-                              <p className="text-xs text-slate-400 italic">No comments yet. Be the first!</p>
-                            )}
-                            {(localComments[post.id] ?? []).map((c, i) => (
-                              <div key={i} className="flex items-start gap-2">
-                                <div className="h-6 w-6 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
-                                  {c.author[0]?.toUpperCase() ?? "?"}
-                                </div>
-                                <div className="rounded-xl bg-gray-50 px-3 py-1.5 text-xs text-slate-700">
-                                  <span className="font-semibold text-slate-800">{c.author}</span>{" "}
-                                  {c.text}
-                                </div>
-                              </div>
-                            ))}
-                            <div className="flex items-center gap-2 pt-1">
-                              <input
-                                type="text"
-                                value={commentDrafts[post.id] ?? ""}
-                                onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                onKeyDown={(e) => { if (e.key === "Enter") submitComment(post.id); }}
-                                placeholder="Write a comment…"
-                                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => submitComment(post.id)}
-                                className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
-                              >
-                                Post
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </motion.div>
                 );
               })}
@@ -1123,7 +990,7 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-6 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFFEF5] px-6 py-8 xl:flex">
           <motion.div
             className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
@@ -1195,14 +1062,14 @@ export default function HomePage() {
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-gray-50 px-4 py-3 transition hover:text-[#1B4332]"
+                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 transition hover:text-emerald-600"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
+              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -1215,12 +1082,12 @@ export default function HomePage() {
           const isActive = item.label === "Feed";
           return (
             <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1">
-              <span className={`text-xl ${isActive ? "text-[#1B4332]" : "text-[#9CA3AF]"}`}>
+              <span className={`text-xl ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
                 {item.icon}
               </span>
               <span
                 className={`h-1 w-1 rounded-full ${
-                  isActive ? "bg-[#F5C542]" : "bg-transparent"
+                  isActive ? "bg-emerald-600" : "bg-transparent"
                 }`}
               />
             </Link>
@@ -1416,23 +1283,13 @@ export default function HomePage() {
                   <p className="text-sm text-slate-500">Campaign assistant</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void startNewChatSession()}
-                  disabled={chatBooting || chatLoading}
-                  className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  New session
-                </button>
-                <button
-                  type="button"
-                  onClick={closeChatPopup}
-                  className="text-base text-slate-400 hover:text-slate-600"
-                >
-                  ✕
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={closeChatPopup}
+                className="text-base text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="h-80 space-y-3 overflow-y-auto px-5 py-4">
