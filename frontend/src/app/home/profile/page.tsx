@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
@@ -19,6 +20,21 @@ type PointsTransaction = {
   points?: number;
   campaign_title?: string;
   awarded_at?: string;
+};
+
+type Badge = {
+  id?: string;
+  badge_slug: string;
+  badge_name?: string;
+  awarded_at?: string;
+};
+
+const BADGE_META: Record<string, { icon: string; label: string; desc: string }> = {
+  impact_100: { icon: "📄", label: "Flyer Hero", desc: "Distributed 100+ flyers" },
+  first_signup: { icon: "🌱", label: "First Step", desc: "Joined your first campaign" },
+  volunteer_5: { icon: "🙌", label: "Regular", desc: "Volunteered 5 times" },
+  organizer: { icon: "🎯", label: "Organizer", desc: "Created your first campaign" },
+  top_volunteer: { icon: "⭐", label: "Top Volunteer", desc: "Reached the leaderboard top 10" },
 };
 
 const subscribeToStorage = (callback: () => void) => {
@@ -41,6 +57,7 @@ export default function HomeProfilePage() {
   const [progressPct, setProgressPct] = useState<number | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<PointsTransaction[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -74,11 +91,12 @@ export default function HomeProfilePage() {
           return;
         }
 
-        const [mePayload, pointsPayload, levelPayload, leaderboardPayload] = await Promise.all([
+        const [mePayload, pointsPayload, levelPayload, leaderboardPayload, badgesPayload] = await Promise.all([
           authFetch<Record<string, unknown>>("/auth/me"),
           authFetch<Record<string, unknown>>("/me/points"),
           authFetch<Record<string, unknown>>("/me/level"),
           authFetch<Record<string, unknown>>("/leaderboard?scope=global&period=monthly"),
+          authFetch<Badge[]>("/me/badges").catch(() => ({ success: true as const, data: [] as Badge[] })),
         ]);
 
         {
@@ -125,6 +143,11 @@ export default function HomeProfilePage() {
               ? leaderboardData.entries
               : [];
           setLeaderboard(entries as LeaderboardEntry[]);
+        }
+
+        {
+          const badgeData = badgesPayload.data ?? [];
+          setBadges(badgeData as unknown as Badge[]);
         }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Unable to load profile data.");
@@ -177,6 +200,42 @@ export default function HomeProfilePage() {
                 Progress to next level: {loading ? "..." : progressPct !== null ? `${progressPct}%` : "N/A"}
               </p>
             </div>
+          </div>
+
+          {/* Badges */}
+          <div className="mt-6 rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
+            <h2 className="text-lg font-semibold text-[#0F172A]">Badges Earned</h2>
+            {loading ? (
+              <p className="mt-3 text-sm text-slate-500">Loading badges...</p>
+            ) : badges.length === 0 ? (
+              <div className="mt-3 rounded-2xl border border-dashed border-yellow-200 py-8 text-center">
+                <p className="text-2xl">🏅</p>
+                <p className="mt-2 text-sm text-slate-400">No badges yet — join campaigns to earn them!</p>
+              </div>
+            ) : (
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
+                className="mt-3 flex flex-wrap gap-3"
+              >
+                {badges.map((badge, i) => {
+                  const meta = BADGE_META[badge.badge_slug] ?? { icon: "🏅", label: badge.badge_slug, desc: "" };
+                  return (
+                    <motion.div
+                      key={badge.id ?? i}
+                      variants={{ hidden: { opacity: 0, scale: 0.7 }, show: { opacity: 1, scale: 1 } }}
+                      whileHover={{ scale: 1.06 }}
+                      title={meta.desc}
+                      className="flex flex-col items-center gap-1.5 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-yellow-50 px-4 py-3 shadow-sm cursor-default"
+                    >
+                      <span className="text-3xl">{meta.icon}</span>
+                      <span className="text-xs font-semibold text-amber-800">{meta.label}</span>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            )}
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">

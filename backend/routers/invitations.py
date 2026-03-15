@@ -3,7 +3,9 @@
 import logging
 import os
 import secrets
+import uuid
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import Response
@@ -25,6 +27,10 @@ _FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 class SendInviteRequest(BaseModel):
     email: EmailStr
+
+
+class RsvpAcceptRequest(BaseModel):
+    name: Optional[str] = None
 
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
@@ -66,6 +72,22 @@ def _get_organizer_email(supabase, organizer_id: str) -> str:
         supabase.table("users").select("email").eq("id", organizer_id).single().execute()
     )
     return result.data["email"] if result.data else "noreply@tracka.app"
+
+
+def _find_or_create_user(supabase, email: str, name: Optional[str] = None) -> str:
+    """Return user_id for an email, creating a guest record in public.users if needed."""
+    result = (
+        supabase.table("users").select("id").eq("email", email).limit(1).execute()
+    )
+    if result.data:
+        return result.data[0]["id"]
+
+    new_id = str(uuid.uuid4())
+    display_name = name or email.split("@")[0]
+    supabase.table("users").insert(
+        {"id": new_id, "email": email, "name": display_name, "role": "volunteer"}
+    ).execute()
+    return new_id
 
 
 # ── GET /campaigns/{id}/calendar-url ─────────────────────────────────────────
@@ -189,16 +211,15 @@ def list_invitations(
     return {"success": True, "data": result.data or []}
 
 
-# ── GET /invitations/{token} ──────────────────────────────────────────────────
+# ── GET /invitations/{token} — PUBLIC ─────────────────────────────────────────
 
 
 @router.get("/invitations/{token}")
 def get_invitation(
     token: str,
-    user=Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Get invitation + campaign details by token. Auth required."""
+    """Get invitation + campaign details by token. No auth required."""
     invitation = _get_invitation_by_token(supabase, token)
     _check_expired(invitation)
 
@@ -224,46 +245,27 @@ def get_invitation(
     }
 
 
-# ── POST /invitations/{token}/accept ─────────────────────────────────────────
+# ── POST /invitations/{token}/accept — PUBLIC ─────────────────────────────────
 
 
 @router.post("/invitations/{token}/accept")
 def accept_invitation(
     token: str,
-    user=Depends(get_current_user),
+    body: RsvpAcceptRequest = RsvpAcceptRequest(),
     supabase=Depends(get_supabase_client),
 ):
-    """Accept an invitation and create a signup. Auth required."""
+    """Accept an invitation and create a signup. No auth required."""
     invitation = _get_invitation_by_token(supabase, token)
     _check_expired(invitation)
-
-    user_id = user.user.id
-    user_email = user.user.email
-
-    if user_email.lower() != invitation["email"].lower():
-        raise HTTPException(
-            status_code=403,
-            detail="This invitation was sent to a different email address",
-        )
 
     if invitation["status"] == "accepted":
         return {"success": True, "data": {"message": "Already accepted"}}
 
+    invite_email = invitation["email"]
     campaign_id = invitation["campaign_id"]
     campaign = _get_campaign_or_404(supabase, campaign_id)
 
-    # Ensure the auth user has a corresponding row in the public users table.
-    # Supabase auth creates auth.users but not the app's public users table.
-    user_meta = user.user.user_metadata or {}
-    display_name = (
-        user_meta.get("full_name")
-        or user_meta.get("name")
-        or user_email.split("@")[0]
-    )
-    supabase.table("users").upsert(
-        {"id": user_id, "email": user_email, "name": display_name, "role": "volunteer"},
-        on_conflict="id",
-    ).execute()
+    user_id = _find_or_create_user(supabase, invite_email, body.name)
 
     existing_signup = (
         supabase.table("signups")
@@ -303,13 +305,10 @@ def accept_invitation(
         end_time=c_end,
     )
 
-    user_record = (
-        supabase.table("users").select("name").eq("id", user_id).single().execute()
-    )
-    volunteer_name = user_record.data["name"] if user_record.data else ""
+    volunteer_name = body.name or invite_email.split("@")[0]
 
     send_rsvp_confirmation(
-        to_email=user_email,
+        to_email=invite_email,
         volunteer_name=volunteer_name,
         campaign_title=campaign["title"],
         campaign_description=campaign.get("description") or "",
@@ -327,23 +326,16 @@ def accept_invitation(
     }
 
 
-# ── POST /invitations/{token}/decline ────────────────────────────────────────
+# ── POST /invitations/{token}/decline — PUBLIC ────────────────────────────────
 
 
 @router.post("/invitations/{token}/decline")
 def decline_invitation(
     token: str,
-    user=Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Decline an invitation. Auth required."""
+    """Decline an invitation. No auth required."""
     invitation = _get_invitation_by_token(supabase, token)
-
-    if user.user.email.lower() != invitation["email"].lower():
-        raise HTTPException(
-            status_code=403,
-            detail="This invitation was sent to a different email address",
-        )
 
     if invitation["status"] == "accepted":
         raise HTTPException(
@@ -361,16 +353,15 @@ def decline_invitation(
     return {"success": True, "data": {"message": "Invitation declined"}}
 
 
-# ── GET /invitations/{token}/calendar.ics ─────────────────────────────────────
+# ── GET /invitations/{token}/calendar.ics — PUBLIC ────────────────────────────
 
 
 @router.get("/invitations/{token}/calendar.ics")
 def download_ics(
     token: str,
-    user=Depends(get_current_user),
     supabase=Depends(get_supabase_client),
 ):
-    """Download .ics file for an invitation. Auth required."""
+    """Download .ics file for an invitation. No auth required."""
     invitation = _get_invitation_by_token(supabase, token)
     campaign = _get_campaign_or_404(supabase, invitation["campaign_id"])
 

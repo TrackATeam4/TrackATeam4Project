@@ -1,12 +1,14 @@
 """Volunteer Campaign CRUD and signup endpoints."""
 
 import logging
+from datetime import date, datetime, time, timezone
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
+from services.email_service import send_reminder
 from services.geocoding import geocode_address, search_addresses
 from services.rewards import award_points
 from supabase_client import get_supabase_client
@@ -514,3 +516,65 @@ def delete_campaign(
         raise HTTPException(status_code=500, detail="Failed to delete campaign")
 
     return {"success": True, "data": {"id": campaign_id, "status": "cancelled"}}
+
+
+# ── POST /campaigns/{id}/remind ───────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/remind")
+def send_campaign_reminders(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Send reminder emails to all active volunteers for a campaign. Organizer only."""
+    organizer_id = user.user.id
+    campaign = _get_campaign_or_404(supabase, campaign_id)
+
+    if campaign["organizer_id"] != organizer_id:
+        raise HTTPException(status_code=403, detail="Only the organizer can send reminders")
+
+    signups_result = (
+        supabase.table("signups")
+        .select("user_id")
+        .eq("campaign_id", campaign_id)
+        .neq("status", "cancelled")
+        .execute()
+    )
+
+    if not (signups_result.data):
+        return {"success": True, "data": {"sent": 0, "message": "No active volunteers to remind"}}
+
+    user_ids = [s["user_id"] for s in signups_result.data]
+
+    users_result = (
+        supabase.table("users")
+        .select("id, email, name")
+        .in_("id", user_ids)
+        .execute()
+    )
+    users_by_id = {u["id"]: u for u in (users_result.data or [])}
+
+    c_date = date.fromisoformat(campaign["date"])
+    c_start = time.fromisoformat(campaign["start_time"])
+    event_dt = datetime.combine(c_date, c_start).replace(tzinfo=timezone.utc)
+    hours_until = max(0, int((event_dt - datetime.now(timezone.utc)).total_seconds() / 3600))
+
+    sent = 0
+    for uid in user_ids:
+        user_data = users_by_id.get(uid)
+        if not user_data or not user_data.get("email"):
+            continue
+        if send_reminder(
+            to_email=user_data["email"],
+            volunteer_name=user_data.get("name") or "",
+            campaign_title=campaign["title"],
+            campaign_address=campaign["address"],
+            campaign_date=c_date,
+            campaign_start_time=c_start,
+            campaign_id=campaign_id,
+            hours_until=hours_until,
+        ):
+            sent += 1
+
+    return {"success": True, "data": {"sent": sent, "total": len(user_ids)}}

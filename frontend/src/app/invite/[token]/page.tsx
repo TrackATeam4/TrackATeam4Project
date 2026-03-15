@@ -1,235 +1,360 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { AddToCalendarButton } from '@/components/AddToCalendarButton'
+import { AnimatePresence, motion } from "framer-motion";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
-interface Campaign {
-  id: string
-  title: string
-  description: string | null
-  address: string
-  location: string
-  date: string
-  start_time: string
-  end_time: string
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+type Campaign = {
+  id: string;
+  title: string;
+  description?: string | null;
+  address?: string | null;
+  date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  max_volunteers?: number | null;
+};
+
+type InviteData = {
+  invitation: { id: string; email: string; status: string };
+  campaign: Campaign;
+  google_calendar_url: string;
+};
+
+type PageState = "loading" | "error" | "expired" | "ready" | "accepted" | "declined";
+
+function fmtDate(v?: string | null) {
+  if (!v) return "";
+  return new Date(`${v}T00:00:00`).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-interface InviteData {
-  invitation: { id: string; status: string; email: string }
-  campaign: Campaign
-  google_calendar_url: string
-}
-
-type RsvpState = 'idle' | 'accepted' | 'declined' | 'loading' | 'error' | 'expired'
-
-function formatDate(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
-}
-
-function formatTime(timeStr: string): string {
-  const [h, m] = timeStr.split(':').map(Number)
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const hour = h % 12 || 12
-  return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`
-}
-
-async function getAuthToken(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token ?? null
-}
-
-async function apiFetch(path: string, token: string, method = 'GET') {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  })
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.detail ?? `Request failed: ${res.status}`)
-  }
-  return res.json()
+function fmtTime(v?: string | null) {
+  if (!v) return "";
+  const [h, m] = v.split(":").map(Number);
+  const d = new Date(0, 0, 0, h, m);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 export default function InvitePage() {
-  const { token } = useParams<{ token: string }>()
-  const router = useRouter()
+  const params = useParams();
+  const token =
+    typeof params.token === "string"
+      ? params.token
+      : Array.isArray(params.token)
+        ? params.token[0]
+        : "";
 
-  const [inviteData, setInviteData] = useState<InviteData | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [rsvpState, setRsvpState] = useState<RsvpState>('idle')
-  const [rsvpError, setRsvpError] = useState<string | null>(null)
-  const [calendarUrl, setCalendarUrl] = useState<string | null>(null)
+  const [state, setState] = useState<PageState>("loading");
+  const [inviteData, setInviteData] = useState<InviteData | null>(null);
+  const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [calendarUrl, setCalendarUrl] = useState("");
 
   useEffect(() => {
-    async function load() {
-      const authToken = await getAuthToken()
-      if (!authToken) {
-        router.replace(`/auth/signin?redirect=/invite/${token}`)
-        return
-      }
-
+    if (!token) return;
+    void (async () => {
       try {
-        const data = await apiFetch(`/invitations/${token}`, authToken)
-        setInviteData(data.data)
-
-        if (data.data.invitation.status === 'accepted') {
-          setRsvpState('accepted')
-          setCalendarUrl(data.data.google_calendar_url)
-        } else if (data.data.invitation.status === 'expired') {
-          setRsvpState('expired')
+        const res = await fetch(`${API_BASE}/invitations/${token}`);
+        if (res.status === 410) { setState("expired"); return; }
+        if (!res.ok) { setState("error"); return; }
+        const json = (await res.json()) as { success: boolean; data: InviteData };
+        const data = json.data;
+        if (data.invitation.status === "accepted") {
+          setCalendarUrl(data.google_calendar_url);
+          setInviteData(data);
+          setState("accepted");
+          return;
         }
-      } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load invitation')
+        if (data.invitation.status === "expired") { setState("expired"); return; }
+        setInviteData(data);
+        setState("ready");
+      } catch {
+        setState("error");
       }
-    }
+    })();
+  }, [token]);
 
-    if (token) load()
-  }, [token, router])
-
-  async function handleRsvp(action: 'accept' | 'decline') {
-    setRsvpState('loading')
-    setRsvpError(null)
-
-    const authToken = await getAuthToken()
-    if (!authToken) {
-      router.replace(`/auth/signin?redirect=/invite/${token}`)
-      return
-    }
-
+  const handleAccept = async () => {
+    if (!token) return;
+    setSubmitting(true);
+    setErrorMsg("");
     try {
-      const data = await apiFetch(`/invitations/${token}/${action}`, authToken, 'POST')
-      if (action === 'accept') {
-        setRsvpState('accepted')
-        setCalendarUrl(data.data?.google_calendar_url ?? inviteData?.google_calendar_url ?? null)
-      } else {
-        setRsvpState('declined')
-      }
-    } catch (err) {
-      setRsvpState('error')
-      setRsvpError(err instanceof Error ? err.message : 'Something went wrong')
+      const res = await fetch(`${API_BASE}/invitations/${token}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() || undefined }),
+      });
+      const json = (await res.json()) as { success?: boolean; data?: { google_calendar_url?: string }; detail?: string };
+      if (!res.ok) throw new Error(json.detail ?? "Failed to accept");
+      setCalendarUrl(json.data?.google_calendar_url ?? "");
+      setState("accepted");
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
     }
-  }
+  };
 
-  if (loadError) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow p-8 text-center">
-          <p className="text-red-600 font-medium">{loadError}</p>
-        </div>
-      </main>
-    )
-  }
-
-  if (!inviteData) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-[#FFF8E1]">
-        <p className="text-[#6B7280]">Loading invitation…</p>
-      </main>
-    )
-  }
-
-  const { campaign, google_calendar_url } = inviteData
-
-  if (rsvpState === 'expired') {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6 bg-[#FFF8E1]">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-8 text-center">
-          <p className="text-[#6B7280]">This invitation has expired.</p>
-        </div>
-      </main>
-    )
-  }
+  const handleDecline = async () => {
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      await fetch(`${API_BASE}/invitations/${token}/decline`, { method: "POST" });
+    } catch { /* ignore */ } finally {
+      setSubmitting(false);
+      setState("declined");
+    }
+  };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-[#FFF8E1]">
-      <div className="max-w-lg w-full bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="bg-[#F5C542] px-8 py-6">
-          <p className="text-[#1A1A1A] text-sm font-medium uppercase tracking-wide">
-            Volunteer Invitation
-          </p>
-          <h1 className="mt-1 text-2xl font-bold text-[#1A1A1A]">{campaign.title}</h1>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#0F2D1F] via-[#1B4332] to-[#0F2D1F] flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-lg">
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 flex justify-center"
+        >
+          <div className="flex items-center gap-2 text-white/80">
+            <span className="text-3xl">🍋</span>
+            <span className="text-xl font-bold tracking-tight">Lemontree</span>
+          </div>
+        </motion.div>
 
-        <div className="px-8 py-6 space-y-3">
-          <div className="flex items-start gap-3">
-            <span className="text-gray-400 mt-0.5">📅</span>
-            <div>
-              <p className="font-medium text-gray-800">{formatDate(campaign.date)}</p>
-              <p className="text-sm text-gray-500">
-                {formatTime(campaign.start_time)} – {formatTime(campaign.end_time)}
+        <AnimatePresence mode="wait">
+          {state === "loading" && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-4 text-white/60"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                className="h-10 w-10 rounded-full border-4 border-white/20 border-t-white/70"
+              />
+              <p className="text-sm">Loading your invitation…</p>
+            </motion.div>
+          )}
+
+          {state === "error" && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-3xl bg-white/10 p-8 text-center text-white backdrop-blur-sm"
+            >
+              <p className="text-4xl">😕</p>
+              <h2 className="mt-4 text-xl font-bold">Invitation not found</h2>
+              <p className="mt-2 text-sm text-white/60">
+                This link may be invalid. Please check the email you received.
               </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <span className="text-gray-400 mt-0.5">📍</span>
-            <div>
-              <p className="font-medium text-gray-800">{campaign.location}</p>
-              <p className="text-sm text-gray-500">{campaign.address}</p>
-            </div>
-          </div>
-
-          {campaign.description && (
-            <p className="text-[#6B7280] text-sm leading-relaxed pt-2">{campaign.description}</p>
-          )}
-        </div>
-
-        <div className="px-8 pb-8">
-          {rsvpState === 'accepted' && (
-            <div className="rounded-xl bg-[#E8F5E9] border border-[#BBF7D0] p-5 space-y-3">
-              <p className="font-semibold text-[#16A34A]">You're going! A confirmation email has been sent.</p>
-              {calendarUrl && <AddToCalendarButton url={calendarUrl} />}
-            </div>
+            </motion.div>
           )}
 
-          {rsvpState === 'declined' && (
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-5">
-              <p className="text-gray-600">You've declined this invitation.</p>
-            </div>
+          {state === "expired" && (
+            <motion.div
+              key="expired"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-3xl bg-white/10 p-8 text-center text-white backdrop-blur-sm"
+            >
+              <p className="text-4xl">⏰</p>
+              <h2 className="mt-4 text-xl font-bold">Invitation expired</h2>
+              <p className="mt-2 text-sm text-white/60">
+                This invitation link has expired. Ask the organizer to send a new one.
+              </p>
+            </motion.div>
           )}
 
-          {(rsvpState === 'idle' || rsvpState === 'loading' || rsvpState === 'error') && (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-[#1A1A1A]">Will you attend?</p>
+          {state === "declined" && (
+            <motion.div
+              key="declined"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-3xl bg-white/10 p-8 text-center text-white backdrop-blur-sm"
+            >
+              <p className="text-4xl">👋</p>
+              <h2 className="mt-4 text-xl font-bold">Got it, no worries!</h2>
+              <p className="mt-2 text-sm text-white/60">
+                You&apos;ve declined this invitation. Hope to see you next time.
+              </p>
+            </motion.div>
+          )}
 
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleRsvp('accept')}
-                  disabled={rsvpState === 'loading'}
-                  className="flex-1 rounded-lg bg-[#F5C542] px-4 py-3 text-[#1A1A1A] font-medium hover:bg-[#E5B53A] disabled:opacity-50 transition-colors"
-                >
-                  {rsvpState === 'loading' ? 'Saving…' : "Yes, I'm going"}
-                </button>
-                <button
-                  onClick={() => handleRsvp('decline')}
-                  disabled={rsvpState === 'loading'}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                >
-                  No, can't make it
-                </button>
-              </div>
-
-              {rsvpState === 'error' && rsvpError && (
-                <p className="text-sm text-red-600">{rsvpError}</p>
+          {state === "accepted" && (
+            <motion.div
+              key="accepted"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-3xl bg-white/10 p-8 text-center text-white backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+                className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 ring-4 ring-emerald-400/30"
+              >
+                <span className="text-4xl">✅</span>
+              </motion.div>
+              <h2 className="mt-5 text-2xl font-bold">You&apos;re confirmed!</h2>
+              {inviteData?.campaign && (
+                <p className="mt-2 text-white/70">
+                  See you at{" "}
+                  <strong className="text-white">{inviteData.campaign.title}</strong>
+                  {inviteData.campaign.date ? ` on ${fmtDate(inviteData.campaign.date)}` : ""}!
+                </p>
               )}
-
-              <div className="pt-2">
-                <AddToCalendarButton url={google_calendar_url} className="w-full justify-center" />
-              </div>
-            </div>
+              <p className="mt-3 text-sm text-white/50">
+                A confirmation email is on its way to you.
+              </p>
+              {calendarUrl && (
+                <a
+                  href={calendarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 inline-block rounded-2xl bg-white/15 px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/25"
+                >
+                  📅 Add to Google Calendar
+                </a>
+              )}
+            </motion.div>
           )}
-        </div>
+
+          {state === "ready" && inviteData && (
+            <motion.div
+              key="ready"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-black/40"
+            >
+              {/* Hero */}
+              <div className="bg-gradient-to-br from-[#1B4332] to-[#10B981] px-8 py-10 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/70">
+                  You&apos;re invited to volunteer
+                </p>
+                <h1 className="mt-2 text-2xl font-bold leading-tight">
+                  {inviteData.campaign.title}
+                </h1>
+                {inviteData.campaign.description && (
+                  <p className="mt-2 text-sm text-white/70 line-clamp-2">
+                    {inviteData.campaign.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Details */}
+              <div className="space-y-3 px-8 py-6">
+                {inviteData.campaign.date && (
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-lg">📅</span>
+                    <div>
+                      <p className="text-sm font-semibold text-[#0F172A]">
+                        {fmtDate(inviteData.campaign.date)}
+                      </p>
+                      {(inviteData.campaign.start_time ?? inviteData.campaign.end_time) && (
+                        <p className="text-xs text-slate-500">
+                          {fmtTime(inviteData.campaign.start_time)}
+                          {inviteData.campaign.end_time
+                            ? ` – ${fmtTime(inviteData.campaign.end_time)}`
+                            : ""}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {inviteData.campaign.address && (
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-lg">📍</span>
+                    <p className="text-sm text-slate-700">{inviteData.campaign.address}</p>
+                  </div>
+                )}
+
+                {inviteData.campaign.max_volunteers && (
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-lg">👥</span>
+                    <p className="text-sm text-slate-700">
+                      Up to {inviteData.campaign.max_volunteers} volunteers
+                    </p>
+                  </div>
+                )}
+
+                {/* RSVP form */}
+                <div className="border-t border-gray-100 pt-5">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Invited:{" "}
+                    <span className="normal-case font-medium text-slate-600">
+                      {inviteData.invitation.email}
+                    </span>
+                  </p>
+
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                    Your name{" "}
+                    <span className="font-normal text-slate-400">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Alex Johnson"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") void handleAccept(); }}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                  />
+
+                  {errorMsg && (
+                    <p className="mt-2 text-xs text-rose-600">{errorMsg}</p>
+                  )}
+
+                  <div className="mt-4 flex gap-3">
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.02 }}
+                      disabled={submitting}
+                      onClick={handleAccept}
+                      className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-100 disabled:opacity-60"
+                    >
+                      {submitting ? "Confirming…" : "✓ Accept Invitation"}
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.97 }}
+                      disabled={submitting}
+                      onClick={handleDecline}
+                      className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-500 transition hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      Decline
+                    </motion.button>
+                  </div>
+
+                  {inviteData.google_calendar_url && (
+                    <a
+                      href={inviteData.google_calendar_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 block text-center text-xs text-slate-400 underline underline-offset-2 hover:text-slate-600"
+                    >
+                      📅 Preview in Google Calendar
+                    </a>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </main>
-  )
+    </div>
+  );
 }
