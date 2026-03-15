@@ -192,6 +192,45 @@ class TestSendMessage:
         assert body["reply"] == "Hello! What would you like to organize?"
         assert "context" in body
 
+    def test_send_message_prepends_previous_session_context(self, client, mock_supabase, mock_agent, monkeypatch):
+        monkeypatch.setattr(
+            "routers.chat._get_format_history",
+            lambda: (lambda rows: [{"role": r["role"], "content": r["content"]} for r in rows]),
+        )
+        monkeypatch.setattr(
+             "routers.chat._load_previous_conversation_context",
+             lambda **kwargs: [{"role": "assistant", "content": "Earlier you chose Central Park."}],
+        )
+
+        session_tbl = MagicMock()
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
+
+        msg_tbl = MagicMock()
+        msg_tbl.insert.return_value.execute.return_value = _mock_table_result([{"id": "m3"}])
+        msg_tbl.select.return_value.eq.return_value.order.return_value.execute.return_value = _mock_table_result([
+            {"role": "user", "content": "Hi"},
+            {"role": "assistant", "content": "Hello!"},
+            {"role": "user", "content": "Can we continue where we left off?"},
+        ])
+
+        mock_supabase.table.side_effect = _make_table_router({
+            "chat_sessions": session_tbl,
+            "chat_messages": msg_tbl,
+        })
+
+        resp = client.post("/chat/message", json={
+            "session_id": SESSION_ID,
+            "message": "Can we continue where we left off?",
+        })
+        assert resp.status_code == 200
+
+        invoke_payload = mock_agent.invoke.call_args[0][0]
+        assert invoke_payload["chat_history"] == [
+            {"role": "assistant", "content": "Earlier you chose Central Park."},
+            {"role": "user", "content": "Hi"},
+            {"role": "assistant", "content": "Hello!"},
+        ]
+
     def test_send_message_invalid_body(self, client):
         resp = client.post("/chat/message", json={"session_id": SESSION_ID, "message": ""})
         assert resp.status_code == 422
@@ -665,30 +704,25 @@ class TestCreateCampaignEdgeCases:
 
 
 class TestBedrockExecutorWiring:
-    """Unit tests for Bedrock graph executor request context injection."""
+    """Unit tests for agent runtime request context injection."""
 
-    def test_executor_passes_session_and_token_to_graph_builder(self, monkeypatch):
-        from langchain_core.messages import AIMessage
+    def test_executor_passes_messages_session_and_token_to_run_agent(self, monkeypatch):
         from routers.chat import _BedrockGraphExecutor
 
-        captured: dict[str, str] = {}
+        captured: dict[str, object] = {}
 
-        class FakeGraph:
-            def invoke(self, payload):
-                assert "messages" in payload
-                return {"messages": [AIMessage(content="ok")]}
+        async def fake_run_agent(messages, session_id=None, token=None):
+            captured["messages"] = messages
+            captured["session_id"] = session_id
+            captured["token"] = token
+            return {"role": "assistant", "content": "ok", "tool_calls": []}
 
-        def fake_build_bedrock_graph(*args, **kwargs):
-            captured["session_id"] = kwargs.get("session_id", "")
-            captured["token"] = kwargs.get("token", "")
-            return FakeGraph()
-
-        monkeypatch.setattr("routers.chat.build_bedrock_graph", fake_build_bedrock_graph)
+        monkeypatch.setattr("routers.chat.run_agent", fake_run_agent)
 
         executor = _BedrockGraphExecutor()
         result = executor.invoke({
             "input": "hello",
-            "chat_history": [],
+            "chat_history": [{"role": "assistant", "content": "previous"}],
             "session_id": "session-123",
             "token": "jwt-abc",
         })
@@ -696,3 +730,7 @@ class TestBedrockExecutorWiring:
         assert result["output"] == "ok"
         assert captured["session_id"] == "session-123"
         assert captured["token"] == "jwt-abc"
+        assert captured["messages"] == [
+            {"role": "assistant", "content": "previous"},
+            {"role": "user", "content": "hello"},
+        ]
