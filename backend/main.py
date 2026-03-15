@@ -23,10 +23,6 @@ app.include_router(pantry_router)
 app.include_router(admin_analytics_router)
 app.include_router(admin_campaign_router)
 
-app.include_router(map_router)
-app.include_router(pantry_router)
-app.include_router(admin_analytics_router)
-app.include_router(admin_campaign_router)
 
 # Middleware must be added before routers for predictable ordering
 app.add_middleware(
