@@ -5,13 +5,24 @@ from pydantic import BaseModel, EmailStr, Field
 import logging
 from auth import get_current_user
 from supabase_client import get_supabase_client
-from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from routes.map import router as map_router, pantry_router, admin_analytics_router, admin_campaign_router
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map, bsky
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TrackA API", version="1.0.0")
+
+app.include_router(map_router)
+app.include_router(pantry_router)
+app.include_router(admin_analytics_router)
+app.include_router(admin_campaign_router)
+
 
 # Middleware must be added before routers for predictable ordering
 app.add_middleware(
@@ -31,7 +42,7 @@ app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
 app.include_router(map.router)
-
+app.include_router(bsky.router)
 
 @app.on_event("startup")
 def on_startup():
@@ -56,11 +67,9 @@ class SignInRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
 
-
 @app.get("/")
 def root():
     return {"message": "TrackA API is running"}
-
 
 @app.get("/health")
 def health():
@@ -157,6 +166,35 @@ async def reset_password(request: ResetPasswordRequest):
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
     return {"user": user}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    detail = exc.detail
+
+    if isinstance(detail, dict) and {"success", "error", "code"} <= detail.keys():
+        return JSONResponse(status_code=exc.status_code, content=detail)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": str(detail),
+            "code": "HTTP_ERROR",
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "error": "Invalid request parameters",
+            "code": "VALIDATION_ERROR",
+        },
+    )
 
 
 # Chat endpoints are provided by `routers/chat.py`.
