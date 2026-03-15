@@ -162,7 +162,7 @@ export default function HomeProfilePage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
+  <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
         <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <h1 className="text-3xl font-bold text-[#1A1A1A]">My Profile</h1>
@@ -174,24 +174,24 @@ export default function HomeProfilePage() {
           ) : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Name</p>
               <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{userName}</p>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Email</p>
               <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{email}</p>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Reward Points</p>
-              <p className="mt-1 text-2xl font-bold text-[#1A1A1A]">
+              <p className="mt-1 text-2xl font-bold text-[#7C3AED]">
                 {loading ? "..." : pointsTotal ?? "N/A"}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Leaderboard Level</p>
               <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">
                 {loading ? "Loading..." : levelNumber ? `Level ${levelNumber} - ${levelName}` : levelName}
@@ -203,7 +203,7 @@ export default function HomeProfilePage() {
           </div>
 
           {/* Badges */}
-          <div className="mt-6 rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
             <h2 className="text-lg font-semibold text-[#0F172A]">Badges Earned</h2>
             {loading ? (
               <p className="mt-3 text-sm text-slate-500">Loading badges...</p>
@@ -239,7 +239,7 @@ export default function HomeProfilePage() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <h2 className="text-lg font-semibold text-[#1A1A1A]">Leaderboard (Monthly)</h2>
               <div className="mt-3 space-y-2">
                 {loading ? (
@@ -264,7 +264,7 @@ export default function HomeProfilePage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="rounded-2xl border border-gray-200 bg-[#FFF8E1] p-5">
               <h2 className="text-lg font-semibold text-[#1A1A1A]">Recent Reward Activity</h2>
               <div className="mt-3 space-y-2">
                 {loading ? (

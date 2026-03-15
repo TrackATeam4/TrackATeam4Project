@@ -1,8 +1,15 @@
 "use client";
 
+import { DM_Serif_Display } from "next/font/google";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
+
+const dmSerif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--home-display",
+});
 
 const navItems = [
   { label: "Feed", icon: "🏠", href: "/home" },
@@ -39,13 +46,16 @@ export default function HomeSidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col border-r border-gray-200 bg-white px-6 py-8 text-[#1A1A1A] lg:flex">
+  <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col bg-white px-6 py-8 text-[#1A1A1A] lg:flex border-r border-[#E5E7EB] shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xl font-bold">
-            <span className="text-[28px]">🍋</span>
+          <div
+            className={`flex items-center gap-2 text-xl font-bold ${dmSerif.variable}`}
+            style={{ fontFamily: "var(--home-display)" }}
+          >
+            <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
             Lemontree
           </div>
-          <p className="text-xs uppercase tracking-[0.24em] text-[#6B7280]">Volunteer Hub</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-[#9CA3AF]">Volunteer Hub</p>
         </div>
 
         <nav className="mt-10 flex flex-1 flex-col gap-2 text-sm">
@@ -61,6 +71,9 @@ export default function HomeSidebar() {
                     : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
                 }`}
               >
+                {isActive ? (
+                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#F5C542]" />
+                ) : null}
                 <span className="text-[20px]">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
@@ -70,7 +83,7 @@ export default function HomeSidebar() {
 
         <div className="mt-6">
           <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-[#1A1A1A]">
               {userName.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -83,7 +96,7 @@ export default function HomeSidebar() {
         </div>
       </aside>
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col border-r border-gray-200 bg-white px-3 py-8 md:flex lg:hidden">
+  <aside className="fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col bg-white px-3 py-8 md:flex lg:hidden border-r border-[#E5E7EB] shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
         <div className="flex flex-col items-center gap-4 text-xl">
           {navItems.map((item) => {
             const isActive = isActiveRoute(item.href);

@@ -99,7 +99,7 @@ export default function HomeLeaderboardPage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
+  <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
         <div className="mx-auto max-w-5xl space-y-6">
         <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
