@@ -235,8 +235,10 @@ export default function HomePage() {
   const [forYouPosts, setForYouPosts] = useState<Post[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
-  const [localComments, setLocalComments] = useState<Record<string, { author: string; text: string; ts: number }[]>>({});
+  const [dbComments, setDbComments] = useState<Record<string, { id: string; author_name: string; body: string; created_at: string }[]>>({});
+  const [loadedComments, setLoadedComments] = useState<Set<string>>(new Set());
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [submittingComment, setSubmittingComment] = useState<string | null>(null);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
@@ -278,20 +280,23 @@ export default function HomePage() {
       setFeedError("");
 
       try {
-        const [feedPayload, joinedPayload, trendingPayload] = await Promise.all([
+        const [feedPayload, joinedPayload, trendingPayload, likedPayload] = await Promise.all([
           authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`),
-          authFetch<{ id: string }[]>(`/campaigns/joined?limit=100`).catch(() => ({ success: true as const, data: [] })),
-          authFetch<FeedCampaign[]>(`/feed/trending`).catch(() => ({ success: true as const, data: [] })),
+          authFetch<{ id: string }[]>(`/campaigns/joined?limit=100`).catch(() => ({ success: true as const, data: [] as { id: string }[] })),
+          authFetch<FeedCampaign[]>(`/feed/trending`).catch(() => ({ success: true as const, data: [] as FeedCampaign[] })),
+          authFetch<string[]>(`/campaigns/liked`).catch(() => ({ success: true as const, data: [] as string[] })),
         ]);
 
         const campaigns = extractFeedCampaigns(feedPayload);
         const mappedPosts = campaigns.map(campaignToPost);
         const joinedIds = new Set((joinedPayload.data ?? []).map((c) => c.id));
+        const likedIds = new Set((likedPayload.data ?? []) as string[]);
 
         const trending = extractFeedCampaigns(trendingPayload).slice(0, 5);
         if (!cancelled) {
           setPosts(mappedPosts);
           setJoinedPosts(joinedIds);
+          setLikedPosts(likedIds);
           setTrendingCampaigns(trending);
           setFeedError("");
         }
@@ -348,53 +353,83 @@ export default function HomePage() {
     } catch { setForYouPosts([]); } finally { setForYouLoading(false); }
   };
 
-  const toggleLike = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const isLiked = likedPosts.has(postId);
-        return {
-          ...post,
-          likes: isLiked ? post.likes - 1 : post.likes + 1,
-        };
-      })
-    );
-
+  const toggleLike = async (postId: string) => {
+    const wasLiked = likedPosts.has(postId);
+    // Optimistic update
     setLikedPosts((prev) => {
       const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
+      wasLiked ? next.delete(postId) : next.add(postId);
       return next;
     });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id !== postId ? p : { ...p, likes: wasLiked ? p.likes - 1 : p.likes + 1 }
+      )
+    );
+    try {
+      const res = await authFetch<{ liked: boolean; count: number }>(`/campaigns/${postId}/like`, { method: "POST" });
+      const { liked, count } = res.data as { liked: boolean; count: number };
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        liked ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+      setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, likes: count })));
+    } catch {
+      // Revert on failure
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        wasLiked ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id !== postId ? p : { ...p, likes: wasLiked ? p.likes + 1 : p.likes - 1 }
+        )
+      );
+    }
   };
 
-  const toggleComments = (postId: string) => {
+  const toggleComments = async (postId: string) => {
+    const isOpening = !expandedComments.has(postId);
     setExpandedComments((prev) => {
       const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
+      isOpening ? next.add(postId) : next.delete(postId);
       return next;
     });
+    // Fetch comments the first time this post is expanded
+    if (isOpening && !loadedComments.has(postId)) {
+      try {
+        const res = await authFetch<{ id: string; author_name: string; body: string; created_at: string }[]>(
+          `/campaigns/${postId}/comments`
+        );
+        const comments = (res.data ?? []) as { id: string; author_name: string; body: string; created_at: string }[];
+        setDbComments((prev) => ({ ...prev, [postId]: comments }));
+        setLoadedComments((prev) => new Set(prev).add(postId));
+        setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, comments: comments.length })));
+      } catch { /* show empty state */ }
+    }
   };
 
-  const submitComment = (postId: string) => {
+  const submitComment = async (postId: string) => {
     const text = (commentDrafts[postId] ?? "").trim();
-    if (!text) return;
-    const comment = { author: userName, text, ts: Date.now() };
-    setLocalComments((prev) => ({
-      ...prev,
-      [postId]: [...(prev[postId] ?? []), comment],
-    }));
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, comments: p.comments + 1 } : p))
-    );
+    if (!text || submittingComment === postId) return;
+    setSubmittingComment(postId);
     setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
+    try {
+      const res = await authFetch<{ id: string; author_name: string; body: string; created_at: string }>(
+        `/campaigns/${postId}/comments`,
+        { method: "POST", body: JSON.stringify({ body: text }) }
+      );
+      const newComment = res.data as { id: string; author_name: string; body: string; created_at: string };
+      setDbComments((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), newComment] }));
+      setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, comments: p.comments + 1 })));
+    } catch {
+      // Restore draft on failure
+      setCommentDrafts((prev) => ({ ...prev, [postId]: text }));
+    } finally {
+      setSubmittingComment(null);
+    }
   };
 
   const copyShare = (postId: string) => {
@@ -1037,7 +1072,7 @@ export default function HomePage() {
                       <motion.button
                         type="button"
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => toggleLike(post.id)}
+                        onClick={() => void toggleLike(post.id)}
                         className="flex items-center gap-2 transition hover:text-slate-600"
                       >
                         <motion.span
@@ -1055,7 +1090,7 @@ export default function HomePage() {
                       <span className="text-slate-300">·</span>
                       <button
                         type="button"
-                        onClick={() => toggleComments(post.id)}
+                        onClick={() => void toggleComments(post.id)}
                         className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-emerald-600 font-semibold" : ""}`}
                       >
                         💬 {post.comments} comments
@@ -1081,17 +1116,20 @@ export default function HomePage() {
                           className="mt-3 overflow-hidden"
                         >
                           <div className="space-y-2 border-t border-gray-100 pt-3">
-                            {(localComments[post.id] ?? []).length === 0 && (
+                            {!loadedComments.has(post.id) && (
+                              <p className="text-xs text-slate-400 italic">Loading comments…</p>
+                            )}
+                            {loadedComments.has(post.id) && (dbComments[post.id] ?? []).length === 0 && (
                               <p className="text-xs text-slate-400 italic">No comments yet. Be the first!</p>
                             )}
-                            {(localComments[post.id] ?? []).map((c, i) => (
-                              <div key={i} className="flex items-start gap-2">
-                                <div className="h-6 w-6 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
-                                  {c.author[0]?.toUpperCase() ?? "?"}
+                            {(dbComments[post.id] ?? []).map((c) => (
+                              <div key={c.id} className="flex items-start gap-2">
+                                <div className="h-6 w-6 shrink-0 rounded-full bg-[#FFFBEB] border border-[#F5C542]/40 flex items-center justify-center text-xs font-bold text-[#1B4332]">
+                                  {c.author_name[0]?.toUpperCase() ?? "?"}
                                 </div>
                                 <div className="rounded-xl bg-gray-50 px-3 py-1.5 text-xs text-slate-700">
-                                  <span className="font-semibold text-slate-800">{c.author}</span>{" "}
-                                  {c.text}
+                                  <span className="font-semibold text-slate-800">{c.author_name}</span>{" "}
+                                  {c.body}
                                 </div>
                               </div>
                             ))}
@@ -1100,16 +1138,17 @@ export default function HomePage() {
                                 type="text"
                                 value={commentDrafts[post.id] ?? ""}
                                 onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                onKeyDown={(e) => { if (e.key === "Enter") submitComment(post.id); }}
+                                onKeyDown={(e) => { if (e.key === "Enter") void submitComment(post.id); }}
                                 placeholder="Write a comment…"
-                                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+                                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-[#F5C542] focus:ring-1 focus:ring-[#F5C542]/30"
                               />
                               <button
                                 type="button"
-                                onClick={() => submitComment(post.id)}
-                                className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
+                                disabled={submittingComment === post.id}
+                                onClick={() => void submitComment(post.id)}
+                                className="rounded-full bg-[#1B4332] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#163828] transition disabled:opacity-50"
                               >
-                                Post
+                                {submittingComment === post.id ? "…" : "Post"}
                               </button>
                             </div>
                           </div>
