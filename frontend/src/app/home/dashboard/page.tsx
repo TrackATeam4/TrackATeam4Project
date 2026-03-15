@@ -425,7 +425,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void sendInvite(); }}
-                      className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                      className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
                     />
                     <motion.button
                       type="button"
@@ -479,7 +479,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                             min="0"
                             value={impactDraft[key as keyof ImpactDraft]}
                             onChange={(e) => setImpactDraft({ ...impactDraft, [key]: e.target.value })}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-400 focus:outline-none"
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
                           />
                         </div>
                       ))}
@@ -489,7 +489,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                           rows={3}
                           value={impactDraft.notes}
                           onChange={(e) => setImpactDraft({ ...impactDraft, notes: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-400 focus:outline-none resize-none"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none resize-none"
                           placeholder="How did the campaign go?"
                         />
                       </div>
