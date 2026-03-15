@@ -7,7 +7,9 @@ from pathlib import Path
 from fpdf import FPDF
 
 DEFAULT_DESCRIPTION = "Join us to spread the word and help families find food resources."
-DEFAULT_POSTER_STYLE = "dark_centered"
+DEFAULT_POSTER_STYLE = "color_blocked"
+
+# do not use dark_centered style for now
 SUPPORTED_STYLES = {"dark_centered", "color_blocked"}
 
 LEMON_YELLOW = (255, 214, 10)
@@ -432,6 +434,28 @@ def create_color_blocked_poster(pdf: FPDF, data: dict[str, str]) -> None:
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_y(284)
     pdf.cell(0, 8, "LEMONTREE | Volunteer. Share. Show up.", align="C", new_x="LMARGIN", new_y="NEXT")
+
+
+def generate_flyer_bytes(
+    campaign: FlyerCampaignData,
+    style: str = DEFAULT_POSTER_STYLE,
+) -> bytes:
+    """Render the flyer to PDF in memory and return the raw bytes."""
+    if style not in SUPPORTED_STYLES:
+        raise ValueError(f"Unsupported poster style '{style}'. Valid styles: {sorted(SUPPORTED_STYLES)}")
+
+    payload = _campaign_payload(campaign)
+
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+
+    if style == "dark_centered":
+        create_dark_centered_poster(pdf, payload)
+    else:
+        create_color_blocked_poster(pdf, payload)
+
+    return bytes(pdf.output())
 
 
 def generate_flyer_pdf(

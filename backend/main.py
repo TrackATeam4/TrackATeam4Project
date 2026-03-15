@@ -9,8 +9,25 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from routes.map import router as map_router, pantry_router, admin_analytics_router, admin_campaign_router
-from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map, bsky
+from routes.map import (
+    router as map_router,
+    pantry_router,
+    admin_analytics_router,
+    admin_campaign_router,
+)
+from routers import (
+    campaigns,
+    impact,
+    feed,
+    promotion,
+    leaderboard,
+    chat,
+    tasks,
+    invitations,
+    map,
+    bsky,
+    flyers,
+)
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -41,12 +58,14 @@ app.include_router(invitations.router)
 # cannot handle and silently returns [].
 app.include_router(map.router)
 app.include_router(bsky.router)
+app.include_router(flyers.router)
 
 # Legacy map/pantry/admin routers — keep for admin endpoints not in routers/map.py
 app.include_router(map_router)
 app.include_router(pantry_router)
 app.include_router(admin_analytics_router)
 app.include_router(admin_campaign_router)
+
 
 @app.on_event("startup")
 def on_startup():
@@ -71,9 +90,11 @@ class SignInRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
 
+
 @app.get("/")
 def root():
     return {"message": "TrackA API is running"}
+
 
 @app.get("/health")
 def health():
@@ -109,9 +130,7 @@ async def sign_up(
 
     user_meta = getattr(auth_user, "user_metadata", {}) or {}
     display_name = (
-        user_meta.get("full_name")
-        or user_meta.get("name")
-        or user_email.split("@")[0]
+        user_meta.get("full_name") or user_meta.get("name") or user_email.split("@")[0]
     )
 
     try:
@@ -125,7 +144,9 @@ async def sign_up(
             on_conflict="id",
         ).execute()
     except Exception as exc:
-        logger.error("Failed creating profile row for %s (%s): %s", request.email, user_id, exc)
+        logger.error(
+            "Failed creating profile row for %s (%s): %s", request.email, user_id, exc
+        )
         raise HTTPException(
             status_code=500,
             detail="User created in auth, but failed to initialize profile.",
