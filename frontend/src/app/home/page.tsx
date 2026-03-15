@@ -250,12 +250,18 @@ export default function HomePage() {
       setFeedError("");
 
       try {
-        const payload = await authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`);
-        const campaigns = extractFeedCampaigns(payload);
+        const [feedPayload, joinedPayload] = await Promise.all([
+          authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`),
+          authFetch<{ id: string }[]>(`/campaigns/joined?limit=100`).catch(() => ({ success: true as const, data: [] })),
+        ]);
 
+        const campaigns = extractFeedCampaigns(feedPayload);
         const mappedPosts = campaigns.map(campaignToPost);
+        const joinedIds = new Set((joinedPayload.data ?? []).map((c) => c.id));
+
         if (!cancelled) {
           setPosts(mappedPosts);
+          setJoinedPosts(joinedIds);
           setFeedError("");
         }
       } catch (error) {
@@ -309,16 +315,62 @@ export default function HomePage() {
     });
   };
 
-  const toggleJoin = (postId: string) => {
+  const toggleJoin = async (postId: string) => {
+    const isCurrentlyJoined = joinedPosts.has(postId);
+
+    // Optimistic UI update
     setJoinedPosts((prev) => {
       const next = new Set(prev);
-      if (next.has(postId)) {
+      if (isCurrentlyJoined) {
         next.delete(postId);
       } else {
         next.add(postId);
       }
       return next;
     });
+
+    setPosts((prev) =>
+      prev.map((post) => {
+        if (post.id !== postId || !post.event) return post;
+        const delta = isCurrentlyJoined ? -1 : 1;
+        const newFilled = Math.max(0, post.event.spotsFilled + delta);
+        return {
+          ...post,
+          event: { ...post.event, spotsFilled: newFilled },
+        };
+      })
+    );
+
+    try {
+      if (isCurrentlyJoined) {
+        await authFetch(`/campaigns/${postId}/signup`, { method: "DELETE" });
+      } else {
+        await authFetch(`/campaigns/${postId}/signup`, { method: "POST" });
+      }
+    } catch (error) {
+      // Revert optimistic updates on failure
+      setJoinedPosts((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyJoined) {
+          next.add(postId);
+        } else {
+          next.delete(postId);
+        }
+        return next;
+      });
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId || !post.event) return post;
+          const delta = isCurrentlyJoined ? 1 : -1;
+          const newFilled = Math.max(0, post.event.spotsFilled + delta);
+          return {
+            ...post,
+            event: { ...post.event, spotsFilled: newFilled },
+          };
+        })
+      );
+      console.error("Failed to update campaign signup:", error);
+    }
   };
 
   const openModal = (type?: PostType) => {

@@ -148,10 +148,29 @@ def list_campaigns(
     )
 
     total = result.count or 0
+    campaigns = result.data or []
+
+    # Attach signup counts
+    campaign_ids = [c["id"] for c in campaigns]
+    signup_counts: dict[str, int] = {}
+    if campaign_ids:
+        signups_result = (
+            supabase.table("signups")
+            .select("campaign_id")
+            .in_("campaign_id", campaign_ids)
+            .neq("status", "cancelled")
+            .execute()
+        )
+        for row in signups_result.data or []:
+            cid = row["campaign_id"]
+            signup_counts[cid] = signup_counts.get(cid, 0) + 1
+
+    for c in campaigns:
+        c["signup_count"] = signup_counts.get(c["id"], 0)
 
     return {
         "success": True,
-        "data": result.data or [],
+        "data": campaigns,
         "meta": {"total": total, "page": page, "limit": limit},
     }
 
@@ -199,7 +218,11 @@ def get_joined_campaigns(
     user_id = user.user.id
 
     signups_result = (
-        supabase.table("signups").select("campaign_id").eq("user_id", user_id).execute()
+        supabase.table("signups")
+        .select("campaign_id")
+        .eq("user_id", user_id)
+        .neq("status", "cancelled")
+        .execute()
     )
     campaign_ids = [s["campaign_id"] for s in (signups_result.data or [])]
 
