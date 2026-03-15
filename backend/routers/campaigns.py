@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
+from services.geocoding import geocode_address
 from services.rewards import award_points
 from supabase_client import get_supabase_client
 
@@ -57,6 +58,15 @@ class CampaignUpdate(BaseModel):
     status: Optional[CampaignStatus] = None
 
 
+@router.get("/geocode")
+def geocode(address: str = Query(..., min_length=3)):
+    """Resolve an address string to lat/lng using OpenStreetMap. Public."""
+    coords = geocode_address(address)
+    if not coords:
+        raise HTTPException(status_code=404, detail="Address not found")
+    return {"success": True, "data": {"latitude": coords[0], "longitude": coords[1]}}
+
+
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
     result = (
         supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
@@ -78,14 +88,24 @@ def create_campaign(
     """Create a new campaign. Auth required."""
     user_id = user.user.id
 
+    # Auto-geocode from address when coordinates are not provided
+    latitude = body.latitude
+    longitude = body.longitude
+    if latitude is None or longitude is None:
+        coords = geocode_address(f"{body.address}, {body.location}")
+        if coords:
+            latitude, longitude = coords
+        else:
+            logger.warning("Could not geocode address: %s", body.address)
+
     row = {
         "organizer_id": user_id,
         "title": body.title,
         "description": body.description,
         "location": body.location,
         "address": body.address,
-        "latitude": body.latitude,
-        "longitude": body.longitude,
+        "latitude": latitude,
+        "longitude": longitude,
         "date": body.date,
         "start_time": body.start_time,
         "end_time": body.end_time,

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { authFetch } from "@/lib/api";
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 type CampaignStatus = "draft" | "published" | "completed" | "cancelled";
 
@@ -11,8 +13,6 @@ type CampaignFormState = {
   description: string;
   location: string;
   address: string;
-  latitude: string;
-  longitude: string;
   date: string;
   startTime: string;
   endTime: string;
@@ -28,8 +28,6 @@ const INITIAL_FORM: CampaignFormState = {
   description: "",
   location: "",
   address: "",
-  latitude: "",
-  longitude: "",
   date: "",
   startTime: "",
   endTime: "",
@@ -45,15 +43,35 @@ const toDbTime = (value: string) => {
   return value.length === 5 ? `${value}:00` : value;
 };
 
+type GeoState = "idle" | "loading" | "found" | "error";
+
 export default function HomeCreatePage() {
   const [form, setForm] = useState<CampaignFormState>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [geoState, setGeoState] = useState<GeoState>("idle");
+  const coordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   const isMissingRequired = useMemo(() => {
     return !form.title.trim() || !form.location.trim() || !form.address.trim() || !form.date || !form.startTime || !form.endTime;
   }, [form]);
+
+  const geocodeAddress = async (address: string, location: string) => {
+    const query = `${address.trim()}, ${location.trim()}`;
+    if (!query.trim()) return;
+    setGeoState("loading");
+    coordsRef.current = null;
+    try {
+      const res = await fetch(`${API_BASE}/campaigns/geocode?address=${encodeURIComponent(query)}`);
+      if (!res.ok) throw new Error("not found");
+      const json = await res.json();
+      coordsRef.current = { latitude: json.data.latitude, longitude: json.data.longitude };
+      setGeoState("found");
+    } catch {
+      setGeoState("error");
+    }
+  };
 
   const updateField = <K extends keyof CampaignFormState>(key: K, value: CampaignFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -80,13 +98,6 @@ export default function HomeCreatePage() {
         throw new Error("End time must be after start time.");
       }
 
-      const latitude = Number(form.latitude);
-      const longitude = Number(form.longitude);
-      const hasCoordinates = form.latitude.trim() !== "" && form.longitude.trim() !== "";
-      if (hasCoordinates && (!Number.isFinite(latitude) || !Number.isFinite(longitude))) {
-        throw new Error("Latitude and longitude must be valid numbers when provided.");
-      }
-
       const tags = form.tags
         .split(",")
         .map((item) => item.trim())
@@ -98,8 +109,8 @@ export default function HomeCreatePage() {
         location: form.location.trim(),
         address: form.address.trim(),
         status: form.status,
-        latitude: hasCoordinates ? latitude : undefined,
-        longitude: hasCoordinates ? longitude : undefined,
+        latitude: coordsRef.current?.latitude,
+        longitude: coordsRef.current?.longitude,
         date: form.date,
         start_time: toDbTime(form.startTime),
         end_time: toDbTime(form.endTime),
@@ -169,11 +180,17 @@ export default function HomeCreatePage() {
             <span className="mb-1 block text-sm font-medium text-slate-700">Meeting Address</span>
             <input
               value={form.address}
-              onChange={(e) => updateField("address", e.target.value)}
+              onChange={(e) => { updateField("address", e.target.value); setGeoState("idle"); coordsRef.current = null; }}
+              onBlur={() => { if (form.address.trim()) geocodeAddress(form.address, form.location); }}
               required
               className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-emerald-500"
-              placeholder="5th Ave & 44th St"
+              placeholder="5th Ave & 44th St, Brooklyn, NY"
             />
+            <span className="mt-1 block text-xs">
+              {geoState === "loading" && <span className="text-slate-400">📍 Looking up address…</span>}
+              {geoState === "found" && <span className="text-emerald-600">✓ Location found — map pin will be placed automatically</span>}
+              {geoState === "error" && <span className="text-amber-600">⚠ Address not found — pin won't appear on map, but you can still submit</span>}
+            </span>
           </label>
 
           <label>
@@ -184,30 +201,6 @@ export default function HomeCreatePage() {
               onChange={(e) => updateField("date", e.target.value)}
               required
               className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-emerald-500"
-            />
-          </label>
-
-          <label>
-            <span className="mb-1 block text-sm font-medium text-slate-700">Latitude (optional)</span>
-            <input
-              type="number"
-              step="any"
-              value={form.latitude}
-              onChange={(e) => updateField("latitude", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-emerald-500"
-              placeholder="40.7128"
-            />
-          </label>
-
-          <label>
-            <span className="mb-1 block text-sm font-medium text-slate-700">Longitude (optional)</span>
-            <input
-              type="number"
-              step="any"
-              value={form.longitude}
-              onChange={(e) => updateField("longitude", e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none focus:border-emerald-500"
-              placeholder="-74.0060"
             />
           </label>
 
