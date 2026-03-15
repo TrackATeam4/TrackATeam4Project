@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "react";
 const navItems = [
   { label: "Feed", icon: "🏠", href: "/home" },
   { label: "Discover", icon: "🗺️", href: "/home/discover" },
+  { label: "Create Campaign", icon: "➕", href: "/home/create" },
   { label: "Dashboard", icon: "⚙️", href: "/home/dashboard" },
   { label: "Leaderboard", icon: "📊", href: "/home/leaderboard" },
   { label: "My Profile", icon: "👤", href: "/home/profile" },
