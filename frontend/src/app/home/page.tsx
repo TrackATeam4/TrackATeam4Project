@@ -231,6 +231,10 @@ export default function HomePage() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [forYouPosts, setForYouPosts] = useState<Post[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [localComments, setLocalComments] = useState<Record<string, { author: string; text: string; ts: number }[]>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
     subscribeToStorage,
@@ -350,6 +354,39 @@ export default function HomePage() {
       }
       return next;
     });
+  };
+
+  const toggleComments = (postId: string) => {
+    setExpandedComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
+  const submitComment = (postId: string) => {
+    const text = (commentDrafts[postId] ?? "").trim();
+    if (!text) return;
+    const comment = { author: userName, text, ts: Date.now() };
+    setLocalComments((prev) => ({
+      ...prev,
+      [postId]: [...(prev[postId] ?? []), comment],
+    }));
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments: p.comments + 1 } : p))
+    );
+    setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
+  };
+
+  const copyShare = (postId: string) => {
+    const url = `${window.location.origin}/c/${postId}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopiedShare(postId);
+    setTimeout(() => setCopiedShare(null), 2000);
   };
 
   const toggleJoin = async (postId: string) => {
@@ -1066,14 +1103,69 @@ export default function HomePage() {
                         {post.likes} likes
                       </motion.button>
                       <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => toggleComments(post.id)}
+                        className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-emerald-600 font-semibold" : ""}`}
+                      >
                         💬 {post.comments} comments
                       </button>
                       <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
-                        🔗 Share
+                      <button
+                        type="button"
+                        onClick={() => copyShare(post.id)}
+                        className={`flex items-center gap-2 transition ${copiedShare === post.id ? "text-emerald-600 font-semibold" : "hover:text-slate-600"}`}
+                      >
+                        {copiedShare === post.id ? "✓ Copied!" : "🔗 Share"}
                       </button>
                     </div>
+
+                    <AnimatePresence>
+                      {expandedComments.has(post.id) && (
+                        <motion.div
+                          key={`comments-${post.id}`}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-3 overflow-hidden"
+                        >
+                          <div className="space-y-2 border-t border-gray-100 pt-3">
+                            {(localComments[post.id] ?? []).length === 0 && (
+                              <p className="text-xs text-slate-400 italic">No comments yet. Be the first!</p>
+                            )}
+                            {(localComments[post.id] ?? []).map((c, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <div className="h-6 w-6 shrink-0 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
+                                  {c.author[0]?.toUpperCase() ?? "?"}
+                                </div>
+                                <div className="rounded-xl bg-gray-50 px-3 py-1.5 text-xs text-slate-700">
+                                  <span className="font-semibold text-slate-800">{c.author}</span>{" "}
+                                  {c.text}
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex items-center gap-2 pt-1">
+                              <input
+                                type="text"
+                                value={commentDrafts[post.id] ?? ""}
+                                onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === "Enter") submitComment(post.id); }}
+                                placeholder="Write a comment…"
+                                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => submitComment(post.id)}
+                                className="rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 transition"
+                              >
+                                Post
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })}
