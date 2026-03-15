@@ -131,7 +131,17 @@ export default function HomeDiscoverPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement | null>(null);
 
-  const totalCampaigns = useMemo(() => campaignPins.length, [campaignPins]);
+  // Campaign keyword search
+  const [campaignQuery, setCampaignQuery] = useState("");
+  const [showList, setShowList] = useState(false);
+
+  const filteredCampaignPins = useMemo(() => {
+    const q = campaignQuery.trim().toLowerCase();
+    if (!q) return campaignPins;
+    return campaignPins.filter((p) => p.title.toLowerCase().includes(q));
+  }, [campaignPins, campaignQuery]);
+
+  const totalCampaigns = useMemo(() => filteredCampaignPins.length, [filteredCampaignPins]);
   const totalPantries = useMemo(() => pantryPins.length, [pantryPins]);
 
   // ── Geolocation ────────────────────────────────────────────────────────────
@@ -305,7 +315,7 @@ export default function HomeDiscoverPage() {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
 
-      campaignPins.forEach((pin) => {
+      filteredCampaignPins.forEach((pin) => {
         const popup = new mapboxgl.Popup({ offset: 20, className: "tracka-popup" }).setHTML(`
           <div style="font-family:system-ui;min-width:200px;padding:4px 2px">
             <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:4px">${pin.title}</div>
@@ -340,7 +350,7 @@ export default function HomeDiscoverPage() {
     };
 
     void drawMarkers();
-  }, [campaignPins, pantryPins, mapReady]);
+  }, [filteredCampaignPins, pantryPins, mapReady]);
 
   // ── Place / update "You are here" pin ─────────────────────────────────────
   useEffect(() => {
@@ -416,14 +426,99 @@ export default function HomeDiscoverPage() {
             </button>
           </div>
 
+          {/* ── Search row ── */}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            {/* Location address search */}
+            <div ref={searchRef} className="relative flex-1">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]">📍</span>
+                  <input
+                    type="text"
+                    value={locationQuery}
+                    onChange={(e) => {
+                      setLocationQuery(e.target.value);
+                      fetchSuggestions(e.target.value);
+                    }}
+                    placeholder="Search location…"
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-sm text-[#1A1A1A] placeholder-[#9CA3AF] outline-none focus:border-[#F5C542] focus:ring-1 focus:ring-[#F5C542]/50"
+                  />
+                  {geocoding && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#9CA3AF]">…</span>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#F5C542] px-4 py-2 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#FDE68A]"
+                >
+                  Go
+                </button>
+              </form>
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-30 mt-1 w-full rounded-xl border border-gray-100 bg-white py-1 shadow-lg">
+                  {suggestions.map((s, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onMouseDown={() => applyGeocodedLocation(s)}
+                        className="w-full px-4 py-2 text-left text-sm text-[#1A1A1A] hover:bg-[#FEF3C7]"
+                      >
+                        {s.place_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Campaign keyword search */}
+            <div className="relative sm:w-64">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]">🔍</span>
+              <input
+                type="text"
+                value={campaignQuery}
+                onChange={(e) => {
+                  setCampaignQuery(e.target.value);
+                  setShowList(e.target.value.trim().length > 0);
+                }}
+                placeholder="Search campaigns…"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2 pl-8 pr-3 text-sm text-[#1A1A1A] placeholder-[#9CA3AF] outline-none focus:border-[#F5C542] focus:ring-1 focus:ring-[#F5C542]/50"
+              />
+            </div>
+          </div>
+
+          {/* Campaign search results list */}
+          {showList && (
+            <div className="mt-3 max-h-52 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50 p-2">
+              {filteredCampaignPins.length === 0 ? (
+                <p className="px-3 py-2 text-sm text-[#6B7280]">No campaigns match "{campaignQuery}"</p>
+              ) : (
+                filteredCampaignPins.map((pin) => (
+                  <button
+                    key={pin.id}
+                    type="button"
+                    onClick={() => {
+                      mapRef.current?.flyTo({ center: [pin.longitude, pin.latitude], zoom: 15, duration: 900 });
+                      setShowList(false);
+                    }}
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-[#1A1A1A] transition hover:bg-[#FEF3C7]"
+                  >
+                    <span className="font-medium">🌱 {pin.title}</span>
+                    <span className="text-xs text-[#6B7280]">{pin.date}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
           {!MAPBOX_TOKEN && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
               Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to your frontend .env to render the map.
             </div>
           )}
 
           {error && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
             </div>
           )}
