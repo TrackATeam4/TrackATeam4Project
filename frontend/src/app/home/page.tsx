@@ -591,7 +591,7 @@ export default function HomePage() {
     >
       <div className="flex">
         <motion.aside
-          className="fixed left-0 top-0 hidden h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white lg:flex"
+          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white flex"
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -658,7 +658,7 @@ export default function HomePage() {
           </div>
         </motion.aside>
 
-        <aside className="fixed left-0 top-0 hidden h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 md:flex lg:hidden">
+        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 flex">
           <div className="flex flex-col items-center gap-4 text-xl">
             {navItems.map((item) => (
               <Link

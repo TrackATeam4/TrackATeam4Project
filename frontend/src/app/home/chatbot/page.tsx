@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import HomeSidebar from "@/components/home/HomeSidebar";
 import { supabase } from "@/lib/supabase";
 
 type ChatRole = "user" | "assistant";
@@ -205,12 +206,11 @@ export default function ChatbotPage() {
 	};
 
 	return (
-		<main className="min-h-screen bg-[#FFFEF5] px-6 py-8 text-slate-700">
-			<div className="mx-auto max-w-5xl space-y-6">
-				<div className="flex items-center justify-between">
-					<Link href="/home" className="text-sm font-medium text-emerald-700 hover:underline">
-						← Back to Home
-					</Link>
+		<>
+			<HomeSidebar />
+			<main className="min-h-screen bg-[#FFFEF5] px-6 py-8 text-slate-700 md:ml-24 lg:ml-72">
+				<div className="mx-auto max-w-5xl space-y-6">
+				<div className="flex items-center justify-end">
 					<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs text-[#065F46]">
 						Session: {sessionId ? sessionId.slice(0, 8) : "none"}
 					</span>
@@ -275,7 +275,8 @@ export default function ChatbotPage() {
 						</pre>
 					</aside>
 				</section>
-			</div>
-		</main>
+				</div>
+			</main>
+		</>
 	);
 }

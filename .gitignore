@@ -15,7 +15,7 @@ frontend/.env
 .DS_Store
 .venv/
 .env.local
-
+.env
 # Documentation (AI context)
 AGENTS.md
 CLAUDE.md

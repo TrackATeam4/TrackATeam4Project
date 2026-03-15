@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import HomeSidebar from "@/components/home/HomeSidebar";
 import { supabase } from "@/lib/supabase";
 
 type ChatRole = "user" | "assistant";
@@ -207,15 +207,14 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#FFFEF5] px-6 py-8 text-slate-700">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.4fr_0.6fr]">
+    <>
+      <HomeSidebar />
+      <main className="min-h-screen bg-[#FFFEF5] px-6 py-8 text-slate-700 md:ml-24 lg:ml-72">
+        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.4fr_0.6fr]">
         <section className="rounded-3xl border border-yellow-100 bg-white p-6 shadow-lg shadow-yellow-100/60">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <Link href="/home" className="text-xs font-semibold text-emerald-700 hover:underline">
-                ← Back to Home
-              </Link>
-              <h1 className="mt-2 text-2xl font-bold text-[#0F172A]">🤖 Campaign Builder</h1>
+              <h1 className="text-2xl font-bold text-[#0F172A]">🤖 Campaign Builder</h1>
               <p className="mt-1 text-sm text-slate-500">
                 Chat with the agent to plan flyering campaigns and generate resources.
               </p>
@@ -341,7 +340,8 @@ export default function ChatPage() {
             )}
           </div>
         </aside>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
