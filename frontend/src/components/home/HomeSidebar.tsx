@@ -3,14 +3,73 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
+import LemonLogo from "@/components/LemonLogo";
 
 const navItems = [
-  { label: "Feed", icon: "🏠", href: "/home" },
-  { label: "Discover", icon: "🗺️", href: "/home/discover" },
-  { label: "Create Campaign", icon: "➕", href: "/home/create" },
-  { label: "Dashboard", icon: "⚙️", href: "/home/dashboard" },
-  { label: "Leaderboard", icon: "📊", href: "/home/leaderboard" },
-  { label: "My Profile", icon: "👤", href: "/home/profile" },
+  {
+    label: "Feed",
+    href: "/home",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    label: "Discover",
+    href: "/home/discover",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+      </svg>
+    ),
+  },
+  {
+    label: "Create Campaign",
+    href: "/home/create",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="16" />
+        <line x1="8" y1="12" x2="16" y2="12" />
+      </svg>
+    ),
+  },
+  {
+    label: "Dashboard",
+    href: "/home/dashboard",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    label: "Leaderboard",
+    href: "/home/leaderboard",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    label: "My Profile",
+    href: "/home/profile",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
 ];
 
 const subscribeToStorage = (callback: () => void) => {
@@ -39,69 +98,85 @@ export default function HomeSidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col border-r border-gray-200 bg-white px-6 py-8 text-[#1A1A1A] lg:flex">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xl font-bold">
-            <span className="text-[28px]">🍋</span>
+      {/* Desktop wide sidebar */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col border-r border-gray-100 bg-white px-5 py-7 lg:flex">
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 px-1">
+          <LemonLogo size={30} />
+          <div>
             <img src="/wordmark.svg" alt="Lemontree" className="h-5 w-auto" />
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#9CA3AF]">Volunteer Hub</p>
           </div>
-          <p className="text-xs uppercase tracking-[0.24em] text-[#6B7280]">Volunteer Hub</p>
         </div>
 
-        <nav className="mt-10 flex flex-1 flex-col gap-2 text-sm">
+        {/* Divider */}
+        <div className="mt-6 h-px bg-gray-100" />
+
+        {/* Nav */}
+        <nav className="mt-5 flex flex-1 flex-col gap-0.5">
           {navItems.map((item) => {
             const isActive = isActiveRoute(item.href);
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
+                className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-[#FEF3C7] text-[#1A1A1A] font-semibold border-l-4 border-[#F5C542]"
-                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
+                    ? "bg-[#FFFBEB] text-[#1B4332]"
+                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#111827]"
                 }`}
               >
-                <span className="text-[20px]">{item.icon}</span>
+                {isActive && (
+                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#F5C542]" />
+                )}
+                <span className={`transition-colors ${isActive ? "text-[#1B4332]" : "text-[#9CA3AF] group-hover:text-[#6B7280]"}`}>
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-6">
-          <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-white">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[#1A1A1A]">{userName}</p>
-              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-[#6B7280]">
-                Volunteer
-              </span>
-            </div>
+        {/* Divider */}
+        <div className="h-px bg-gray-100" />
+
+        {/* User */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-[#FFFBEB] px-3 py-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-sm font-bold text-white shadow-sm">
+            {userName.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-[#111827]">{userName}</p>
+            <p className="text-xs text-[#9CA3AF]">Volunteer</p>
           </div>
         </div>
       </aside>
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col border-r border-gray-200 bg-white px-3 py-8 md:flex lg:hidden">
-        <div className="flex flex-col items-center gap-4 text-xl">
+      {/* Tablet icon-only sidebar */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[68px] flex-col items-center border-r border-gray-100 bg-white py-6 md:flex lg:hidden">
+        <LemonLogo size={26} />
+        <nav className="mt-6 flex flex-1 flex-col items-center gap-1">
           {navItems.map((item) => {
             const isActive = isActiveRoute(item.href);
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
-                  isActive
-                    ? "bg-[#FEF3C7] text-[#1A1A1A]"
-                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
-                }`}
                 title={item.label}
+                className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all ${
+                  isActive
+                    ? "bg-[#FFFBEB] text-[#1B4332]"
+                    : "text-[#9CA3AF] hover:bg-gray-50 hover:text-[#6B7280]"
+                }`}
               >
                 {item.icon}
               </Link>
             );
           })}
+        </nav>
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-sm font-bold text-white">
+          {userName.charAt(0).toUpperCase()}
         </div>
       </aside>
     </>
