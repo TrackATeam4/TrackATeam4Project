@@ -29,12 +29,13 @@ def promote_campaign(
         supabase.table("campaigns")
         .select("id, organizer_id, promoted_at")
         .eq("id", campaign_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    campaign = campaign_result.data
-    if not campaign:
+    rows = campaign_result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    campaign = rows[0]
 
     if campaign["organizer_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only the organizer can promote a campaign")

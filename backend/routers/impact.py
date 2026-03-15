@@ -42,12 +42,13 @@ def create_impact_report(
         supabase.table("campaigns")
         .select("id, organizer_id")
         .eq("id", campaign_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    campaign = campaign_result.data
-    if not campaign:
+    rows = campaign_result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
+    campaign = rows[0]
 
     if campaign["organizer_id"] != user_id:
         raise HTTPException(status_code=403, detail="Only the organizer can submit a report")
@@ -90,11 +91,12 @@ def get_impact_report(
         supabase.table("impact_reports")
         .select("*")
         .eq("campaign_id", campaign_id)
-        .single()
+        .limit(1)
         .execute()
     )
-    report = report_result.data
-    if not report:
+    rows = report_result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Impact report not found")
+    report = rows[0]
 
     return {"success": True, "data": report}

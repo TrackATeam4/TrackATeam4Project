@@ -31,18 +31,20 @@ class TaskUpdate(BaseModel):
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
     result = (
-        supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
+        supabase.table("campaigns").select("*").eq("id", campaign_id).limit(1).execute()
     )
-    if not result.data:
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return result.data
+    return rows[0]
 
 
 def _get_task_or_404(supabase, task_id: str) -> dict:
-    result = supabase.table("tasks").select("*").eq("id", task_id).single().execute()
-    if not result.data:
+    result = supabase.table("tasks").select("*").eq("id", task_id).limit(1).execute()
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Task not found")
-    return result.data
+    return rows[0]
 
 
 @router.get("/campaigns/{campaign_id}/tasks")
