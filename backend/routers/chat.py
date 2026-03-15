@@ -16,6 +16,7 @@ from agents.chat_service import (
 )
 from supabase_client import get_supabase_client
 from services.rewards import award_points, haversine_km
+from services.event_normalization import normalize_context_field
 
 logger = logging.getLogger(__name__)
 
@@ -362,7 +363,12 @@ def save_context(
             detail=f"Invalid field '{body.field}'. Valid fields: {sorted(VALID_CONTEXT_FIELDS)}",
         )
 
-    merged = _merge_context(supabase, session_id, session["context"], body.field, body.value)
+    try:
+        normalized_value = normalize_context_field(body.field, body.value)
+    except ValueError as exc:
+        normalized_value = body.value
+
+    merged = _merge_context(supabase, session_id, session["context"], body.field, normalized_value)
     return {"context": merged}
 
 

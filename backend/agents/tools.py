@@ -9,8 +9,6 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 
 BASE_URL = os.getenv("AGENT_BACKEND_BASE_URL", "http://localhost:8000")
-DEFAULT_MODEL_ID = "meta.llama3-3-70b-instruct-v1:0"
-DEFAULT_REGION = "us-east-1"
 
 
 def _headers(token: str) -> dict[str, str]:
@@ -79,7 +77,9 @@ def save_event_field(session_id: str, field: str, value: str, token: str) -> dic
     Call this every time the user provides a piece of information.
     Valid fields: title, location, address, latitude, longitude, date,
     start_time, end_time, max_volunteers, target_flyers, tags, food_pantry_id.
-    Dates must be YYYY-MM-DD. Times must be HH:MM (24-hour).
+    For date/start_time/end_time, pass natural language as-is (for example
+    "April 26, 2020" or "12AM"); backend normalization converts to canonical
+    formats used for campaign creation.
     """
     r = httpx.post(
         f"{BASE_URL}/chat/session/{session_id}/context",
@@ -406,10 +406,6 @@ __all__ = [
     "AGENT_TOOLS",
     "resolve_tools",
     "build_request_tools",
-    "build_bedrock_model",
-    "build_bedrock_graph",
-    "invoke_bedrock_graph",
-    "stream_bedrock_graph",
     "save_event_field",
     "check_conflicts",
     "suggest_nearby_pantries",
@@ -559,86 +555,3 @@ def build_request_tools(session_id: str, token: str):
 def resolve_tools(tool_names: Optional[Sequence[str]] = None):
     """Resolve tool callables by name; returns all tools when no names are given."""
     return _filter_tools_by_name(AGENT_TOOLS, tool_names)
-
-
-def build_bedrock_model(
-    model: Optional[str] = None,
-    region_name: Optional[str] = None,
-    temperature: float = 0,
-    max_tokens: Optional[int] = None,
-) -> ChatBedrockConverse:
-    """Build a Bedrock chat model using explicit args or env defaults."""
-    return ChatBedrockConverse(
-        model=model or os.getenv("BEDROCK_MODEL_ID", DEFAULT_MODEL_ID),
-        region_name=region_name or os.getenv("AWS_REGION", DEFAULT_REGION),
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-
-
-def build_bedrock_graph(
-    tool_names: Optional[Sequence[str]] = None,
-    model: Optional[str] = None,
-    region_name: Optional[str] = None,
-    temperature: float = 0,
-    max_tokens: Optional[int] = None,
-    session_id: Optional[str] = None,
-    token: Optional[str] = None,
-):
-    """Create a LangGraph ReAct agent connected to Amazon Bedrock."""
-    llm = build_bedrock_model(
-        model=model,
-        region_name=region_name,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    if session_id is not None and token is not None:
-        request_tools = build_request_tools(session_id=session_id, token=token)
-        return create_react_agent(llm, _filter_tools_by_name(request_tools, tool_names))
-    return create_react_agent(llm, resolve_tools(tool_names))
-
-
-def invoke_bedrock_graph(
-    user_input: str,
-    tool_names: Optional[Sequence[str]] = None,
-    model: Optional[str] = None,
-    region_name: Optional[str] = None,
-    temperature: float = 0,
-    max_tokens: Optional[int] = None,
-    session_id: Optional[str] = None,
-    token: Optional[str] = None,
-) -> dict[str, Any]:
-    """Invoke the Bedrock graph for one user message."""
-    graph = build_bedrock_graph(
-        tool_names=tool_names,
-        model=model,
-        region_name=region_name,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        session_id=session_id,
-        token=token,
-    )
-    return cast(dict[str, Any], graph.invoke({"messages": [("user", user_input)]}))
-
-
-def stream_bedrock_graph(
-    user_input: str,
-    tool_names: Optional[Sequence[str]] = None,
-    model: Optional[str] = None,
-    region_name: Optional[str] = None,
-    temperature: float = 0,
-    max_tokens: Optional[int] = None,
-    session_id: Optional[str] = None,
-    token: Optional[str] = None,
-):
-    """Stream values from the Bedrock graph for one user message."""
-    graph = build_bedrock_graph(
-        tool_names=tool_names,
-        model=model,
-        region_name=region_name,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        session_id=session_id,
-        token=token,
-    )
-    return graph.stream({"messages": [("user", user_input)]}, stream_mode="values")
