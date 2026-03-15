@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
-from services.geocoding import geocode_address
+from services.geocoding import geocode_address, search_addresses
 from services.rewards import award_points
 from supabase_client import get_supabase_client
 
@@ -59,12 +59,12 @@ class CampaignUpdate(BaseModel):
 
 
 @router.get("/geocode")
-def geocode(address: str = Query(..., min_length=3)):
-    """Resolve an address string to lat/lng using OpenStreetMap. Public."""
-    coords = geocode_address(address)
-    if not coords:
+def geocode(address: str = Query(..., min_length=3), limit: int = Query(default=5, ge=1, le=10)):
+    """Resolve an address string to candidate results using OpenStreetMap. Public."""
+    results = search_addresses(address, limit=limit)
+    if not results:
         raise HTTPException(status_code=404, detail="Address not found")
-    return {"success": True, "data": {"latitude": coords[0], "longitude": coords[1]}}
+    return {"success": True, "data": results}
 
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
