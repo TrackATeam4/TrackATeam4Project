@@ -29,12 +29,12 @@ type Badge = {
   awarded_at?: string;
 };
 
-const BADGE_META: Record<string, { icon: string; label: string; desc: string }> = {
-  impact_100: { icon: "📄", label: "Flyer Hero", desc: "Distributed 100+ flyers" },
-  first_signup: { icon: "🌱", label: "First Step", desc: "Joined your first campaign" },
-  volunteer_5: { icon: "🙌", label: "Regular", desc: "Volunteered 5 times" },
-  organizer: { icon: "🎯", label: "Organizer", desc: "Created your first campaign" },
-  top_volunteer: { icon: "⭐", label: "Top Volunteer", desc: "Reached the leaderboard top 10" },
+const BADGE_META: Record<string, { label: string; desc: string; color: string }> = {
+  impact_100:    { label: "Flyer Hero",     desc: "Distributed 100+ flyers",      color: "from-amber-400 to-yellow-300" },
+  first_signup:  { label: "First Step",     desc: "Joined your first campaign",    color: "from-emerald-400 to-teal-400" },
+  volunteer_5:   { label: "Regular",        desc: "Volunteered 5 times",           color: "from-violet-400 to-purple-400" },
+  organizer:     { label: "Organizer",      desc: "Created your first campaign",   color: "from-rose-400 to-pink-400" },
+  top_volunteer: { label: "Top Volunteer",  desc: "Reached leaderboard top 10",    color: "from-sky-400 to-blue-400" },
 };
 
 const subscribeToStorage = (callback: () => void) => {
@@ -71,9 +71,7 @@ export default function HomeProfilePage() {
     if (!payload || typeof payload !== "object") return {};
     const root = payload as Record<string, unknown>;
     const data = root.data;
-    if (data && typeof data === "object") {
-      return data as Record<string, unknown>;
-    }
+    if (data && typeof data === "object") return data as Record<string, unknown>;
     return root;
   };
 
@@ -81,15 +79,9 @@ export default function HomeProfilePage() {
     const loadProfileData = async () => {
       setLoading(true);
       setError("");
-
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/auth");
-          return;
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { router.push("/auth"); return; }
 
         const [mePayload, pointsPayload, levelPayload, leaderboardPayload, badgesPayload] = await Promise.all([
           authFetch<Record<string, unknown>>("/auth/me"),
@@ -103,10 +95,7 @@ export default function HomeProfilePage() {
           const meData = parseData(mePayload);
           const userNode = meData.user as Record<string, unknown> | undefined;
           const nestedUser = (userNode?.user as Record<string, unknown> | undefined) ?? userNode;
-          const userEmail =
-            typeof nestedUser?.email === "string"
-              ? nestedUser.email
-              : getLocalStorageValue("tracka.user_email", "Not available");
+          const userEmail = typeof nestedUser?.email === "string" ? nestedUser.email : getLocalStorageValue("tracka.user_email", "Not available");
           setEmail(userEmail);
           if (typeof userEmail === "string" && userEmail !== "Not available") {
             localStorage.setItem("tracka.user_email", userEmail);
@@ -115,122 +104,135 @@ export default function HomeProfilePage() {
 
         {
           const pointsData = parseData(pointsPayload);
-          const total = pointsData.total;
-          if (typeof total === "number") {
-            setPointsTotal(total);
-          }
-          if (Array.isArray(pointsData.transactions)) {
-            setRecentTransactions(pointsData.transactions as PointsTransaction[]);
-          }
+          if (typeof pointsData.total === "number") setPointsTotal(pointsData.total);
+          if (Array.isArray(pointsData.transactions)) setRecentTransactions(pointsData.transactions as PointsTransaction[]);
         }
 
         {
           const levelData = parseData(levelPayload);
-          const nextLevelName = typeof levelData.name === "string" ? levelData.name : "-";
-          const nextLevelNumber = typeof levelData.level === "number" ? levelData.level : null;
-          const nextProgress =
-            typeof levelData.progress_pct === "number" ? levelData.progress_pct : null;
-          setLevelName(nextLevelName);
-          setLevelNumber(nextLevelNumber);
-          setProgressPct(nextProgress);
+          setLevelName(typeof levelData.name === "string" ? levelData.name : "-");
+          setLevelNumber(typeof levelData.level === "number" ? levelData.level : null);
+          setProgressPct(typeof levelData.progress_pct === "number" ? levelData.progress_pct : null);
         }
 
         {
           const leaderboardData = parseData(leaderboardPayload);
-          const entries = Array.isArray(leaderboardData)
-            ? leaderboardData
-            : Array.isArray(leaderboardData.entries)
-              ? leaderboardData.entries
-              : [];
+          const entries = Array.isArray(leaderboardData) ? leaderboardData : Array.isArray(leaderboardData.entries) ? leaderboardData.entries : [];
           setLeaderboard(entries as LeaderboardEntry[]);
         }
 
-        {
-          const badgeData = badgesPayload.data ?? [];
-          setBadges(badgeData as unknown as Badge[]);
-        }
-      } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "Unable to load profile data.");
+        setBadges((badgesPayload.data ?? []) as unknown as Badge[]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unable to load profile data.");
       } finally {
         setLoading(false);
       }
     };
-
     void loadProfileData();
   }, [router]);
 
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
-        <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-          <h1 className="text-3xl font-bold text-[#1A1A1A]">My Profile</h1>
+      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-[#111827] md:ml-[68px] lg:ml-72">
+        <div className="mx-auto max-w-4xl space-y-6">
 
-          {error ? (
-            <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}
+          {/* Profile hero */}
+          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="h-24 bg-gradient-to-r from-[#1B4332] to-[#2D6A4F]" />
+            <div className="px-8 pb-8">
+              <div className="-mt-10 flex items-end gap-5">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542] to-[#F97316] text-3xl font-bold text-white shadow-md ring-4 ring-white">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <div className="mb-1">
+                  <h1 className="text-2xl font-bold text-[#111827]">{userName}</h1>
+                  <p className="text-sm text-[#6B7280]">{email}</p>
+                </div>
+              </div>
             </div>
-          ) : null}
+          </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Name</p>
-              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{userName}</p>
-            </div>
+          {error && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+          )}
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Email</p>
-              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{email}</p>
-            </div>
-
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Reward Points</p>
-              <p className="mt-1 text-2xl font-bold text-[#1A1A1A]">
-                {loading ? "..." : pointsTotal ?? "N/A"}
+          {/* Stats row */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">Reward Points</p>
+              <p className="mt-2 text-3xl font-bold text-[#1B4332]">
+                {loading ? "—" : (pointsTotal ?? 0).toLocaleString()}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Leaderboard Level</p>
-              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">
-                {loading ? "Loading..." : levelNumber ? `Level ${levelNumber} - ${levelName}` : levelName}
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:col-span-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">Level</p>
+                {levelNumber && (
+                  <span className="rounded-full bg-[#FFFBEB] px-2.5 py-0.5 text-xs font-bold text-[#B45309]">
+                    Lv {levelNumber}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-lg font-bold text-[#111827]">
+                {loading ? "—" : levelName}
               </p>
-              <p className="mt-2 text-sm text-[#6B7280]">
-                Progress to next level: {loading ? "..." : progressPct !== null ? `${progressPct}%` : "N/A"}
-              </p>
+              {progressPct !== null && !loading && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-[10px] text-[#9CA3AF] mb-1">
+                    <span>Progress to next level</span>
+                    <span>{progressPct}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-[#F5C542] to-[#F97316]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPct}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Badges */}
-          <div className="mt-6 rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-            <h2 className="text-lg font-semibold text-[#0F172A]">Badges Earned</h2>
+          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-bold text-[#111827]">Badges Earned</h2>
             {loading ? (
-              <p className="mt-3 text-sm text-slate-500">Loading badges...</p>
+              <div className="mt-4 flex gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 w-24 animate-pulse rounded-2xl bg-gray-100" />
+                ))}
+              </div>
             ) : badges.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-dashed border-yellow-200 py-8 text-center">
-                <p className="text-2xl">🏅</p>
-                <p className="mt-2 text-sm text-slate-400">No badges yet — join campaigns to earn them!</p>
+              <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-dashed border-gray-200 py-8">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-2xl">🏅</div>
+                <p className="text-sm text-[#6B7280]">No badges yet — join campaigns to earn them!</p>
               </div>
             ) : (
               <motion.div
                 initial="hidden"
                 animate="show"
-                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
-                className="mt-3 flex flex-wrap gap-3"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+                className="mt-4 flex flex-wrap gap-3"
               >
                 {badges.map((badge, i) => {
-                  const meta = BADGE_META[badge.badge_slug] ?? { icon: "🏅", label: badge.badge_slug, desc: "" };
+                  const meta = BADGE_META[badge.badge_slug] ?? { label: badge.badge_slug, desc: "", color: "from-gray-400 to-gray-500" };
                   return (
                     <motion.div
                       key={badge.id ?? i}
-                      variants={{ hidden: { opacity: 0, scale: 0.7 }, show: { opacity: 1, scale: 1 } }}
-                      whileHover={{ scale: 1.06 }}
+                      variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+                      whileHover={{ y: -2 }}
                       title={meta.desc}
-                      className="flex flex-col items-center gap-1.5 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-yellow-50 px-4 py-3 shadow-sm cursor-default"
+                      className="flex flex-col items-center gap-2 rounded-2xl border border-gray-100 bg-[#FFFEF5] px-5 py-3.5 shadow-sm cursor-default"
                     >
-                      <span className="text-3xl">{meta.icon}</span>
-                      <span className="text-xs font-semibold text-amber-800">{meta.label}</span>
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${meta.color} text-white text-lg font-bold shadow-sm`}>
+                        {meta.label.charAt(0)}
+                      </div>
+                      <span className="text-xs font-semibold text-[#374151]">{meta.label}</span>
+                      <span className="text-[10px] text-[#9CA3AF] text-center leading-tight">{meta.desc}</span>
                     </motion.div>
                   );
                 })}
@@ -238,54 +240,64 @@ export default function HomeProfilePage() {
             )}
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <h2 className="text-lg font-semibold text-[#1A1A1A]">Leaderboard (Monthly)</h2>
-              <div className="mt-3 space-y-2">
+          {/* Leaderboard + Activity */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-bold text-[#111827]">Monthly Leaderboard</h2>
+              <div className="mt-4 space-y-2">
                 {loading ? (
-                  <p className="text-sm text-[#6B7280]">Loading leaderboard...</p>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-gray-100" />)}
+                  </div>
                 ) : leaderboard.length === 0 ? (
-                  <p className="text-sm text-[#6B7280]">No leaderboard data available yet.</p>
+                  <p className="text-sm text-[#9CA3AF]">No data yet.</p>
                 ) : (
                   leaderboard.slice(0, 5).map((entry) => (
                     <div
                       key={`${entry.rank}-${entry.user?.id ?? entry.user?.name ?? "user"}`}
-                      className="flex items-center justify-between rounded-xl bg-[#FFF8E1] px-3 py-2"
+                      className="flex items-center gap-3 rounded-xl bg-[#FFFEF5] px-3 py-2.5"
                     >
-                      <p className="text-sm text-[#1A1A1A]">
-                        #{entry.rank} {entry.user?.name ?? "Volunteer"}
-                      </p>
-                      <p className="text-sm font-semibold text-[#1A1A1A]">
-                        {entry.total_points ?? 0} pts
-                      </p>
+                      <span className="w-6 text-center text-xs font-bold text-[#6B7280]">#{entry.rank}</span>
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C542] to-[#F97316] text-xs font-bold text-white">
+                        {(entry.user?.name ?? "?").charAt(0).toUpperCase()}
+                      </div>
+                      <p className="flex-1 text-sm text-[#111827]">{entry.user?.name ?? "Volunteer"}</p>
+                      <p className="text-xs font-semibold text-[#1B4332]">{(entry.total_points ?? 0).toLocaleString()} pts</p>
                     </div>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <h2 className="text-lg font-semibold text-[#1A1A1A]">Recent Reward Activity</h2>
-              <div className="mt-3 space-y-2">
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-bold text-[#111827]">Recent Activity</h2>
+              <div className="mt-4 space-y-2">
                 {loading ? (
-                  <p className="text-sm text-[#6B7280]">Loading reward history...</p>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => <div key={i} className="h-10 animate-pulse rounded-xl bg-gray-100" />)}
+                  </div>
                 ) : recentTransactions.length === 0 ? (
-                  <p className="text-sm text-[#6B7280]">No rewards history yet.</p>
+                  <p className="text-sm text-[#9CA3AF]">No reward history yet.</p>
                 ) : (
                   recentTransactions.slice(0, 5).map((txn, index) => (
-                    <div key={`${txn.action ?? "reward"}-${index}`} className="rounded-xl bg-[#FFF8E1] px-3 py-2">
-                      <p className="text-sm font-medium text-[#1A1A1A]">{txn.action ?? "reward"}</p>
-                      <p className="text-xs text-[#6B7280]">
-                        +{typeof txn.points === "number" ? txn.points : 0} pts
-                        {txn.campaign_title ? ` - ${txn.campaign_title}` : ""}
-                      </p>
+                    <div key={`${txn.action ?? "reward"}-${index}`} className="flex items-center gap-3 rounded-xl bg-[#FFFEF5] px-3 py-2.5">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-[#111827]">{txn.action ?? "Reward"}</p>
+                        {txn.campaign_title && <p className="truncate text-[10px] text-[#9CA3AF]">{txn.campaign_title}</p>}
+                      </div>
+                      <p className="text-xs font-bold text-emerald-600">+{typeof txn.points === "number" ? txn.points : 0}</p>
                     </div>
                   ))
                 )}
               </div>
             </div>
           </div>
-        </section>
+
         </div>
       </main>
     </>

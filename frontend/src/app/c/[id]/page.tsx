@@ -5,6 +5,7 @@ import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import LemonLogo from "@/components/LemonLogo";
 
 const dmSerif = DM_Serif_Display({ subsets: ["latin"], weight: "400", variable: "--display" });
 const dmSans = DM_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--body" });
@@ -191,7 +192,7 @@ export default function PublicCampaignPage() {
       <header className="sticky top-0 z-30 border-b border-gray-200 bg-[#FFFEF5]/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2 text-[#1B4332]">
-            <span className="text-2xl">🍋</span>
+            <LemonLogo size={26} />
             <span className="text-lg font-bold tracking-tight">Lemontree</span>
           </div>
           <button
@@ -201,9 +202,13 @@ export default function PublicCampaignPage() {
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-[#374151] transition hover:bg-gray-50"
           >
-            {copied ? "Copied!" : "🔗 Share"}
+            {copied ? (
+              <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!</>
+            ) : (
+              <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Share</>
+            )}
           </button>
         </div>
       </header>

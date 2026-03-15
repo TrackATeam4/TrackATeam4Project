@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import LemonLogo from "@/components/LemonLogo";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -125,8 +126,8 @@ export default function CheckinPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 flex justify-center"
         >
-          <div className="flex items-center gap-2 text-white/80">
-            <span className="text-3xl">🍋</span>
+          <div className="flex items-center gap-2.5 text-white/90">
+            <LemonLogo size={28} />
             <span className="text-xl font-bold tracking-tight">Lemontree</span>
           </div>
         </motion.div>
@@ -156,11 +157,13 @@ export default function CheckinPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="rounded-3xl bg-white/10 p-8 text-center text-white backdrop-blur-sm"
             >
-              <p className="text-4xl">😕</p>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white/10">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
               <h2 className="mt-4 text-xl font-bold">Campaign not found</h2>
-              <p className="mt-2 text-sm text-white/60">
-                This check-in link may be invalid or the campaign may have ended.
-              </p>
+              <p className="mt-2 text-sm text-white/60">This check-in link may be invalid or the campaign may have ended.</p>
             </motion.div>
           )}
 
@@ -173,8 +176,8 @@ export default function CheckinPage() {
               className="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-black/40"
             >
               {/* Hero */}
-              <div className="bg-gradient-to-br from-[#1B4332] to-[#10B981] px-8 py-10 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200/70">
+              <div className="bg-[#1B4332] px-8 py-10 text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/70">
                   Volunteer Check-In
                 </p>
                 <h1 className="mt-2 text-2xl font-bold leading-tight">{campaign.title}</h1>
@@ -227,12 +230,12 @@ export default function CheckinPage() {
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.97 }}
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.01 }}
                   disabled={submitting}
                   onClick={handleCheckin}
-                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-bold text-white shadow-md shadow-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl bg-[#1B4332] py-3 text-sm font-bold text-white shadow-sm disabled:opacity-60 hover:bg-[#163828] transition"
                 >
-                  {submitting ? "Checking in..." : "📍 Check In Now"}
+                  {submitting ? "Checking in…" : "Check In Now"}
                 </motion.button>
               </div>
             </motion.div>
@@ -276,7 +279,14 @@ export default function CheckinPage() {
                 transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
                 className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 ring-4 ring-emerald-400/30"
               >
-                <span className="text-4xl">✅</span>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <motion.path
+                    d="M5 13l4 4L19 7"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5, delay: 0.3 }}
+                  />
+                </svg>
               </motion.div>
               <h2 className="mt-5 text-2xl font-bold">You&apos;re checked in!</h2>
               {campaign && (
