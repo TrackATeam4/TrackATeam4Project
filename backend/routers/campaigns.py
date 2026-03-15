@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime, time, timezone
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
@@ -42,6 +42,16 @@ class CampaignCreate(BaseModel):
     tags: Annotated[list[str], Field(max_length=20)] = []
 
 
+class CheckinRequest(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+
+
+class PublicRsvpRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+
+
 class CampaignUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=5000)
@@ -67,6 +77,20 @@ def geocode(address: str = Query(..., min_length=3), limit: int = Query(default=
     if not results:
         raise HTTPException(status_code=404, detail="Address not found")
     return {"success": True, "data": results}
+
+
+import uuid as _uuid
+
+
+def _find_or_create_user_by_email(supabase, email: str, name: str | None = None) -> str:
+    res = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+    if res.data:
+        return res.data[0]["id"]
+    new_id = str(_uuid.uuid4())
+    supabase.table("users").insert(
+        {"id": new_id, "email": email, "name": name or email.split("@")[0], "role": "volunteer"}
+    ).execute()
+    return new_id
 
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
@@ -578,3 +602,108 @@ def send_campaign_reminders(
             sent += 1
 
     return {"success": True, "data": {"sent": sent, "total": len(user_ids)}}
+
+
+# ── POST /campaigns/{id}/checkin ──────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/checkin")
+def campaign_checkin(
+    body: CheckinRequest = CheckinRequest(),
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    authorization: Optional[str] = Header(default=None),
+    supabase=Depends(get_supabase_client),
+):
+    """Self check-in for a campaign. Auth optional — can also supply email."""
+    _get_campaign_or_404(supabase, campaign_id)
+
+    user_id: Optional[str] = None
+
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user_resp = supabase.auth.get_user(authorization[7:])
+            if user_resp and user_resp.user:
+                user_id = user_resp.user.id
+                u = user_resp.user
+                meta = u.user_metadata or {}
+                display = meta.get("full_name") or meta.get("name") or (u.email or "").split("@")[0]
+                supabase.table("users").upsert(
+                    {"id": user_id, "email": u.email, "name": display, "role": "volunteer"},
+                    on_conflict="id",
+                ).execute()
+        except Exception:
+            pass
+
+    if not user_id and body.email:
+        user_id = _find_or_create_user_by_email(supabase, body.email, body.name)
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Provide auth token or email to check in")
+
+    existing = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    try:
+        if existing.data:
+            signup = existing.data[0]
+            if signup["status"] == "confirmed":
+                return {"success": True, "data": signup, "message": "Already checked in"}
+            result = (
+                supabase.table("signups")
+                .update({"status": "confirmed"})
+                .eq("id", signup["id"])
+                .execute()
+            )
+            return {"success": True, "data": result.data[0] if result.data else signup}
+        result = (
+            supabase.table("signups")
+            .insert({"campaign_id": campaign_id, "user_id": user_id, "status": "confirmed"})
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Check-in failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Check-in failed")
+
+    return {"success": True, "data": result.data[0] if result.data else {}}
+
+
+# ── POST /campaigns/{id}/rsvp ─────────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/rsvp", status_code=201)
+def public_rsvp(
+    body: PublicRsvpRequest,
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    supabase=Depends(get_supabase_client),
+):
+    """Public RSVP — no auth required. Creates a pending signup."""
+    _get_campaign_or_404(supabase, campaign_id)
+    user_id = _find_or_create_user_by_email(supabase, body.email, body.name)
+
+    existing = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if existing.data and existing.data[0]["status"] in ("pending", "confirmed"):
+        return {"success": True, "data": existing.data[0], "message": "Already registered"}
+
+    try:
+        result = (
+            supabase.table("signups")
+            .insert({"campaign_id": campaign_id, "user_id": user_id, "status": "pending"})
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Public RSVP failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="RSVP failed")
+
+    return {"success": True, "data": result.data[0] if result.data else {}}

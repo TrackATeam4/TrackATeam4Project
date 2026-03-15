@@ -105,6 +105,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   const [impactSubmitting, setImpactSubmitting] = useState(false);
   const [impactMsg, setImpactMsg] = useState("");
   const [impactExists, setImpactExists] = useState(false);
+  const [shareCard, setShareCard] = useState<{ flyers: number; families: number; volunteers: number } | null>(null);
 
   // Promote
   const [promoting, setPromoting] = useState(false);
@@ -230,6 +231,11 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
       });
       setImpactMsg("Impact report submitted! +10 points earned.");
       setImpactExists(true);
+      setShareCard({
+        flyers: Number(impactDraft.flyers_distributed) || 0,
+        families: Number(impactDraft.families_reached) || 0,
+        volunteers: Number(impactDraft.volunteers_attended) || 0,
+      });
     } catch (e) {
       setImpactMsg(e instanceof Error ? e.message : "Failed to submit report.");
     } finally { setImpactSubmitting(false); }
@@ -311,13 +317,22 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   };
 
   const tabs: { id: PanelTab; label: string }[] = [
-    { id: "volunteers", label: "👥 Volunteers" },
-    { id: "tasks", label: "📋 Tasks" },
-    { id: "invite", label: "✉️ Invite" },
-    { id: "impact", label: "📊 Impact" },
-    { id: "promote", label: "⚡ Promote" },
-    { id: "edit", label: "✏️ Edit" },
+    { id: "volunteers", label: "Volunteers" },
+    { id: "tasks", label: "Tasks" },
+    { id: "invite", label: "Invite" },
+    { id: "impact", label: "Impact" },
+    { id: "promote", label: "Promote" },
+    { id: "edit", label: "Edit" },
   ];
+
+  const tabIcon = (id: PanelTab) => {
+    if (id === "volunteers") return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>;
+    if (id === "tasks") return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;
+    if (id === "invite") return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>;
+    if (id === "impact") return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>;
+    if (id === "promote") return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>;
+    return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>;
+  };
 
   const pendingCount = signups.filter((s) => s.status === "pending").length;
   const confirmedCount = signups.filter((s) => s.status === "confirmed").length;
@@ -334,8 +349,9 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-[#0F172A]">{campaign.title}</h3>
             {isPromoted && (
-              <span className="rounded-full bg-amber-100 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                ⚡ Promoted
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 border border-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                Promoted
               </span>
             )}
           </div>
@@ -383,13 +399,14 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative shrink-0 px-4 py-3 text-xs font-semibold transition ${
-                    activeTab === tab.id ? "text-emerald-700" : "text-slate-500 hover:text-slate-700"
+                  className={`relative shrink-0 inline-flex items-center gap-1.5 px-4 py-3 text-xs font-semibold transition ${
+                    activeTab === tab.id ? "text-[#1B4332]" : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
+                  {tabIcon(tab.id)}
                   {tab.label}
                   {activeTab === tab.id && (
-                    <motion.div layoutId={`dash-tab-${campaign.id}`} className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-emerald-500" />
+                    <motion.div layoutId={`dash-tab-${campaign.id}`} className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#1B4332]" />
                   )}
                 </button>
               ))}
@@ -449,7 +466,12 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                           onClick={sendReminders}
                           className="shrink-0 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-50"
                         >
-                          {reminding ? "Sending..." : "📧 Send Reminder"}
+                          {reminding ? "Sending..." : (
+                            <span className="flex items-center gap-1.5">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                              Send Reminder
+                            </span>
+                          )}
                         </motion.button>
                       </div>
                       {remindMsg && (
@@ -740,7 +762,12 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       onClick={cancelCampaign}
                       className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
                     >
-                      {cancelling ? "Cancelling..." : "🗑️ Cancel Campaign"}
+                      {cancelling ? "Cancelling..." : (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                          Cancel Campaign
+                        </span>
+                      )}
                     </motion.button>
                   </div>
                 </div>
@@ -750,7 +777,9 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
               {activeTab === "promote" && (
                 <div className="space-y-4">
                   <div className={`rounded-3xl border p-6 text-center ${isPromoted ? "border-amber-200 bg-amber-50" : "border-dashed border-amber-200 bg-amber-50/40"}`}>
-                    <p className="text-4xl">⚡</p>
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100">
+                      <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                    </div>
                     <h3 className="mt-3 font-bold text-[#0F172A]">
                       {isPromoted ? "Campaign is Promoted" : "Boost This Campaign"}
                     </h3>
@@ -784,7 +813,149 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Impact Share Card Overlay ── */}
+      <AnimatePresence>
+        {shareCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+          >
+            {/* Confetti dots */}
+            {Array.from({ length: 20 }).map((_, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 1, y: 0, x: 0 }}
+                animate={{
+                  opacity: 0,
+                  y: Math.random() * 400 - 100,
+                  x: Math.random() * 600 - 300,
+                }}
+                transition={{ duration: 1.8 + Math.random() * 0.8, ease: "easeOut" }}
+                className="pointer-events-none absolute"
+                style={{
+                  top: `${20 + Math.random() * 60}%`,
+                  left: `${10 + Math.random() * 80}%`,
+                  width: 8,
+                  height: 8,
+                  borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                  backgroundColor: ["#FCD34D", "#34D399", "#60A5FA", "#F87171", "#A78BFA", "#FB923C"][
+                    Math.floor(Math.random() * 6)
+                  ],
+                }}
+              />
+            ))}
+
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 22 }}
+              className="relative w-full max-w-md overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F2D1F] to-[#1B4332] shadow-2xl"
+            >
+              {/* Header */}
+              <div className="px-8 pt-8 pb-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10">
+                  <svg className="w-8 h-8 text-[#F5C542]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /></svg>
+                </div>
+                <h2 className="mt-3 text-2xl font-bold text-white">We Made an Impact!</h2>
+                <p className="mt-1 text-sm font-semibold text-emerald-300">{campaign.title}</p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3 px-6 py-4">
+                {[
+                  { label: "Flyers", value: shareCard.flyers },
+                  { label: "Families", value: shareCard.families },
+                  { label: "Volunteers", value: shareCard.volunteers },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-2xl bg-white/10 px-3 py-4 text-center">
+                    <AnimatedShareNumber value={value} />
+                    <p className="mt-1 text-xs text-emerald-200/70">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 px-6 pb-4">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    const text = encodeURIComponent(
+                      `🍋 Just made an impact with ${campaign.title}! 📄 ${shareCard.flyers} flyers, 👨‍👩‍👧 ${shareCard.families} families, 🙌 ${shareCard.volunteers} volunteers. #volunteer #community`
+                    );
+                    window.open(`https://bsky.app/intent/compose?text=${text}`, "_blank");
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0085FF] py-3 text-xs font-bold text-white transition hover:bg-[#0066cc]"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 01-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.479 0-.688-.139-1.86-.902-2.203-.659-.299-1.664-.621-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>
+                  Share on Bluesky
+                </motion.button>
+                <CopyLinkButton campaignId={campaign.id} />
+              </div>
+
+              {/* Close */}
+              <div className="px-6 pb-8">
+                <button
+                  type="button"
+                  onClick={() => setShareCard(null)}
+                  className="w-full rounded-2xl border border-white/20 py-3 text-sm font-semibold text-white/70 transition hover:bg-white/10"
+                >
+                  Celebrate &amp; Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+// ── Helpers for share card ─────────────────────────────────────────────────────
+
+function AnimatedShareNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let frame: number;
+    const start = performance.now();
+    const duration = 1000;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(ease * value));
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+  return <p className="mt-1 text-2xl font-bold text-white">{display.toLocaleString()}</p>;
+}
+
+function CopyLinkButton({ campaignId }: { campaignId: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      onClick={async () => {
+        const url = `${window.location.origin}/c/${campaignId}`;
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }}
+      className="flex-1 rounded-2xl bg-white/10 py-3 text-xs font-bold text-white transition hover:bg-white/20 border border-white/20"
+    >
+      {copied ? "Copied!" : (
+        <span className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+          Copy Public Link
+        </span>
+      )}
+    </motion.button>
   );
 }
 
@@ -836,17 +1007,19 @@ export default function DashboardPage() {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                className="h-10 w-10 rounded-full border-4 border-emerald-200 border-t-emerald-600"
+                className="h-10 w-10 rounded-full border-4 border-gray-200 border-t-[#1B4332]"
               />
             </div>
           ) : campaigns.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-24 text-center">
-              <p className="text-5xl">🌱</p>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50">
+                <svg className="w-8 h-8 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
+              </div>
               <p className="mt-4 text-lg font-semibold text-slate-700">No campaigns yet</p>
               <p className="mt-2 text-sm text-slate-400">Create your first campaign to get started.</p>
               <Link
                 href="/home/create"
-                className="mt-6 inline-block rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-100"
+                className="mt-6 inline-block rounded-2xl bg-[#1B4332] px-8 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#163828] transition"
               >
                 Create Campaign
               </Link>
