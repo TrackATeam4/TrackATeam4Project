@@ -327,6 +327,45 @@ class TestSaveContext:
         })
         assert resp.status_code == 400
 
+    def test_save_context_normalizes_natural_language_date(self, client, mock_supabase):
+        session_tbl = MagicMock()
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
+
+        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+
+        resp = client.post(f"/chat/session/{SESSION_ID}/context", json={
+            "field": "date",
+            "value": "April 26, 2020",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["context"]["date"] == "2020-04-26"
+
+    def test_save_context_normalizes_natural_language_start_time(self, client, mock_supabase):
+        session_tbl = MagicMock()
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
+
+        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+
+        resp = client.post(f"/chat/session/{SESSION_ID}/context", json={
+            "field": "start_time",
+            "value": "12AM",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["context"]["start_time"] == "00:00"
+
+    def test_save_context_normalizes_natural_language_end_time(self, client, mock_supabase):
+        session_tbl = MagicMock()
+        _set_session_lookup(session_tbl, [{**MOCK_SESSION}])
+
+        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+
+        resp = client.post(f"/chat/session/{SESSION_ID}/context", json={
+            "field": "end_time",
+            "value": "3 PM",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["context"]["end_time"] == "15:00"
+
 
 # ---------------------------------------------------------------------------
 # GET /chat/session/{id}/check-conflicts  (Tool 2)
