@@ -26,6 +26,7 @@ Set this in your .env:
     BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
 """
 
+
 import os
 import re
 import json
@@ -146,6 +147,33 @@ def _format_tool_result(tool_name: str, result: Any) -> str:
         saved = {k: v for k, v in ctx.items() if v}
         if saved:
             parts.append(f"saved fields: {json.dumps(saved, default=str)}")
+
+    # suggest_nearby_pantries: {"pantries": [...]}
+    pantries = result.get("pantries")
+    if pantries is not None:
+        if pantries:
+            pantry_lines = []
+            for p in pantries:
+                name = p.get("name", "Unknown")
+                dist = p.get("distance_km", "?")
+                services = p.get("services") or []
+                svc_str = f" (services: {', '.join(services)})" if services else ""
+                pantry_lines.append(f"{name} — {dist} km{svc_str}")
+            parts.append(f"found {len(pantries)} nearby pantry(ies):\n" + "\n".join(pantry_lines))
+        else:
+            parts.append("no pantries found within 5 km")
+
+    # check_conflicts: {"has_conflict": bool, "conflicts": [...]}
+    if "has_conflict" in result:
+        conflicts = result.get("conflicts", [])
+        if result["has_conflict"] and conflicts:
+            conflict_lines = [
+                f"{c.get('title')} on {c.get('date')} at {c.get('start_time')} ({c.get('distance_km')} km away)"
+                for c in conflicts
+            ]
+            parts.append("conflict detected: " + "; ".join(conflict_lines))
+        else:
+            parts.append("no scheduling conflicts found")
 
     # All other tools — surface known important keys
     for key in ("campaign_id", "summary", "message", "flyer_url", "thumbnail_url",

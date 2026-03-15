@@ -241,6 +241,7 @@ export default function HomePage() {
   const [submittingComment, setSubmittingComment] = useState<string | null>(null);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const apiBase = CHAT_API_BASE;
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const userName = useSyncExternalStore(
     subscribeToStorage,
     () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
@@ -554,9 +555,9 @@ export default function HomePage() {
           const contentValue =
             typeof candidate.content === "string"
               ? candidate.content
-              : typeof candidate.message === "string"
-                ? candidate.message
-                : "";
+              : typeof candidate.message === "string" && candidate.message
+              ? candidate.message
+              : "";
 
           if (contentValue.trim().length > 0) {
             return { role, content: contentValue };
@@ -748,6 +749,11 @@ export default function HomePage() {
     isChatOpen,
     loadChatSession,
   ]);
+
+  useEffect(() => {
+    if (!isChatOpen) return;
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chatMessages, chatLoading, chatBooting, isChatOpen]);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1505,6 +1511,7 @@ export default function HomePage() {
                   Bot is typing...
                 </p>
               )}
+              <div ref={chatMessagesEndRef} />
             </div>
 
             <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-4 py-4">
