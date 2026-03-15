@@ -113,32 +113,52 @@ def _resolve_tools_for_state(state: AgentState) -> tuple[dict[str, Any], list[di
 
 
 def _format_tool_result(tool_name: str, result: Any) -> str:
-    """Convert a raw tool result dict into a readable summary for the model."""
+    """Convert a raw tool result dict into a readable summary for the model.
+
+    Treat a result as an error ONLY when there is an explicit error signal.
+    All other responses (200 context saves, 201 campaign creates, etc.) are success.
+    """
     if not isinstance(result, dict):
         return str(result)
 
-    # save_event_field endpoint returns {"context": {...}} — treat as success
-    has_context = "context" in result
-    status = result.get("status") or ("success" if result.get("success") else None)
-    is_success = has_context or status in ("success", "ok") or result.get("success") is True
+    # Explicit error signals from _safe_response or direct tool errors
+    is_error = (
+        result.get("status") == "error"
+        or result.get("success") is False
+        or (result.get("detail") is not None and not result.get("context") and not result.get("campaign_id"))
+    )
 
-    if is_success:
-        parts = []
-        # Surface the saved context (save_event_field response)
-        ctx = result.get("context")
-        if ctx and isinstance(ctx, dict):
-            saved = {k: v for k, v in ctx.items() if v}
-            if saved:
-                parts.append(f"saved fields: {json.dumps(saved, default=str)}")
-        for key in ("summary", "campaign_id", "flyer_url", "thumbnail_url",
-                    "google_calendar_url", "invite_url", "content"):
-            val = result.get("data", {}).get(key) if isinstance(result.get("data"), dict) else result.get(key)
-            if val:
-                parts.append(f"{key}: {val}")
-        return "Success. " + "; ".join(parts) if parts else "Success."
+    if is_error:
+        error_msg = (
+            result.get("message")
+            or result.get("detail")
+            or result.get("error")
+            or json.dumps(result, default=str)
+        )
+        return f"Error: {error_msg}"
 
-    error_msg = result.get("message") or result.get("detail") or result.get("error") or json.dumps(result, default=str)
-    return f"Error: {error_msg}"
+    # — Success path — surface the most useful fields for the model
+    parts = []
+
+    # save_event_field: {"context": {field: value, ...}}
+    ctx = result.get("context")
+    if ctx and isinstance(ctx, dict):
+        saved = {k: v for k, v in ctx.items() if v}
+        if saved:
+            parts.append(f"saved fields: {json.dumps(saved, default=str)}")
+
+    # All other tools — surface known important keys
+    for key in ("campaign_id", "summary", "message", "flyer_url", "thumbnail_url",
+                "google_calendar_url", "invite_url", "content", "title", "date"):
+        val = (
+            result.get("data", {}).get(key)
+            if isinstance(result.get("data"), dict)
+            else result.get(key)
+        )
+        if val:
+            parts.append(f"{key}: {val}")
+
+    return "Success. " + "; ".join(parts) if parts else "Success."
 
 
 # ============================================================
@@ -366,10 +386,18 @@ async def campaign_tools_node(state: AgentState) -> dict:
     """
     NODE: campaign_tools
     Executes Lemontree campaign tools and returns readable results.
+
+    Auto-chain: when create_campaign succeeds, immediately executes generate_flyer
+    and post_campaign_to_bluesky in the same node pass and injects their results as
+    synthetic tool-use/result pairs. This prevents Nova Pro from hallucinating those
+    results instead of calling the tools.
     """
     tool_blocks = state.get("_pending_tool_blocks", [])
     tool_calls = list(state.get("tool_calls", []))
     tool_results = []
+    should_auto_chain = False
+
+    tool_registry, _ = _resolve_tools_for_state(state)
 
     for block in tool_blocks:
         if block["name"] not in CAMPAIGN_TOOL_NAMES:
@@ -381,7 +409,6 @@ async def campaign_tools_node(state: AgentState) -> dict:
 
         print(f"  [Node: campaign_tools] {tool_name}({json.dumps(tool_input, default=str)[:150]})")
 
-        tool_registry, _ = _resolve_tools_for_state(state)
         tool_fn = tool_registry.get(tool_name)
         if tool_fn is None:
             result = {"status": "error", "message": f"Unknown tool: {tool_name}"}
@@ -401,7 +428,38 @@ async def campaign_tools_node(state: AgentState) -> dict:
         })
         tool_calls.append({"tool": tool_name, "input": tool_input, "result": result})
 
+        if tool_name == "create_campaign" and not readable.startswith("Error:"):
+            should_auto_chain = True
+
     updated_messages = state["messages"] + [{"role": "user", "content": tool_results}]
+
+    # Auto-chain generate_flyer + post_campaign_to_bluesky after successful create_campaign.
+    # Only runs in real request context (session_id + token present) so tests are unaffected.
+    if should_auto_chain and state.get("session_id") and state.get("token"):
+        for auto_name in ("generate_flyer", "post_campaign_to_bluesky"):
+            auto_fn = tool_registry.get(auto_name)
+            if auto_fn is None:
+                continue
+            auto_id = f"auto_{auto_name}_{os.urandom(4).hex()}"
+            print(f"  [Node: campaign_tools] AUTO-CHAIN {auto_name}")
+            try:
+                auto_result = auto_fn.invoke({})
+            except Exception as exc:
+                auto_result = {"status": "error", "message": str(exc)}
+            auto_readable = _format_tool_result(auto_name, auto_result)
+            print(f"  [Node: campaign_tools] AUTO {auto_name} → {auto_readable[:80]}")
+            # Inject synthetic toolUse from "assistant" + toolResult from "user"
+            # so the conversation history remains well-formed for Bedrock.
+            updated_messages.append({
+                "role": "assistant",
+                "content": [{"type": "tool_use", "id": auto_id, "name": auto_name, "input": {}}],
+            })
+            updated_messages.append({
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": auto_id, "content": auto_readable}],
+            })
+            tool_calls.append({"tool": auto_name, "input": {}, "result": auto_result})
+
     return {
         "messages": updated_messages,
         "tool_calls": tool_calls,

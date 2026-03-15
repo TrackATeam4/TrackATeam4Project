@@ -17,6 +17,26 @@ def _headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _safe_response(r: httpx.Response) -> dict:
+    """Return parsed JSON on success, or an error dict with status + body on failure.
+
+    Always injects {"status": "success"} into 2xx responses that don't already
+    have a status field, so _format_tool_result can reliably detect success.
+    """
+    try:
+        data = r.json()
+    except Exception:
+        data = {"raw": r.text}
+    if not r.is_success:
+        detail = data.get("detail") or data.get("message") or r.text
+        print(f"  [tool HTTP error] {r.status_code} {r.request.url}: {detail}")
+        return {"status": "error", "message": f"HTTP {r.status_code}: {detail}"}
+    # Normalize: all 2xx responses get an explicit success marker
+    if "status" not in data and "success" not in data:
+        return {"status": "success", **data}
+    return data
+
+
 def _format_campaign_bsky_post(context: dict[str, Any], custom_text: str = "") -> str:
     """Build a Bluesky-friendly post from the saved campaign session context."""
     title = str(context.get("title", "")).strip()
@@ -66,7 +86,7 @@ def save_event_field(session_id: str, field: str, value: str, token: str) -> dic
         json={"field": field, "value": value},
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
 
 
 @tool
@@ -80,7 +100,7 @@ def check_conflicts(session_id: str, token: str) -> dict:
         f"{BASE_URL}/chat/session/{session_id}/check-conflicts",
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
 
 
 @tool
@@ -94,7 +114,7 @@ def suggest_nearby_pantries(session_id: str, token: str) -> dict:
         f"{BASE_URL}/chat/session/{session_id}/suggest-pantries",
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
 
 
 @tool
@@ -109,7 +129,7 @@ def create_campaign(session_id: str, token: str) -> dict:
         f"{BASE_URL}/chat/session/{session_id}/create-campaign",
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
 
 
 @tool
@@ -126,7 +146,22 @@ def generate_flyer(session_id: str, token: str, template_id: str = "") -> dict:
         json=body,
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
+
+
+@tool
+def reset_session(session_id: str, token: str) -> dict:
+    """Reset the current session context so the user can start a fresh campaign.
+
+    Call this when the user confirms they want to create another campaign or start over.
+    Clears all saved fields (title, date, location, etc.) without ending the conversation.
+    The user can immediately begin collecting fields for a new campaign.
+    """
+    r = httpx.post(
+        f"{BASE_URL}/chat/session/{session_id}/reset",
+        headers=_headers(token),
+    )
+    return _safe_response(r)
 
 
 @tool
@@ -143,27 +178,23 @@ def post_campaign_to_bluesky(
         f"{BASE_URL}/chat/session/{session_id}",
         headers=_headers(token),
     )
-    session_data = session_response.json()
+    session_data = _safe_response(session_response)
+    if session_data.get("status") == "error":
+        return session_data
     session = session_data.get("session", {})
     context = session.get("context", {})
     if not context.get("campaign_id"):
-        return {
-            "success": False,
-            "detail": "No campaign created yet in this session.",
-        }
+        return {"status": "error", "message": "No campaign created yet in this session."}
 
     content = _format_campaign_bsky_post(context, custom_text)
     post_response = httpx.post(
         f"{BASE_URL}/bsky/post",
         json={"content": content},
     )
-
-    response_data = post_response.json()
-    return {
-        "success": post_response.is_success,
-        "content": content,
-        **response_data,
-    }
+    result = _safe_response(post_response)
+    # Surface the post content regardless of success/error so the model can show it
+    result.setdefault("content", content)
+    return result
 
 
 # ── Invitation & email tools ──────────────────────────────────────────────────
@@ -187,7 +218,7 @@ def send_campaign_invite(campaign_id: str, email: str, token: str) -> dict:
         json={"email": email},
         headers=_headers(token),
     )
-    return r.json()
+    return _safe_response(r)
 
 
 @tool
@@ -247,6 +278,8 @@ def list_campaign_invitations(campaign_id: str, token: str) -> dict:
         f"{BASE_URL}/campaigns/{campaign_id}/invitations",
         headers=_headers(token),
     )
+    if not r.is_success:
+        return _safe_response(r)
     data = r.json()
     invitations = data.get("data", [])
 
@@ -278,6 +311,8 @@ def get_campaign_calendar_url(campaign_id: str, token: str) -> dict:
         f"{BASE_URL}/campaigns/{campaign_id}/calendar-url",
         headers=_headers(token),
     )
+    if not r.is_success:
+        return _safe_response(r)
     data = r.json()
     url = data.get("data", {}).get("google_calendar_url", "")
     return {"success": True, "google_calendar_url": url}
@@ -299,6 +334,8 @@ def get_campaign_signups(campaign_id: str, token: str) -> dict:
         f"{BASE_URL}/campaigns/{campaign_id}/signups",
         headers=_headers(token),
     )
+    if not r.is_success:
+        return _safe_response(r)
     data = r.json()
     signups = data.get("data", [])
 
@@ -320,6 +357,7 @@ AGENT_TOOLS = [
     create_campaign,
     generate_flyer,
     post_campaign_to_bluesky,
+    reset_session,
     send_campaign_invite,
     send_bulk_invites,
     list_campaign_invitations,
@@ -341,6 +379,7 @@ __all__ = [
     "create_campaign",
     "generate_flyer",
     "post_campaign_to_bluesky",
+    "reset_session",
     "send_campaign_invite",
     "send_bulk_invites",
     "list_campaign_invitations",
@@ -413,6 +452,10 @@ def build_request_tools(session_id: str, token: str):
             }
         )
 
+    @tool("reset_session", description=reset_session.__doc__)
+    def _reset_session() -> dict:
+        return reset_session.invoke({"session_id": session_id, "token": token})
+
     @tool("send_campaign_invite", description=send_campaign_invite.__doc__)
     def _send_campaign_invite(campaign_id: str, email: str) -> dict:
         return send_campaign_invite.invoke(
@@ -467,6 +510,7 @@ def build_request_tools(session_id: str, token: str):
         _create_campaign,
         _generate_flyer,
         _post_campaign_to_bluesky,
+        _reset_session,
         _send_campaign_invite,
         _send_bulk_invites,
         _list_campaign_invitations,

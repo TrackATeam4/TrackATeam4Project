@@ -23,9 +23,15 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 
-# Include a short window of recent prior sessions to preserve continuity across sessions.
-_PREVIOUS_CONTEXT_SESSION_LIMIT = int(os.getenv("CHAT_PREVIOUS_SESSION_LIMIT", "2"))
+# Cross-session context disabled by default — prior session failure patterns
+# (e.g. repeated "there was an error") cause Nova Pro to pattern-match instead of calling tools.
+# Enable by setting CHAT_PREVIOUS_SESSION_LIMIT > 0 in .env if needed.
+_PREVIOUS_CONTEXT_SESSION_LIMIT = int(os.getenv("CHAT_PREVIOUS_SESSION_LIMIT", "0"))
 _PREVIOUS_CONTEXT_MESSAGES_PER_SESSION = int(os.getenv("CHAT_PREVIOUS_MESSAGES_PER_SESSION", "6"))
+
+# Cap current-session history fed to the model. Old failure patterns in history
+# cause Nova Pro to echo errors instead of calling tools.
+_SESSION_HISTORY_LIMIT = int(os.getenv("CHAT_SESSION_HISTORY_LIMIT", "10"))
 
 # `REQUIRED_FIELDS` and `VALID_CONTEXT_FIELDS` are shared from agent_app.chat_service.
 
@@ -283,6 +289,14 @@ def send_message(
     if messages and messages[-1].get("role") == "user" and messages[-1].get("content") == body.message:
         chat_history = chat_history[:-1]
 
+    # Cap in-session history. Slice from a user-role boundary so we never split
+    # a Bedrock tool_use/tool_result pair across the truncation point.
+    if len(chat_history) > _SESSION_HISTORY_LIMIT:
+        trimmed = chat_history[-_SESSION_HISTORY_LIMIT:]
+        # Walk forward until the first user message to avoid starting mid tool_use block
+        first_user = next((i for i, m in enumerate(trimmed) if m.get("role") == "user"), 0)
+        chat_history = trimmed[first_user:]
+
     previous_history = _load_previous_conversation_context(
         supabase=supabase,
         user_id=user.user.id,
@@ -411,8 +425,11 @@ def create_campaign_endpoint(
     _verify_ownership(session, user.user.id)
 
     context = session.get("context", {})
+    logger.info("[create_campaign] session=%s context_keys=%s context=%s",
+                session_id, list(context.keys()), context)
     missing = [f for f in REQUIRED_FIELDS if f not in context]
     if missing:
+        logger.warning("[create_campaign] MISSING fields=%s for session=%s", missing, session_id)
         raise HTTPException(
             status_code=400,
             detail=f"Missing required fields: {missing}",
@@ -454,6 +471,27 @@ def create_campaign_endpoint(
     }
 
 
+@router.post("/session/{session_id}/reset")
+def reset_session(
+    session_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Clear all collected context and message history from a session so the user can start a new campaign."""
+    session = _require_session(supabase, session_id)
+    _verify_ownership(session, user.user.id)
+    logger.info("[reset_session] Clearing context and message history for session=%s", session_id)
+    # Clear context fields so the next campaign is built from scratch
+    supabase.table("chat_sessions").update({"context": {}}).eq("id", session_id).execute()
+    # Delete all messages so the model has no prior campaign history to pattern-match on.
+    # Without this, Nova Pro sees the old "Campaign created! ID: ..." messages and replays
+    # them verbatim instead of calling create_campaign again.
+    deleted = supabase.table("chat_messages").delete().eq("session_id", session_id).execute()
+    deleted_count = len(deleted.data) if deleted.data else 0
+    logger.info("[reset_session] Deleted %d messages for session=%s", deleted_count, session_id)
+    return {"status": "reset", "session_id": session_id, "message": "Session cleared. Ready to start a new campaign."}
+
+
 @router.post("/session/{session_id}/generate-flyer", status_code=201)
 def generate_flyer_endpoint(
     body: GenerateFlyerRequest = GenerateFlyerRequest(),
@@ -480,7 +518,7 @@ def generate_flyer_endpoint(
 
     templates = template_result.data or []
     if not templates:
-        raise HTTPException(status_code=404, detail="No flyer template found")
+        return {"flyer_url": "", "thumbnail_url": "", "message": "No flyer template available."}
 
     template = templates[0]
 
