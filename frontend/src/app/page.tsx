@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DM_Sans, DM_Serif_Display, Space_Mono } from "next/font/google";
 import AIShowcase from "@/components/landing/AIShowcase";
 import CTASection from "@/components/landing/CTASection";
@@ -8,6 +10,7 @@ import Hero from "@/components/landing/Hero";
 import HowItWorks from "@/components/landing/HowItWorks";
 import StatsTicker from "@/components/landing/StatsTicker";
 import Testimonials from "@/components/landing/Testimonials";
+import { supabase } from "@/lib/supabase";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -28,6 +31,29 @@ const spaceMono = Space_Mono({
 });
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const finalizeAuth = async () => {
+      if (typeof window === "undefined") return;
+
+      const hashParams = new URLSearchParams(window.location.hash.replace("#", ""));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      if (!accessToken || !refreshToken) return;
+
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (!error) {
+        router.replace("/home");
+      }
+    };
+
+    void finalizeAuth();
+  }, [router]);
+
   return (
     <div className={`${dmSerif.variable} ${dmSans.variable} ${spaceMono.variable} bg-[#FFF8E1]`}>
       <Hero />

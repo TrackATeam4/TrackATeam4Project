@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/api";
 import HomeSidebar from "@/components/home/HomeSidebar";
 import { supabase } from "@/lib/supabase";
@@ -37,12 +37,6 @@ const BADGE_META: Record<string, { icon: string; label: string; desc: string }> 
   top_volunteer: { icon: "⭐", label: "Top Volunteer", desc: "Reached the leaderboard top 10" },
 };
 
-const subscribeToStorage = (callback: () => void) => {
-  if (typeof window === "undefined") return () => undefined;
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-};
-
 const getLocalStorageValue = (key: string, fallback: string) => {
   if (typeof window === "undefined") return fallback;
   return localStorage.getItem(key) || fallback;
@@ -50,7 +44,8 @@ const getLocalStorageValue = (key: string, fallback: string) => {
 
 export default function HomeProfilePage() {
   const router = useRouter();
-  const [email, setEmail] = useState(() => getLocalStorageValue("tracka.user_email", "Not available"));
+  const [userName, setUserName] = useState("Volunteer");
+  const [email, setEmail] = useState("Not available");
   const [pointsTotal, setPointsTotal] = useState<number | null>(null);
   const [levelName, setLevelName] = useState("-");
   const [levelNumber, setLevelNumber] = useState<number | null>(null);
@@ -61,11 +56,27 @@ export default function HomeProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const userName = useSyncExternalStore(
-    subscribeToStorage,
-    () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
-    () => "Volunteer"
-  );
+  useEffect(() => {
+    setUserName(getLocalStorageValue("tracka.signup_name", "Volunteer"));
+    setEmail(getLocalStorageValue("tracka.user_email", "Not available"));
+  }, []);
+
+  useEffect(() => {
+    const loadAuthUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      const meta = data.user?.user_metadata as Record<string, unknown> | undefined;
+      const name =
+        (typeof meta?.full_name === "string" && meta.full_name.trim()) ||
+        (typeof meta?.name === "string" && meta.name.trim()) ||
+        "";
+      if (name) {
+        setUserName(name);
+        localStorage.setItem("tracka.signup_name", name);
+      }
+    };
+
+    void loadAuthUser();
+  }, []);
 
   const parseData = (payload: unknown): Record<string, unknown> => {
     if (!payload || typeof payload !== "object") return {};
