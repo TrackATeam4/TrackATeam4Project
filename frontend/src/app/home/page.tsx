@@ -916,7 +916,7 @@ export default function HomePage() {
               whileHover={{ scale: 1.005 }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-[#1A1A1A]">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <motion.button
@@ -941,7 +941,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal("event_summary")}
                   whileHover={{ y: -1 }}
-                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                  className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700"
                 >
                   📝 Event Summary
                 </motion.button>
@@ -978,17 +978,17 @@ export default function HomePage() {
                     <div
                       className={`absolute left-0 top-0 h-[3px] w-full ${
                         post.type === "upcoming_event"
-                          ? "bg-gradient-to-r from-yellow-400 to-amber-500"
-                          : "bg-gradient-to-r from-emerald-400 to-teal-500"
+                          ? "bg-[#F5C542]"
+                          : "bg-[#7C3AED]"
                       }`}
                     />
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white ${
+                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ${
                             post.author.role === "organizer"
-                              ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
-                              : "bg-gradient-to-br from-yellow-400 to-amber-500"
+                              ? "bg-[#7C3AED] text-white"
+                              : "bg-[#F5C542] text-[#1A1A1A]"
                           }`}
                         >
                           {post.author.name.charAt(0)}
@@ -999,7 +999,7 @@ export default function HomePage() {
                             <span
                               className={`rounded-full px-2 py-0.5 ${
                                 post.author.role === "organizer"
-                                  ? "bg-emerald-100 text-emerald-700"
+                                  ? "bg-purple-100 text-purple-700"
                                   : "bg-yellow-100 text-yellow-700"
                               }`}
                             >
@@ -1015,8 +1015,8 @@ export default function HomePage() {
                       <span
                         className={`inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${
                           post.type === "upcoming_event"
-                            ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700"
-                            : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700"
+                            ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                            : "border-purple-200 bg-purple-50 text-purple-700"
                         }`}
                       >
                         {post.type === "upcoming_event" ? "📍 Upcoming Event" : "📝 Event Summary"}
@@ -1035,9 +1035,9 @@ export default function HomePage() {
                             <span>👥 {post.event.spotsFilled}/{post.event.spotsTotal} spots filled</span>
                             <span>{progress}%</span>
                           </div>
-                          <div className="h-2 w-full rounded-full bg-emerald-100">
+                          <div className="h-2 w-full rounded-full bg-yellow-100">
                             <motion.div
-                              className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                              className="h-2 rounded-full bg-[#F5C542]"
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
                               transition={{ duration: 0.6, ease: "easeOut" }}
@@ -1053,7 +1053,7 @@ export default function HomePage() {
                             className={`rounded-xl px-5 py-2.5 text-xs font-semibold transition ${
                               isJoined
                                 ? "bg-gray-100 text-gray-500"
-                                : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
+                                : "bg-[#7C3AED] text-white hover:bg-[#6D28D9]"
                             }`}
                           >
                             {isJoined ? "✓ Joined" : "Join Campaign"}
@@ -1170,20 +1170,20 @@ export default function HomePage() {
             transition={{ delay: 0.3 }}
           >
             <h3
-              className="text-base font-semibold text-[#1B4332]"
+              className="text-base font-semibold text-[#1A1A1A]"
               style={{ fontFamily: "var(--home-display)" }}
             >
               🍋 Community Impact
             </h3>
-            <div className="mt-3 h-[2px] w-full rounded-full bg-gradient-to-r from-[#FCD34D] to-[#10B981]" />
+            <div className="mt-3 h-[2px] w-full rounded-full bg-gradient-to-r from-[#F5C542] to-[#EA580C]" />
             <div className="mt-4 space-y-3 text-sm text-slate-500">
               <div className="flex justify-between">
                 <span>Campaigns completed</span>
-                <StatCounter value={142} className="text-[#1B4332]" />
+                <StatCounter value={142} className="text-[#1A1A1A]" />
               </div>
               <div className="flex justify-between">
                 <span>Volunteers mobilized</span>
-                <StatCounter value={1840} className="text-emerald-600" />
+                <StatCounter value={1840} className="text-[#7C3AED]" />
               </div>
               <div className="flex justify-between">
                 <span>Flyers distributed</span>
@@ -1212,11 +1212,11 @@ export default function HomePage() {
                 <Link
                   key={c.id}
                   href={`/home/campaign/${c.id}`}
-                  className="block rounded-xl border-l-2 border-yellow-400 bg-[#FFFEF5] p-3 pl-4 transition hover:bg-gray-50"
+                  className="block rounded-xl border-l-2 border-[#F5C542] bg-[#FFF8E1] p-3 pl-4 transition hover:bg-gray-50"
                 >
                   <p className="font-semibold text-slate-800 line-clamp-1">{c.title}</p>
                   <p className="text-xs text-slate-500">{c.location ?? "Location TBD"}</p>
-                  <p className="text-xs font-medium text-emerald-600">
+                  <p className="text-xs font-medium text-[#7C3AED]">
                     {(c.max_volunteers ?? 10) - (c.signup_count ?? 0)} spots left
                   </p>
                 </Link>
@@ -1303,8 +1303,8 @@ export default function HomePage() {
                   layoutId="postTypeTab"
                   className={`absolute top-1 bottom-1 rounded-full ${
                     formState.type === "upcoming_event"
-                      ? "left-1 w-[calc(50%-4px)] bg-gradient-to-r from-yellow-400 to-amber-500"
-                      : "left-[50%] w-[calc(50%-4px)] bg-gradient-to-r from-emerald-500 to-emerald-600"
+                      ? "left-1 w-[calc(50%-4px)] bg-[#F5C542]"
+                      : "left-[50%] w-[calc(50%-4px)] bg-[#7C3AED]"
                   }`}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -1415,7 +1415,7 @@ export default function HomePage() {
                 <motion.button
                   type="submit"
                   whileTap={{ scale: 0.97 }}
-                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
+                  className="w-full rounded-2xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-200"
                 >
                   Post to Feed →
                 </motion.button>
@@ -1447,11 +1447,11 @@ export default function HomePage() {
             exit={{ opacity: 0, y: 10, scale: 0.96 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFFEF5] px-5 py-4">
+            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFF8E1] px-5 py-4">
               <div className="flex items-center gap-3">
                 <Image src="/logo.svg" alt="Lemontree Bot" width={28} height={28} />
                 <div>
-                  <p className="text-base font-semibold text-[#065F46]">Lemontree Chatbot</p>
+                  <p className="text-base font-semibold text-[#1A1A1A]">Lemontree Chatbot</p>
                   <p className="text-sm text-slate-500">Campaign assistant</p>
                 </div>
               </div>
@@ -1492,8 +1492,8 @@ export default function HomePage() {
                   key={`${message.role}-${index}`}
                   className={`max-w-[90%] rounded-2xl px-4 py-3 text-base ${
                     message.role === "user"
-                      ? "ml-auto bg-emerald-600 text-white"
-                      : "bg-[#FFFEF5] text-slate-700"
+                      ? "ml-auto bg-[#7C3AED] text-white"
+                      : "bg-[#FFF8E1] text-slate-700"
                   }`}
                 >
                   {message.content}
@@ -1501,7 +1501,7 @@ export default function HomePage() {
               ))}
 
               {chatLoading && (
-                <p className="w-fit rounded-2xl bg-[#FFFEF5] px-4 py-3 text-sm text-slate-500">
+                <p className="w-fit rounded-2xl bg-[#FFF8E1] px-4 py-3 text-sm text-slate-500">
                   Bot is typing...
                 </p>
               )}
@@ -1514,12 +1514,12 @@ export default function HomePage() {
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
                   placeholder="Type your message..."
-                  className="flex-1 rounded-full border border-yellow-100 px-4 py-3 text-base text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="flex-1 rounded-full border border-yellow-100 px-4 py-3 text-base text-slate-700 outline-none focus:border-[#7C3AED] focus:ring-2 focus:ring-purple-100"
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || chatBooting || chatInput.trim().length === 0}
-                  className="rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Send
                 </button>
@@ -1590,7 +1590,7 @@ function FloatingInput({ label, type = "text", value, onChange, placeholder }: F
         } ${isActive ? "text-slate-900" : "text-slate-400"}`}
       />
       <motion.div
-        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-1/2 h-[2px] bg-[#7C3AED]"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
@@ -1604,7 +1604,7 @@ function FloatingInput({ label, type = "text", value, onChange, placeholder }: F
         animate={{
           y: isActive ? -24 : isDateTime ? 6 : 14,
           scale: isActive ? 0.85 : 1,
-          color: isActive ? "#065F46" : "#9CA3AF",
+          color: isActive ? "#7C3AED" : "#9CA3AF",
         }}
         transition={{ duration: 0.2 }}
       >
@@ -1636,7 +1636,7 @@ function FloatingTextArea({ label, value, onChange, rows = 4 }: FloatingTextArea
         className="w-full resize-none border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm text-gray-900 outline-none transition-colors focus:border-transparent"
       />
       <motion.div
-        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-1/2 h-[2px] bg-[#7C3AED]"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
@@ -1650,7 +1650,7 @@ function FloatingTextArea({ label, value, onChange, rows = 4 }: FloatingTextArea
         animate={{
           y: isActive ? -24 : 14,
           scale: isActive ? 0.85 : 1,
-          color: isActive ? "#065F46" : "#9CA3AF",
+          color: isActive ? "#7C3AED" : "#9CA3AF",
         }}
         transition={{ duration: 0.2 }}
       >

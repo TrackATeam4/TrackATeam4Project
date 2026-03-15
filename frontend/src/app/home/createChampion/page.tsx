@@ -51,10 +51,10 @@ const MONTHS = [
 
 // Shared input class aligned with the rest of the app
 const inputCls =
-  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition-colors focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30 placeholder:text-[#9CA3AF]";
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-purple-200 placeholder:text-[#9CA3AF]";
 
 const selectCls =
-  "w-full appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] shadow-sm outline-none transition-colors focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30 cursor-pointer";
+  "w-full appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-[#1A1A1A] shadow-sm outline-none transition-colors focus:border-[#7C3AED] focus:ring-2 focus:ring-purple-200 cursor-pointer";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -86,8 +86,8 @@ function TimePicker({
 
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">{label}</span>
-      <div className="flex items-center gap-0.5 rounded-2xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition-all focus-within:border-[#F5C542] focus-within:ring-2 focus-within:ring-[#F5C542]/30">
+  <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">{label}</span>
+  <div className="flex items-center gap-0.5 rounded-2xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm transition-all focus-within:border-[#7C3AED] focus-within:ring-2 focus-within:ring-purple-200">
         <select value={h} onChange={(e) => emit(e.target.value, m, ampm)} className={selCls}>
           <option value="">--</option>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -100,13 +100,13 @@ function TimePicker({
             <option key={min} value={min}>{min}</option>
           ))}
         </select>
-        <div className="ml-2 flex overflow-hidden rounded-lg border border-gray-200 bg-[#FFF8E1]">
+  <div className="ml-2 flex overflow-hidden rounded-lg border border-gray-200 bg-[#FFF8E1]">
           {(["AM", "PM"] as const).map((p) => (
             <button
               key={p} type="button" onClick={() => emit(h, m, p)}
               className={`px-2.5 py-1 text-xs font-bold transition-all ${
                 ampm === p
-                  ? "bg-[#F5C542] text-[#1A1A1A]"
+                  ? "bg-[#7C3AED] text-white"
                   : "text-[#9CA3AF] hover:text-[#1A1A1A]"
               }`}
             >
@@ -193,8 +193,8 @@ function StatusPicker({
   ];
   return (
     <div>
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">Visibility</span>
-      <div className="flex gap-1.5 rounded-2xl border border-gray-200 bg-[#FFF8E1] p-1">
+  <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">Visibility</span>
+  <div className="flex gap-1.5 rounded-2xl border border-gray-200 bg-[#FFF8E1] p-1">
         {opts.map((o) => (
           <button
             key={o.value} type="button" onClick={() => onChange(o.value)}
@@ -370,9 +370,9 @@ export default function HomeCreatePage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFF8E1] text-[#1A1A1A] md:ml-24 lg:ml-72">
-      {/* Top nav */}
-      <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#FFF8E1]/90 backdrop-blur-md">
+  <main className="min-h-screen bg-[#FFF8E1] text-[#1A1A1A] md:ml-24 lg:ml-72">
+  {/* Top nav */}
+  <div className="sticky top-0 z-30 border-b border-gray-200 bg-[#FFF8E1]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-3">
           <span className="text-sm font-semibold text-[#1A1A1A]">New Campaign</span>
           <div className="w-16" />
@@ -407,13 +407,13 @@ export default function HomeCreatePage() {
             <div className="relative">
               <div className={`flex items-center gap-2 rounded-2xl border bg-white px-4 py-2.5 transition-all ${
                 geoState === "found"
-                  ? "border-emerald-300 ring-2 ring-emerald-200"
-                  : "border-gray-200 focus-within:border-[#F5C542] focus-within:ring-2 focus-within:ring-[#F5C542]/30"
+                  ? "border-purple-300 ring-2 ring-purple-200"
+                  : "border-gray-200 focus-within:border-[#7C3AED] focus-within:ring-2 focus-within:ring-purple-200"
               }`}>
                 {geoState === "loading" ? (
-                  <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-[#F5C542]" />
+                  <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-slate-200 border-t-purple-500" />
                 ) : geoState === "found" ? (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-[#16A34A]">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0 text-purple-500">
                     <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4"/>
                     <path d="M5 8l2 2 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -566,7 +566,7 @@ export default function HomeCreatePage() {
             <button
               type="submit"
               disabled={submitting || isMissingRequired}
-              className="flex-1 rounded-2xl bg-[#F5C542] py-3 text-sm font-bold text-[#1A1A1A] shadow-sm transition-all hover:bg-[#E5B53A] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+              className="flex-1 rounded-2xl bg-[#7C3AED] py-3 text-sm font-bold text-white shadow-lg shadow-purple-200 transition-all hover:bg-[#6D28D9] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
             >
               {submitting ? (
                 <span className="flex items-center justify-center gap-2">
