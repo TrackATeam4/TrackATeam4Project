@@ -107,7 +107,8 @@ def check_conflicts(session_id: str, token: str) -> dict:
 def suggest_nearby_pantries(session_id: str, token: str) -> dict:
     """Find food pantries within 5km of the session location.
 
-    Requires latitude and longitude to already be saved in the session.
+    Uses saved latitude/longitude when present.
+    If coordinates are missing, backend attempts to geocode saved address/location automatically.
     If pantries are found, offer to link one to the campaign.
     """
     r = httpx.get(
