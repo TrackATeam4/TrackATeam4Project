@@ -35,20 +35,22 @@ class RsvpAcceptRequest(BaseModel):
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
     result = (
-        supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
+        supabase.table("campaigns").select("*").eq("id", campaign_id).limit(1).execute()
     )
-    if not result.data:
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return result.data
+    return rows[0]
 
 
 def _get_invitation_by_token(supabase, token: str) -> dict:
     result = (
-        supabase.table("invitations").select("*").eq("token", token).single().execute()
+        supabase.table("invitations").select("*").eq("token", token).limit(1).execute()
     )
-    if not result.data:
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    return result.data
+    return rows[0]
 
 
 def _check_expired(invitation: dict) -> None:

@@ -95,11 +95,12 @@ def _find_or_create_user_by_email(supabase, email: str, name: str | None = None)
 
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
     result = (
-        supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
+        supabase.table("campaigns").select("*").eq("id", campaign_id).limit(1).execute()
     )
-    if not result.data:
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return result.data
+    return rows[0]
 
 
 # ── POST /campaigns ──────────────────────────────────────────────────────────
