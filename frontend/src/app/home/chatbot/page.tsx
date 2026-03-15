@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import HomeSidebar from "@/components/home/HomeSidebar";
@@ -121,6 +120,30 @@ export default function ChatbotPage() {
 		[getAuthHeaders]
 	);
 
+	const startNewSession = useCallback(async () => {
+		if (loading || booting) return;
+
+		setBooting(true);
+		setError("");
+		setInput("");
+		setSessionId("");
+		setMessages([]);
+		setContext({});
+		localStorage.removeItem("tracka.chat_session_id");
+
+		try {
+			await createSession();
+		} catch (sessionError) {
+			setError(
+				sessionError instanceof Error
+					? sessionError.message
+					: "Unable to start a new chatbot session."
+			);
+		} finally {
+			setBooting(false);
+		}
+	}, [booting, createSession, loading]);
+
 	useEffect(() => {
 		const init = async () => {
 			setBooting(true);
@@ -210,10 +233,18 @@ export default function ChatbotPage() {
 			<HomeSidebar />
 			<main className="min-h-screen bg-[#FFF8E1] px-6 py-8 text-[#1A1A1A] md:ml-24 lg:ml-72">
 				<div className="mx-auto max-w-5xl space-y-6">
-				<div className="flex items-center justify-end">
+				<div className="flex items-center justify-end gap-3">
 					<span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
 						Session: {sessionId ? sessionId.slice(0, 8) : "none"}
 					</span>
+					<button
+						type="button"
+						onClick={() => void startNewSession()}
+						disabled={loading || booting}
+						className="rounded-full border border-[#F5C542] px-3 py-1 text-xs font-semibold text-[#92400E] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-60"
+					>
+						New session
+					</button>
 				</div>
 
 				<section className="grid gap-6 lg:grid-cols-[1fr_280px]">

@@ -127,6 +127,38 @@ export default function ChatPage() {
     };
   }, []);
 
+  const createSession = useCallback(async () => {
+    const sessionResponse = await fetch(`${API_BASE}/chat/session`, {
+      method: "POST",
+      headers: await getAuthHeaders(),
+    });
+
+    if (!sessionResponse.ok) {
+      throw new Error("Unable to start campaign builder session.");
+    }
+
+    const sessionPayload = (await sessionResponse.json()) as {
+      session_id?: string;
+      data?: { session_id?: string };
+    };
+    const newSessionId = sessionPayload.session_id ?? sessionPayload.data?.session_id ?? null;
+    if (!newSessionId) {
+      throw new Error("Chat session id missing from response.");
+    }
+
+    setSessionId(newSessionId);
+    return newSessionId;
+  }, [getAuthHeaders]);
+
+  const startNewSession = useCallback(() => {
+    if (loading) return;
+
+    setMessages([]);
+    setInput("");
+    setError("");
+    setSessionId(null);
+  }, [loading]);
+
   const submitMessage = useCallback(
     async (prompt: string) => {
       if (!prompt.trim() || loading) return;
@@ -145,22 +177,7 @@ export default function ChatPage() {
       try {
         let activeSessionId = sessionId;
         if (!activeSessionId) {
-          const sessionResponse = await fetch(`${API_BASE}/chat/session`, {
-            method: "POST",
-            headers: await getAuthHeaders(),
-          });
-
-          if (!sessionResponse.ok) {
-            throw new Error("Unable to start campaign builder session.");
-          }
-
-          const sessionPayload = (await sessionResponse.json()) as { session_id?: string };
-          activeSessionId = sessionPayload.session_id ?? null;
-          if (!activeSessionId) {
-            throw new Error("Chat session id missing from response.");
-          }
-
-          setSessionId(activeSessionId);
+          activeSessionId = await createSession();
         }
 
         const response = await fetch(`${API_BASE}/chat/message`, {
@@ -194,7 +211,7 @@ export default function ChatPage() {
         setLoading(false);
       }
     },
-    [getAuthHeaders, loading, sessionId]
+    [createSession, getAuthHeaders, loading, sessionId]
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -219,9 +236,19 @@ export default function ChatPage() {
                 Chat with the agent to plan flyering campaigns and generate resources.
               </p>
             </div>
-            <span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
-              Bedrock Agent
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startNewSession}
+                disabled={loading}
+                className="rounded-full border border-[#F5C542] px-3 py-1 text-xs font-semibold text-[#92400E] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                New session
+              </button>
+              <span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
+                Bedrock Agent
+              </span>
+            </div>
           </div>
 
           <div className="mt-5 h-[520px] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">

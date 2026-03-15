@@ -194,6 +194,8 @@ const CHAT_API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "";
 
+const CHAT_AUTO_OPEN_TAB_KEY = "tracka.home_chat_auto_opened";
+
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
   window.addEventListener("storage", callback);
@@ -245,7 +247,19 @@ export default function HomePage() {
       } = await supabase.auth.getSession();
       if (!session) {
         router.push("/auth");
+        return;
       }
+
+      // Open chat once per browser tab to reduce repeated popup interruptions.
+      const shouldAutoOpenChat = sessionStorage.getItem(CHAT_AUTO_OPEN_TAB_KEY) !== "1";
+      if (!shouldAutoOpenChat) {
+        return;
+      }
+
+      sessionStorage.setItem(CHAT_AUTO_OPEN_TAB_KEY, "1");
+      setChatError("");
+      setChatInitializedForOpen(false);
+      setIsChatOpen(true);
     };
 
     void ensureSession();
@@ -542,6 +556,25 @@ export default function HomePage() {
     },
     [apiBase, getChatAuthHeaders]
   );
+
+  const startNewChatSession = useCallback(async () => {
+    if (chatLoading || chatBooting) return;
+
+    setChatBooting(true);
+    setChatError("");
+    setChatInput("");
+    setChatSessionId(null);
+    setChatMessages([]);
+    localStorage.removeItem("tracka.chat_session_id");
+
+    try {
+      await createChatSession();
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unable to start a new chat session.");
+    } finally {
+      setChatBooting(false);
+    }
+  }, [chatBooting, chatLoading, createChatSession]);
 
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1374,13 +1407,23 @@ export default function HomePage() {
                   <p className="text-sm text-slate-500">Campaign assistant</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeChatPopup}
-                className="text-base text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void startNewChatSession()}
+                  disabled={chatBooting || chatLoading}
+                  className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  New session
+                </button>
+                <button
+                  type="button"
+                  onClick={closeChatPopup}
+                  className="text-base text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="h-80 space-y-3 overflow-y-auto px-5 py-4">
