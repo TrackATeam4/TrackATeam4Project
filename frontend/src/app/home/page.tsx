@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { apiFetch } from "@/lib/api";
+import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
 const dmSerif = DM_Serif_Display({
@@ -250,7 +250,7 @@ export default function HomePage() {
       setFeedError("");
 
       try {
-        const payload = await apiFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`);
+        const payload = await authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`);
         const campaigns = extractFeedCampaigns(payload);
 
         const mappedPosts = campaigns.map(campaignToPost);
@@ -601,8 +601,8 @@ export default function HomePage() {
               className="flex items-center gap-2 text-xl font-bold"
               style={{ fontFamily: "var(--home-display)" }}
             >
-              <span className="text-[28px]">🍋</span>
-              Lemontree
+              <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
+              LEMONTREE
             </div>
             <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
           </div>
