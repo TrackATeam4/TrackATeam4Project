@@ -97,6 +97,17 @@ export default function HomeSidebar() {
     () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
     () => "Volunteer"
   );
+  const userRole = useSyncExternalStore(
+    subscribeToStorage,
+    () => getLocalStorageValue("tracka.user_role", "volunteer"),
+    () => "volunteer"
+  );
+
+  const isAdmin = userRole === "admin";
+
+  const visibleNavItems = navItems.filter(
+    (item) => item.href !== "/home/dashboard" || isAdmin
+  );
 
   const isActiveRoute = (href: string) => {
     if (href === "/home") return pathname === "/home";
@@ -121,7 +132,7 @@ export default function HomeSidebar() {
 
         {/* Nav */}
         <nav className="mt-5 flex flex-1 flex-col gap-0.5">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = isActiveRoute(item.href);
             return (
               <Link
@@ -155,7 +166,7 @@ export default function HomeSidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-[#111827]">{userName}</p>
-            <p className="text-xs text-[#9CA3AF]">Volunteer</p>
+            <p className="text-xs text-[#9CA3AF]">{isAdmin ? "Admin" : "Volunteer"}</p>
           </div>
         </div>
       </aside>
@@ -164,7 +175,7 @@ export default function HomeSidebar() {
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[68px] flex-col items-center border-r border-gray-100 bg-white py-6 md:flex lg:hidden">
         <LemonLogo size={26} />
         <nav className="mt-6 flex flex-1 flex-col items-center gap-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive = isActiveRoute(item.href);
             return (
               <Link
