@@ -17,6 +17,7 @@ from agents.chat_service import (
 from supabase_client import get_supabase_client
 from services.rewards import award_points, haversine_km
 from services.event_normalization import normalize_context_field
+from services.flyer_generator import FlyerCampaignData, generate_flyer_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -528,17 +529,53 @@ def generate_flyer_endpoint(
 
     template = templates[0]
 
-    # Insert campaign flyer record
+    # Fetch campaign row to build flyer data
+    campaign_result = (
+        supabase.table("campaigns")
+        .select("title, location, address, date, start_time, end_time, description")
+        .eq("id", campaign_id)
+        .limit(1)
+        .execute()
+    )
+    campaign_rows = campaign_result.data or []
+    if not campaign_rows:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Generate PDF bytes in memory
+    try:
+        campaign_data = FlyerCampaignData.from_dict(campaign_rows[0])
+        pdf_bytes = generate_flyer_bytes(campaign_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error("Flyer generation failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to generate flyer")
+
+    # Upload PDF to Supabase Storage
+    storage_path = f"flyers/{campaign_id}.pdf"
+    try:
+        supabase.storage.from_("flyers").upload(
+            path=storage_path,
+            file=pdf_bytes,
+            file_options={"content-type": "application/pdf"},
+        )
+    except Exception as exc:
+        logger.error("Flyer upload failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to upload flyer")
+
+    generated_file_url = supabase.storage.from_("flyers").get_public_url(storage_path)
+
+    # Insert campaign flyer record with generated URL
     supabase.table("campaign_flyers").insert({
         "campaign_id": campaign_id,
         "template_id": template["id"],
         "custom_fields": {},
+        "generated_file_url": generated_file_url,
     }).execute()
 
-    flyer_url = template.get("file_url", "")
     thumbnail_url = template.get("thumbnail_url", "")
 
-    return {"flyer_url": flyer_url, "thumbnail_url": thumbnail_url}
+    return {"flyer_url": generated_file_url, "thumbnail_url": thumbnail_url}
 
 
 def _extract_ai_text(message: Any) -> str:
