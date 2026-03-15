@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from routes.map import router as map_router, pantry_router, admin_analytics_router, admin_campaign_router
-from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map
+from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map, bsky
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -46,7 +46,7 @@ app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
 app.include_router(map.router)
-
+app.include_router(bsky.router)
 
 @app.on_event("startup")
 def on_startup():
@@ -71,11 +71,9 @@ class SignInRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
 
-
 @app.get("/")
 def root():
     return {"message": "TrackA API is running"}
-
 
 @app.get("/health")
 def health():
