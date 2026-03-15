@@ -91,6 +91,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const latestToolCalls = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((msg) => msg.role === "assistant");
@@ -142,14 +143,32 @@ export default function ChatPage() {
       setError("");
 
       try {
-        const response = await fetch(`${API_BASE}/agent/chat`, {
+        let activeSessionId = sessionId;
+        if (!activeSessionId) {
+          const sessionResponse = await fetch(`${API_BASE}/chat/session`, {
+            method: "POST",
+            headers: await getAuthHeaders(),
+          });
+
+          if (!sessionResponse.ok) {
+            throw new Error("Unable to start campaign builder session.");
+          }
+
+          const sessionPayload = (await sessionResponse.json()) as { session_id?: string };
+          activeSessionId = sessionPayload.session_id ?? null;
+          if (!activeSessionId) {
+            throw new Error("Chat session id missing from response.");
+          }
+
+          setSessionId(activeSessionId);
+        }
+
+        const response = await fetch(`${API_BASE}/chat/message`, {
           method: "POST",
           headers: await getAuthHeaders(),
           body: JSON.stringify({
-            messages: [...messages, userMessage].map((msg) => ({
-              role: msg.role,
-              content: msg.content,
-            })),
+            session_id: activeSessionId,
+            message: userMessage.content,
           }),
         });
 
@@ -158,15 +177,14 @@ export default function ChatPage() {
         }
 
         const payload = (await response.json()) as {
-          response?: string;
-          tool_calls?: ToolCall[];
+          reply?: string;
+          action?: Record<string, unknown> | null;
         };
 
         const assistantMessage: ChatMessage = {
           id: `${Date.now()}-${Math.random()}`,
           role: "assistant",
-          content: payload.response || "",
-          toolCalls: payload.tool_calls || [],
+          content: payload.reply || "",
         };
 
         setMessages((prev) => [...prev, assistantMessage]);
@@ -176,7 +194,7 @@ export default function ChatPage() {
         setLoading(false);
       }
     },
-    [getAuthHeaders, loading, messages]
+    [getAuthHeaders, loading, sessionId]
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

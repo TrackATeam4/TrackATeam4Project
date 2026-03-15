@@ -45,7 +45,7 @@ load_dotenv()
 
 BEDROCK_TOKEN = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID = "mistral.mistral-large-2402-v1:0"
+MODEL_ID = "amazon.nova-lite-v1:0"
 
 BEDROCK_URL = (
     f"https://bedrock-runtime.{AWS_REGION}.amazonaws.com"

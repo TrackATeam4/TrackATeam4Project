@@ -19,3 +19,7 @@ frontend/.env
 # Documentation (AI context)
 AGENTS.md
 CLAUDE.md
+__pycache__/
+*.pyc
+__pycache__/
+*.pyc

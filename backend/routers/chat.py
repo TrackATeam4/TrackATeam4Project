@@ -301,6 +301,7 @@ def send_message(
         })
         reply = result.get("output", "")
     except Exception as exc:
+        error_str = str(exc)
         logger.error("Agent invocation failed: %s", exc)
         if "botocore" in type(exc).__module__ or "boto" in type(exc).__module__:
             raise HTTPException(
