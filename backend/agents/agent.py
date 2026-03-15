@@ -57,7 +57,7 @@ BEDROCK_URL = (
 CAMPAIGN_TOOL_NAMES = {tool.name for tool in AGENT_TOOLS}
 
 # Maximum tool-call iterations per user message to prevent infinite loops
-MAX_TOOL_ITERATIONS = 3
+MAX_TOOL_ITERATIONS = 6
 
 
 # ============================================================
