@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
@@ -92,6 +92,7 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const latestToolCalls = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((msg) => msg.role === "assistant");
@@ -219,6 +220,10 @@ export default function ChatPage() {
     void submitMessage(input);
   };
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
+
   if (!sessionReady) {
     return null;
   }
@@ -300,6 +305,7 @@ export default function ChatPage() {
                 ) : null}
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {error ? (
