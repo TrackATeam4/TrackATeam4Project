@@ -223,12 +223,14 @@ export default function HomePage() {
   const [feedError, setFeedError] = useState("");
   const [formState, setFormState] = useState<PostFormState>(initialForm);
   const [trendingCampaigns, setTrendingCampaigns] = useState<FeedCampaign[]>([]);
-  const [feedMode, setFeedMode] = useState<"all" | "nearby">("all");
+  const [feedMode, setFeedMode] = useState<"all" | "nearby" | "foryou">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Post[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [nearbyPosts, setNearbyPosts] = useState<Post[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [forYouPosts, setForYouPosts] = useState<Post[]>([]);
+  const [forYouLoading, setForYouLoading] = useState(false);
   const apiBase = CHAT_API_BASE;
   const userName = useSyncExternalStore(
     subscribeToStorage,
@@ -317,6 +319,14 @@ export default function HomePage() {
       },
       () => setNearbyLoading(false)
     );
+  };
+
+  const loadForYou = async () => {
+    setForYouLoading(true);
+    try {
+      const payload = await authFetch<FeedCampaign[]>(`/feed?page=1&limit=20`);
+      setForYouPosts(extractFeedCampaigns(payload).map(campaignToPost));
+    } catch { setForYouPosts([]); } finally { setForYouLoading(false); }
   };
 
   const toggleLike = (postId: string) => {
@@ -785,13 +795,14 @@ export default function HomePage() {
               {/* Mode toggle */}
               <div className="flex items-center gap-2">
                 <div className="flex rounded-xl border border-gray-200 bg-white p-1 text-xs font-semibold">
-                  {(["all", "nearby"] as const).map((mode) => (
+                  {(["all", "foryou", "nearby"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => {
                         setFeedMode(mode);
                         if (mode === "nearby" && nearbyPosts.length === 0) loadNearby();
+                        if (mode === "foryou" && forYouPosts.length === 0) void loadForYou();
                       }}
                       className={`rounded-lg px-4 py-1.5 transition ${
                         feedMode === mode
@@ -799,7 +810,7 @@ export default function HomePage() {
                           : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
-                      {mode === "all" ? "📋 All" : "📍 Nearby"}
+                      {mode === "all" ? "📋 All" : mode === "foryou" ? "✨ For You" : "📍 Nearby"}
                     </button>
                   ))}
                 </div>
@@ -865,6 +876,19 @@ export default function HomePage() {
               </div>
             )}
 
+            {feedMode === "foryou" && forYouLoading && (
+              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                Personalizing your feed...
+              </div>
+            )}
+
+            {feedMode === "foryou" && !forYouLoading && forYouPosts.length === 0 && (
+              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-8 text-center">
+                <p className="text-2xl">✨</p>
+                <p className="mt-2 text-sm text-slate-500">Your personalized feed is being built — join campaigns to improve recommendations!</p>
+              </div>
+            )}
+
             <motion.div
               className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
               whileHover={{ scale: 1.005 }}
@@ -911,7 +935,7 @@ export default function HomePage() {
               }}
               className="space-y-6"
             >
-              {(searchQuery ? searchResults : feedMode === "nearby" ? nearbyPosts : posts).map((post) => {
+              {(searchQuery ? searchResults : feedMode === "nearby" ? nearbyPosts : feedMode === "foryou" ? forYouPosts : posts).map((post) => {
                 const isLiked = likedPosts.has(post.id);
                 const isJoined = joinedPosts.has(post.id);
                 const progress = post.event

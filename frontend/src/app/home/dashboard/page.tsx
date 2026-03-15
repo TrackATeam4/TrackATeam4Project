@@ -75,7 +75,7 @@ const statusColor = (s: string) =>
 // ── Campaign panel ─────────────────────────────────────────────────────────────
 
 function CampaignPanel({ campaign }: { campaign: Campaign }) {
-  type PanelTab = "volunteers" | "tasks" | "invite" | "impact" | "promote";
+  type PanelTab = "volunteers" | "tasks" | "invite" | "impact" | "promote" | "edit";
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PanelTab>("volunteers");
 
@@ -90,6 +90,9 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   const [newTask, setNewTask] = useState({ title: "", description: "", max_assignees: "1" });
   const [addingTask, setAddingTask] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [taskEditDraft, setTaskEditDraft] = useState({ title: "", description: "", max_assignees: "1" });
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
   // Invite
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -111,6 +114,20 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
   // Remind
   const [reminding, setReminding] = useState(false);
   const [remindMsg, setRemindMsg] = useState("");
+
+  // Edit campaign
+  const [editDraft, setEditDraft] = useState({
+    title: campaign.title,
+    description: campaign.description ?? "",
+    address: campaign.address ?? "",
+    date: campaign.date ?? "",
+    start_time: campaign.start_time ?? "",
+    end_time: campaign.end_time ?? "",
+    max_volunteers: String(campaign.max_volunteers ?? ""),
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMsg, setEditMsg] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   // Load panel data when opened
   useEffect(() => {
@@ -230,6 +247,58 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
     } finally { setReminding(false); }
   };
 
+  const saveEdit = async () => {
+    setEditSaving(true);
+    setEditMsg("");
+    try {
+      const updates: Record<string, unknown> = {
+        title: editDraft.title,
+        description: editDraft.description || null,
+        address: editDraft.address,
+        date: editDraft.date,
+        start_time: editDraft.start_time,
+        end_time: editDraft.end_time,
+        max_volunteers: editDraft.max_volunteers ? Number(editDraft.max_volunteers) : null,
+      };
+      await authFetch(`/campaigns/${campaign.id}`, { method: "PUT", body: JSON.stringify(updates) });
+      setEditMsg("Campaign updated successfully!");
+    } catch (e) {
+      setEditMsg(e instanceof Error ? e.message : "Failed to update campaign.");
+    } finally { setEditSaving(false); }
+  };
+
+  const cancelCampaign = async () => {
+    if (!confirm(`Cancel "${campaign.title}"? This cannot be undone.`)) return;
+    setCancelling(true);
+    try {
+      await authFetch(`/campaigns/${campaign.id}`, { method: "DELETE" });
+      setEditMsg("Campaign cancelled.");
+    } catch (e) {
+      setEditMsg(e instanceof Error ? e.message : "Failed to cancel campaign.");
+    } finally { setCancelling(false); }
+  };
+
+  const startEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setTaskEditDraft({ title: task.title, description: task.description ?? "", max_assignees: String(task.max_assignees) });
+  };
+
+  const saveTaskEdit = async (taskId: string) => {
+    setSavingTaskId(taskId);
+    try {
+      const res = await authFetch<Task>(`/tasks/${taskId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: taskEditDraft.title.trim(),
+          description: taskEditDraft.description.trim() || null,
+          max_assignees: Number(taskEditDraft.max_assignees) || 1,
+        }),
+      });
+      if (res.data) setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...(res.data as unknown as Task) } : t));
+      setEditingTaskId(null);
+    } catch { /* ignore */ } finally { setSavingTaskId(null); }
+  };
+
   const promote = async () => {
     setPromoting(true);
     setPromoteMsg("");
@@ -247,6 +316,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
     { id: "invite", label: "✉️ Invite" },
     { id: "impact", label: "📊 Impact" },
     { id: "promote", label: "⚡ Promote" },
+    { id: "edit", label: "✏️ Edit" },
   ];
 
   const pendingCount = signups.filter((s) => s.status === "pending").length;
@@ -399,23 +469,76 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                     <p className="text-sm text-slate-400 py-4 text-center">Loading tasks...</p>
                   ) : (
                     <>
-                      {tasks.map((task) => (
-                        <div key={task.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">{task.title}</p>
-                            {task.description && <p className="text-xs text-slate-400 mt-0.5">{task.description}</p>}
-                            <p className="mt-1 text-xs text-slate-400">Max {task.max_assignees} · {task.assigned_to ? "Assigned" : "Open"}</p>
+                      {tasks.map((task) =>
+                        editingTaskId === task.id ? (
+                          <div key={task.id} className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
+                            <input
+                              type="text"
+                              value={taskEditDraft.title}
+                              onChange={(e) => setTaskEditDraft({ ...taskEditDraft, title: e.target.value })}
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                              placeholder="Task title"
+                            />
+                            <input
+                              type="text"
+                              value={taskEditDraft.description}
+                              onChange={(e) => setTaskEditDraft({ ...taskEditDraft, description: e.target.value })}
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                              placeholder="Description (optional)"
+                            />
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={taskEditDraft.max_assignees}
+                                onChange={(e) => setTaskEditDraft({ ...taskEditDraft, max_assignees: e.target.value })}
+                                className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-400 focus:outline-none"
+                              />
+                              <motion.button
+                                type="button"
+                                whileTap={{ scale: 0.97 }}
+                                disabled={savingTaskId === task.id}
+                                onClick={() => saveTaskEdit(task.id)}
+                                className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                              >
+                                {savingTaskId === task.id ? "Saving..." : "Save"}
+                              </motion.button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingTaskId(null)}
+                                className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            disabled={deletingTaskId === task.id}
-                            onClick={() => deleteTask(task.id)}
-                            className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition"
-                          >
-                            {deletingTaskId === task.id ? "..." : "Delete"}
-                          </button>
-                        </div>
-                      ))}
+                        ) : (
+                          <div key={task.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 px-4 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">{task.title}</p>
+                              {task.description && <p className="text-xs text-slate-400 mt-0.5">{task.description}</p>}
+                              <p className="mt-1 text-xs text-slate-400">Max {task.max_assignees} · {task.assigned_to ? "Assigned" : "Open"}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startEditTask(task)}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-gray-50 transition"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deletingTaskId === task.id}
+                                onClick={() => deleteTask(task.id)}
+                                className="rounded-xl bg-rose-50 border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition"
+                              >
+                                {deletingTaskId === task.id ? "..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      )}
 
                       {/* Add task form */}
                       <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
@@ -551,6 +674,75 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       </motion.button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* Edit Campaign */}
+              {activeTab === "edit" && (
+                <div className="space-y-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Edit Campaign Details</p>
+                  {[
+                    { key: "title", label: "Title", type: "text" },
+                    { key: "address", label: "Address", type: "text" },
+                    { key: "date", label: "Date", type: "date" },
+                    { key: "start_time", label: "Start Time", type: "time" },
+                    { key: "end_time", label: "End Time", type: "time" },
+                    { key: "max_volunteers", label: "Max Volunteers", type: "number" },
+                  ].map(({ key, label, type }) => (
+                    <div key={key}>
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">{label}</label>
+                      <input
+                        type={type}
+                        min={type === "number" ? "1" : undefined}
+                        value={editDraft[key as keyof typeof editDraft]}
+                        onChange={(e) => setEditDraft({ ...editDraft, [key]: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Description</label>
+                    <textarea
+                      rows={3}
+                      value={editDraft.description}
+                      onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none resize-none"
+                      placeholder="Campaign description"
+                    />
+                  </div>
+
+                  {editMsg && (
+                    <p className={`text-xs font-semibold ${editMsg.includes("success") ? "text-emerald-700" : editMsg.includes("cancel") ? "text-slate-500" : "text-rose-600"}`}>
+                      {editMsg}
+                    </p>
+                  )}
+
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.97 }}
+                    disabled={editSaving}
+                    onClick={saveEdit}
+                    className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-100 disabled:opacity-50"
+                  >
+                    {editSaving ? "Saving..." : "Save Changes"}
+                  </motion.button>
+
+                  {/* Danger zone */}
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
+                    <p className="text-xs font-semibold text-rose-700 mb-2">Danger Zone</p>
+                    <p className="text-xs text-rose-500 mb-3">
+                      Cancelling removes this campaign from the public feed and notifies volunteers.
+                    </p>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.97 }}
+                      disabled={cancelling}
+                      onClick={cancelCampaign}
+                      className="rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+                    >
+                      {cancelling ? "Cancelling..." : "🗑️ Cancel Campaign"}
+                    </motion.button>
+                  </div>
                 </div>
               )}
 
