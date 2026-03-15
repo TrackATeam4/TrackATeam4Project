@@ -162,10 +162,10 @@ export default function HomeProfilePage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-slate-700 md:ml-24 lg:ml-72">
+      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
         <div className="mx-auto max-w-5xl space-y-6">
-        <section className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-lg shadow-yellow-100/60">
-          <h1 className="text-3xl font-bold text-[#0F172A]">My Profile</h1>
+        <section className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+          <h1 className="text-3xl font-bold text-[#1A1A1A]">My Profile</h1>
 
           {error ? (
             <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -174,29 +174,29 @@ export default function HomeProfilePage() {
           ) : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Name</p>
-              <p className="mt-1 text-lg font-semibold text-[#0F172A]">{userName}</p>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Name</p>
+              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{userName}</p>
             </div>
 
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Email</p>
-              <p className="mt-1 text-lg font-semibold text-[#0F172A]">{email}</p>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Email</p>
+              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">{email}</p>
             </div>
 
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Reward Points</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-700">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Reward Points</p>
+              <p className="mt-1 text-2xl font-bold text-[#1A1A1A]">
                 {loading ? "..." : pointsTotal ?? "N/A"}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Leaderboard Level</p>
-              <p className="mt-1 text-lg font-semibold text-[#0F172A]">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <p className="text-xs uppercase tracking-[0.14em] text-[#6B7280]">Leaderboard Level</p>
+              <p className="mt-1 text-lg font-semibold text-[#1A1A1A]">
                 {loading ? "Loading..." : levelNumber ? `Level ${levelNumber} - ${levelName}` : levelName}
               </p>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-[#6B7280]">
                 Progress to next level: {loading ? "..." : progressPct !== null ? `${progressPct}%` : "N/A"}
               </p>
             </div>
@@ -239,23 +239,23 @@ export default function HomeProfilePage() {
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <h2 className="text-lg font-semibold text-[#0F172A]">Leaderboard (Monthly)</h2>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-[#1A1A1A]">Leaderboard (Monthly)</h2>
               <div className="mt-3 space-y-2">
                 {loading ? (
-                  <p className="text-sm text-slate-500">Loading leaderboard...</p>
+                  <p className="text-sm text-[#6B7280]">Loading leaderboard...</p>
                 ) : leaderboard.length === 0 ? (
-                  <p className="text-sm text-slate-500">No leaderboard data available yet.</p>
+                  <p className="text-sm text-[#6B7280]">No leaderboard data available yet.</p>
                 ) : (
                   leaderboard.slice(0, 5).map((entry) => (
                     <div
                       key={`${entry.rank}-${entry.user?.id ?? entry.user?.name ?? "user"}`}
-                      className="flex items-center justify-between rounded-xl bg-white px-3 py-2"
+                      className="flex items-center justify-between rounded-xl bg-[#FFF8E1] px-3 py-2"
                     >
-                      <p className="text-sm text-slate-700">
+                      <p className="text-sm text-[#1A1A1A]">
                         #{entry.rank} {entry.user?.name ?? "Volunteer"}
                       </p>
-                      <p className="text-sm font-semibold text-emerald-700">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">
                         {entry.total_points ?? 0} pts
                       </p>
                     </div>
@@ -264,18 +264,18 @@ export default function HomeProfilePage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-5">
-              <h2 className="text-lg font-semibold text-[#0F172A]">Recent Reward Activity</h2>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <h2 className="text-lg font-semibold text-[#1A1A1A]">Recent Reward Activity</h2>
               <div className="mt-3 space-y-2">
                 {loading ? (
-                  <p className="text-sm text-slate-500">Loading reward history...</p>
+                  <p className="text-sm text-[#6B7280]">Loading reward history...</p>
                 ) : recentTransactions.length === 0 ? (
-                  <p className="text-sm text-slate-500">No rewards history yet.</p>
+                  <p className="text-sm text-[#6B7280]">No rewards history yet.</p>
                 ) : (
                   recentTransactions.slice(0, 5).map((txn, index) => (
-                    <div key={`${txn.action ?? "reward"}-${index}`} className="rounded-xl bg-white px-3 py-2">
-                      <p className="text-sm font-medium text-slate-700">{txn.action ?? "reward"}</p>
-                      <p className="text-xs text-slate-500">
+                    <div key={`${txn.action ?? "reward"}-${index}`} className="rounded-xl bg-[#FFF8E1] px-3 py-2">
+                      <p className="text-sm font-medium text-[#1A1A1A]">{txn.action ?? "reward"}</p>
+                      <p className="text-xs text-[#6B7280]">
                         +{typeof txn.points === "number" ? txn.points : 0} pts
                         {txn.campaign_title ? ` - ${txn.campaign_title}` : ""}
                       </p>

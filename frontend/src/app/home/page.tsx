@@ -5,7 +5,7 @@ import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 
@@ -210,6 +210,7 @@ export default function HomePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [joinedPosts, setJoinedPosts] = useState<Set<string>>(new Set());
+  const [joiningPosts, setJoiningPosts] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
@@ -304,6 +305,11 @@ export default function HomePage() {
     } catch { setSearchResults([]); } finally { setIsSearching(false); }
   };
 
+  const trendingPosts = useMemo(
+    () => trendingCampaigns.map(campaignToPost),
+    [trendingCampaigns]
+  );
+
   const loadNearby = () => {
     if (!navigator.geolocation) return;
     setNearbyLoading(true);
@@ -342,61 +348,58 @@ export default function HomePage() {
     });
   };
 
-  const toggleJoin = async (postId: string) => {
-    const isCurrentlyJoined = joinedPosts.has(postId);
-
-    // Optimistic UI update
-    setJoinedPosts((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyJoined) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-
+  const updateSpotsFilled = (postId: string, delta: number) => {
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId || !post.event) return post;
-        const delta = isCurrentlyJoined ? -1 : 1;
-        const newFilled = Math.max(0, post.event.spotsFilled + delta);
+        const nextFilled = Math.max(
+          0,
+          Math.min(post.event.spotsTotal, post.event.spotsFilled + delta)
+        );
         return {
           ...post,
-          event: { ...post.event, spotsFilled: newFilled },
+          event: {
+            ...post.event,
+            spotsFilled: nextFilled,
+          },
         };
       })
     );
+  };
+
+  const toggleJoin = async (postId: string) => {
+    if (joiningPosts.has(postId)) return;
+    const isJoined = joinedPosts.has(postId);
+
+    setJoiningPosts((prev) => new Set(prev).add(postId));
+    setFeedError("");
 
     try {
-      if (isCurrentlyJoined) {
+      if (isJoined) {
         await authFetch(`/campaigns/${postId}/signup`, { method: "DELETE" });
       } else {
         await authFetch(`/campaigns/${postId}/signup`, { method: "POST" });
       }
-    } catch (error) {
-      // Revert optimistic updates on failure
+
       setJoinedPosts((prev) => {
         const next = new Set(prev);
-        if (isCurrentlyJoined) {
-          next.add(postId);
-        } else {
+        if (isJoined) {
           next.delete(postId);
+        } else {
+          next.add(postId);
         }
         return next;
       });
-      setPosts((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId || !post.event) return post;
-          const delta = isCurrentlyJoined ? 1 : -1;
-          const newFilled = Math.max(0, post.event.spotsFilled + delta);
-          return {
-            ...post,
-            event: { ...post.event, spotsFilled: newFilled },
-          };
-        })
-      );
-      console.error("Failed to update campaign signup:", error);
+
+      updateSpotsFilled(postId, isJoined ? -1 : 1);
+    } catch (error) {
+      setFeedError(error instanceof Error ? error.message : "Unable to update signup right now.");
+    } finally {
+      setJoiningPosts((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
+      });
     }
   };
 
@@ -665,12 +668,12 @@ export default function HomePage() {
 
   return (
     <div
-      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5] text-[#334155]`}
+      className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFF8E1] text-[#1A1A1A]`}
       style={{ fontFamily: "var(--home-body)" }}
     >
       <div className="flex">
         <motion.aside
-          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white flex"
+          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col border-r border-gray-200 bg-white px-6 py-8 text-[#1A1A1A] flex"
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -683,7 +686,7 @@ export default function HomePage() {
               <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
               LEMONTREE
             </div>
-            <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-[#6B7280]">Volunteer Hub</p>
           </div>
 
           <motion.nav
@@ -704,13 +707,10 @@ export default function HomePage() {
                     href={item.href}
                     className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
                       isActive
-                        ? "bg-gradient-to-r from-emerald-500/20 to-transparent text-white font-semibold"
-                        : "text-white/60 hover:bg-white/10 hover:text-white"
+                        ? "bg-[#FEF3C7] text-[#1A1A1A] font-semibold border-l-4 border-[#F5C542]"
+                        : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
                     }`}
                   >
-                    {isActive ? (
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#FCD34D]" />
-                    ) : null}
                     <span className="text-[20px]">{item.icon}</span>
                     <span>{item.label}</span>
                   </Link>
@@ -720,24 +720,24 @@ export default function HomePage() {
           </motion.nav>
 
           <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-white/10 p-3">
+            <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-white">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{userName}</p>
-                  <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-xs text-emerald-200">
+                  <p className="text-sm font-semibold text-[#1A1A1A]">{userName}</p>
+                  <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-[#6B7280]">
                     Volunteer
                   </span>
                 </div>
               </div>
-              <button className="text-lg text-white/40 transition hover:text-white">⎋</button>
+              <button className="text-lg text-[#9CA3AF] transition hover:text-[#1A1A1A]">⎋</button>
             </div>
           </div>
         </motion.aside>
 
-        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 flex">
+        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col border-r border-gray-200 bg-white px-3 py-8 flex">
           <div className="flex flex-col items-center gap-4 text-xl">
             {navItems.map((item) => (
               <Link
@@ -745,8 +745,8 @@ export default function HomePage() {
                 href={item.href}
                 className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
                   item.label === "Feed"
-                    ? "bg-white/15 text-white"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#FEF3C7] text-[#1A1A1A]"
+                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
                 }`}
               >
                 {item.icon}
@@ -830,19 +830,19 @@ export default function HomePage() {
             </div>
 
             {feedLoading && (
-              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#FEF3C7] px-4 py-3 text-sm text-[#92400E]">
                 Loading feed from API...
               </div>
             )}
 
             {feedError && (
-              <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <div className="rounded-2xl border border-[#E5E7EB] bg-[#FEF3C7] px-4 py-3 text-sm text-[#92400E]">
                 {feedError}
               </div>
             )}
 
-            {!feedLoading && !feedError && posts.length === 0 && !searchQuery && (
-              <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-sm text-slate-500">
+            {!feedLoading && !feedError && posts.length === 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-6 text-sm text-[#6B7280]">
                 No campaigns yet. Be the first to post an event update.
               </div>
             )}
@@ -866,18 +866,18 @@ export default function HomePage() {
             )}
 
             <motion.div
-              className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
               whileHover={{ scale: 1.005 }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-[#1A1A1A]">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <motion.button
                   type="button"
                   onClick={() => openModal()}
                   whileHover={{ scale: 1.01 }}
-                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-gray-100"
+                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-[#9CA3AF] transition hover:bg-gray-100"
                 >
                   Share an upcoming event or campaign update...
                 </motion.button>
@@ -887,7 +887,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal("upcoming_event")}
                   whileHover={{ y: -1 }}
-                  className="rounded-full border border-yellow-200 bg-[#FEF9C3] px-3 py-1.5 text-xs font-semibold text-yellow-700"
+                  className="rounded-full border border-[#F5C542]/40 bg-[#FEF3C7] px-3 py-1.5 text-xs font-semibold text-[#92400E]"
                 >
                   📍 Upcoming Event
                 </motion.button>
@@ -895,7 +895,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal("event_summary")}
                   whileHover={{ y: -1 }}
-                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                  className="rounded-full border border-[#E5E7EB] bg-[#F3E8FF] px-3 py-1.5 text-xs font-semibold text-[#7C3AED]"
                 >
                   📝 Event Summary
                 </motion.button>
@@ -927,34 +927,23 @@ export default function HomePage() {
                     }}
                     whileHover={{ y: -2, boxShadow: "0 20px 40px -30px rgba(27, 67, 50, 0.45)" }}
                     viewport={{ once: true, amount: 0.2 }}
-                    className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                    className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
                   >
-                    <div
-                      className={`absolute left-0 top-0 h-[3px] w-full ${
-                        post.type === "upcoming_event"
-                          ? "bg-gradient-to-r from-yellow-400 to-amber-500"
-                          : "bg-gradient-to-r from-emerald-400 to-teal-500"
-                      }`}
-                    />
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-white ${
-                            post.author.role === "organizer"
-                              ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
-                              : "bg-gradient-to-br from-yellow-400 to-amber-500"
-                          }`}
+                          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-[#1A1A1A]"
                         >
                           {post.author.name.charAt(0)}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-[#0F172A]">{post.author.name}</p>
-                          <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <p className="text-sm font-semibold text-[#1A1A1A]">{post.author.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-[#6B7280]">
                             <span
                               className={`rounded-full px-2 py-0.5 ${
                                 post.author.role === "organizer"
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-yellow-100 text-yellow-700"
+                                  ? "bg-gray-100 text-[#6B7280]"
+                                  : "bg-gray-100 text-[#6B7280]"
                               }`}
                             >
                               {post.author.role === "organizer" ? "Organizer" : "Volunteer"}
@@ -969,71 +958,68 @@ export default function HomePage() {
                       <span
                         className={`inline-flex rounded-lg border px-3 py-1 text-xs font-medium ${
                           post.type === "upcoming_event"
-                            ? "border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50 text-yellow-700"
-                            : "border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700"
+                            ? "border-[#F5C542]/40 bg-[#FEF3C7] text-[#92400E]"
+                            : "border-[#E5E7EB] bg-[#F3E8FF] text-[#7C3AED]"
                         }`}
                       >
                         {post.type === "upcoming_event" ? "📍 Upcoming Event" : "📝 Event Summary"}
                       </span>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-700">{post.content}</p>
+                      <p className="mt-3 text-sm leading-relaxed text-[#374151]">{post.content}</p>
                     </div>
 
                     {post.event && (
-                      <div className="mt-4 space-y-3 rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50 to-gray-100/50 p-4">
-                        <div className="text-sm font-medium text-[#F97316]">📍 {post.event.location}</div>
-                        <div className="text-sm text-slate-600">
+                      <div className="mt-4 space-y-3 rounded-2xl border border-gray-200 bg-[#FFF8E1] p-4">
+                        <div className="text-sm font-medium text-[#1A1A1A]">📍 {post.event.location}</div>
+                        <div className="text-sm text-[#6B7280]">
                           📅 {post.event.date} • {post.event.time}
                         </div>
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs text-slate-500">
+                          <div className="flex items-center justify-between text-xs text-[#6B7280]">
                             <span>👥 {post.event.spotsFilled}/{post.event.spotsTotal} spots filled</span>
                             <span>{progress}%</span>
                           </div>
-                          <div className="h-2 w-full rounded-full bg-emerald-100">
+                          <div className="h-2 w-full rounded-full bg-gray-200">
                             <motion.div
-                              className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                              className="h-2 rounded-full bg-[#F5C542]"
                               initial={{ width: 0 }}
                               animate={{ width: `${progress}%` }}
                               transition={{ duration: 0.6, ease: "easeOut" }}
                             />
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <motion.button
-                            type="button"
-                            onClick={() => toggleJoin(post.id)}
-                            whileHover={{ y: -1 }}
-                            whileTap={{ scale: 0.97 }}
-                            className={`rounded-xl px-5 py-2.5 text-xs font-semibold transition ${
-                              isJoined
-                                ? "bg-gray-100 text-gray-500"
-                                : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
-                            }`}
-                          >
-                            {isJoined ? "✓ Joined" : "Join Campaign"}
-                          </motion.button>
-                          <Link
-                            href={`/home/campaign/${post.id}`}
-                            className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-gray-50 hover:border-gray-300"
-                          >
-                            View Details →
-                          </Link>
-                        </div>
+                        <motion.button
+                          type="button"
+                          onClick={() => toggleJoin(post.id)}
+                          disabled={joiningPosts.has(post.id)}
+                          whileHover={{ y: -1 }}
+                          whileTap={{ scale: 0.97 }}
+                          className={`rounded-xl px-5 py-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                            isJoined
+                              ? "bg-[#16A34A] text-white"
+                              : "bg-[#F5C542] text-[#1A1A1A]"
+                          }`}
+                        >
+                          {joiningPosts.has(post.id)
+                            ? "Updating..."
+                            : isJoined
+                              ? "✓ Joined"
+                              : "Join Campaign"}
+                        </motion.button>
                       </div>
                     )}
 
-                    <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
+                    <div className="mt-4 flex items-center gap-4 text-xs text-[#6B7280]">
                       <motion.button
                         type="button"
                         whileTap={{ scale: 0.95 }}
                         onClick={() => toggleLike(post.id)}
-                        className="flex items-center gap-2 transition hover:text-slate-600"
+                        className="flex items-center gap-2 transition hover:text-[#1A1A1A]"
                       >
                         <motion.span
                           animate={
                             isLiked
-                              ? { scale: [1, 1.3, 1], color: "#F43F5E" }
-                              : { scale: 1, color: "#94A3B8" }
+                              ? { scale: [1, 1.3, 1], color: "#EA580C" }
+                              : { scale: 1, color: "#9CA3AF" }
                           }
                           transition={{ duration: 0.3 }}
                         >
@@ -1041,12 +1027,12 @@ export default function HomePage() {
                         </motion.span>
                         {post.likes} likes
                       </motion.button>
-                      <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
+                      <span className="text-[#D1D5DB]">·</span>
+                      <button type="button" className="flex items-center gap-2 transition hover:text-[#1A1A1A]">
                         💬 {post.comments} comments
                       </button>
-                      <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
+                      <span className="text-[#D1D5DB]">·</span>
+                      <button type="button" className="flex items-center gap-2 transition hover:text-[#1A1A1A]">
                         🔗 Share
                       </button>
                     </div>
@@ -1057,86 +1043,81 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFFEF5] px-6 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFF8E1] px-6 py-8 xl:flex">
           <motion.div
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
           >
             <h3
-              className="text-base font-semibold text-[#1B4332]"
+              className="text-base font-semibold text-[#1A1A1A]"
               style={{ fontFamily: "var(--home-display)" }}
             >
-              🍋 Community Impact
+              Community Impact
             </h3>
-            <div className="mt-3 h-[2px] w-full rounded-full bg-gradient-to-r from-[#FCD34D] to-[#10B981]" />
-            <div className="mt-4 space-y-3 text-sm text-slate-500">
+            <div className="mt-3 h-[2px] w-full rounded-full bg-[#E5E7EB]" />
+            <div className="mt-4 space-y-3 text-sm text-[#6B7280]">
               <div className="flex justify-between">
                 <span>Campaigns completed</span>
-                <StatCounter value={142} className="text-[#1B4332]" />
+                <StatCounter value={142} className="text-[#1A1A1A]" />
               </div>
               <div className="flex justify-between">
                 <span>Volunteers mobilized</span>
-                <StatCounter value={1840} className="text-emerald-600" />
+                <StatCounter value={1840} className="text-[#1A1A1A]" />
               </div>
               <div className="flex justify-between">
                 <span>Flyers distributed</span>
-                <StatCounter value={24500} className="text-amber-500" />
+                <StatCounter value={24500} className="text-[#1A1A1A]" />
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.45 }}
           >
-            <h3 className="flex items-center gap-2 text-base font-semibold text-[#0F172A]" style={{ fontFamily: "var(--home-display)" }}>
-              <motion.span
-                animate={{ y: [0, -2, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                🔥
-              </motion.span>
+            <h3 className="text-base font-semibold text-[#1A1A1A]" style={{ fontFamily: "var(--home-display)" }}>
               Trending Campaigns
             </h3>
             <div className="mt-4 space-y-3 text-sm">
-              {trendingCampaigns.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/home/campaign/${c.id}`}
-                  className="block rounded-xl border-l-2 border-yellow-400 bg-[#FFFEF5] p-3 pl-4 transition hover:bg-gray-50"
+              {trendingPosts.map((post) => (
+                <div
+                  key={post.id}
+                  className="rounded-xl border-l-2 border-[#F5C542] bg-[#FFF8E1] p-3 pl-4 transition hover:bg-gray-50"
                 >
-                  <p className="font-semibold text-slate-800 line-clamp-1">{c.title}</p>
-                  <p className="text-xs text-slate-500">{c.location ?? "Location TBD"}</p>
-                  <p className="text-xs font-medium text-emerald-600">
-                    {(c.max_volunteers ?? 10) - (c.signup_count ?? 0)} spots left
+                  <p className="font-semibold text-[#1A1A1A]">{post.event?.location}</p>
+                  <p className="text-xs text-[#6B7280]">{post.event?.date}</p>
+                  <p className="text-xs font-medium text-[#6B7280]">
+                    {post.event
+                      ? `${post.event.spotsTotal - post.event.spotsFilled} spots left`
+                      : ""}
                   </p>
-                </Link>
+                </div>
               ))}
             </div>
           </motion.div>
 
           <motion.div
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <h3 className="text-base font-semibold text-[#0F172A]" style={{ fontFamily: "var(--home-display)" }}>Quick Links</h3>
-            <div className="mt-4 space-y-3 text-sm text-slate-600">
+            <h3 className="text-base font-semibold text-[#1A1A1A]" style={{ fontFamily: "var(--home-display)" }}>Quick Links</h3>
+            <div className="mt-4 space-y-3 text-sm text-[#6B7280]">
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-[#FFFEF5] px-4 py-3 transition hover:text-emerald-600"
+                className="block rounded-xl bg-[#FFF8E1] px-4 py-3 transition hover:text-[#1A1A1A]"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFF8E1] px-4 py-3 text-left transition hover:text-[#1A1A1A]">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-[#FFFEF5] px-4 py-3 text-left transition hover:text-emerald-600">
+              <button className="block w-full rounded-xl bg-[#FFF8E1] px-4 py-3 text-left transition hover:text-[#1A1A1A]">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -1149,12 +1130,12 @@ export default function HomePage() {
           const isActive = item.label === "Feed";
           return (
             <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1">
-              <span className={`text-xl ${isActive ? "text-emerald-600" : "text-slate-400"}`}>
+              <span className={`text-xl ${isActive ? "text-[#1A1A1A]" : "text-[#9CA3AF]"}`}>
                 {item.icon}
               </span>
               <span
                 className={`h-1 w-1 rounded-full ${
-                  isActive ? "bg-emerald-600" : "bg-transparent"
+                  isActive ? "bg-[#F5C542]" : "bg-transparent"
                 }`}
               />
             </Link>
@@ -1196,10 +1177,10 @@ export default function HomePage() {
               <div className="relative mt-6 flex rounded-full border border-gray-200 p-1 text-sm">
                 <motion.div
                   layoutId="postTypeTab"
-                  className={`absolute top-1 bottom-1 rounded-full ${
+                  className={`absolute top-1 bottom-1 rounded-full bg-[#F5C542] ${
                     formState.type === "upcoming_event"
-                      ? "left-1 w-[calc(50%-4px)] bg-gradient-to-r from-yellow-400 to-amber-500"
-                      : "left-[50%] w-[calc(50%-4px)] bg-gradient-to-r from-emerald-500 to-emerald-600"
+                      ? "left-1 w-[calc(50%-4px)]"
+                      : "left-[50%] w-[calc(50%-4px)]"
                   }`}
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
@@ -1207,7 +1188,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setFormState((prev) => ({ ...prev, type: "upcoming_event" }))}
                   className="relative z-10 flex-1 rounded-full py-2.5 font-semibold"
-                  style={{ color: formState.type === "upcoming_event" ? "white" : "#64748b" }}
+                  style={{ color: formState.type === "upcoming_event" ? "#1A1A1A" : "#6B7280" }}
                 >
                   📍 Upcoming Event
                 </button>
@@ -1215,7 +1196,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => setFormState((prev) => ({ ...prev, type: "event_summary" }))}
                   className="relative z-10 flex-1 rounded-full py-2.5 font-semibold"
-                  style={{ color: formState.type === "event_summary" ? "white" : "#64748b" }}
+                  style={{ color: formState.type === "event_summary" ? "#1A1A1A" : "#6B7280" }}
                 >
                   📝 Event Summary
                 </button>
@@ -1310,7 +1291,7 @@ export default function HomePage() {
                 <motion.button
                   type="submit"
                   whileTap={{ scale: 0.97 }}
-                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200"
+                  className="w-full rounded-2xl bg-[#F5C542] px-4 py-3 text-sm font-semibold text-[#1A1A1A] shadow-sm"
                 >
                   Post to Feed →
                 </motion.button>
@@ -1324,7 +1305,7 @@ export default function HomePage() {
         <motion.button
           type="button"
           onClick={toggleChatPopup}
-          className="flex h-20 w-20 items-center justify-center rounded-full border border-yellow-200 bg-white shadow-xl shadow-yellow-200/70"
+          className="flex h-20 w-20 items-center justify-center rounded-full border border-[#E5E7EB] bg-white shadow-xl"
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.96 }}
           aria-label="Open chatbot"
@@ -1336,24 +1317,24 @@ export default function HomePage() {
       <AnimatePresence>
         {isChatOpen && (
           <motion.section
-            className="fixed bottom-28 right-5 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-3xl border border-yellow-100 bg-white shadow-2xl"
+            className="fixed bottom-28 right-5 z-50 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-3xl border border-[#E5E7EB] bg-white shadow-2xl"
             initial={{ opacity: 0, y: 14, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.96 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center justify-between border-b border-yellow-100 bg-[#FFFEF5] px-5 py-4">
+            <div className="flex items-center justify-between border-b border-[#E5E7EB] bg-white px-5 py-4">
               <div className="flex items-center gap-3">
                 <Image src="/logo.svg" alt="Lemontree Bot" width={28} height={28} />
                 <div>
-                  <p className="text-base font-semibold text-[#065F46]">Lemontree Chatbot</p>
-                  <p className="text-sm text-slate-500">Campaign assistant</p>
+                  <p className="text-base font-semibold text-[#1A1A1A]">Lemontree Chatbot</p>
+                  <p className="text-sm text-[#6B7280]">Campaign assistant</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={closeChatPopup}
-                className="text-base text-slate-400 hover:text-slate-600"
+                className="text-base text-[#9CA3AF] hover:text-[#1A1A1A]"
               >
                 ✕
               </button>
@@ -1361,13 +1342,13 @@ export default function HomePage() {
 
             <div className="h-80 space-y-3 overflow-y-auto px-5 py-4">
               {chatBooting && (
-                <p className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-slate-500">
+                <p className="rounded-2xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#6B7280]">
                   Connecting to chatbot...
                 </p>
               )}
 
               {!chatBooting && chatMessages.length === 0 && (
-                <p className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-slate-500">
+                <p className="rounded-2xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#6B7280]">
                   Ask about pantry locations, volunteer planning, or campaign ideas.
                 </p>
               )}
@@ -1377,8 +1358,8 @@ export default function HomePage() {
                   key={`${message.role}-${index}`}
                   className={`max-w-[90%] rounded-2xl px-4 py-3 text-base ${
                     message.role === "user"
-                      ? "ml-auto bg-emerald-600 text-white"
-                      : "bg-[#FFFEF5] text-slate-700"
+                      ? "ml-auto bg-[#F5C542] text-[#1A1A1A]"
+                      : "border border-[#E5E7EB] bg-white text-[#1A1A1A]"
                   }`}
                 >
                   {message.content}
@@ -1386,25 +1367,25 @@ export default function HomePage() {
               ))}
 
               {chatLoading && (
-                <p className="w-fit rounded-2xl bg-[#FFFEF5] px-4 py-3 text-sm text-slate-500">
+                <p className="w-fit rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#6B7280]">
                   Bot is typing...
                 </p>
               )}
             </div>
 
-            <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-4 py-4">
+            <form onSubmit={sendChatMessage} className="border-t border-[#E5E7EB] px-4 py-4">
               {chatError && <p className="mb-3 text-sm text-rose-500">{chatError}</p>}
               <div className="flex items-center gap-3">
                 <input
                   value={chatInput}
                   onChange={(event) => setChatInput(event.target.value)}
                   placeholder="Type your message..."
-                  className="flex-1 rounded-full border border-yellow-100 px-4 py-3 text-base text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  className="flex-1 rounded-full border border-[#E5E7EB] px-4 py-3 text-base text-[#1A1A1A] outline-none focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
                 />
                 <button
                   type="submit"
                   disabled={chatLoading || chatBooting || chatInput.trim().length === 0}
-                  className="rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full bg-[#F5C542] px-4 py-3 text-sm font-semibold text-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Send
                 </button>
@@ -1470,12 +1451,12 @@ function FloatingInput({ label, type = "text", value, onChange, placeholder }: F
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         placeholder=""
-        className={`w-full border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm outline-none transition-colors focus:border-transparent ${
+        className={`w-full border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm outline-none transition-colors focus:border-[#F5C542] ${
           isDateTime ? "[color-scheme:light]" : ""
-        } ${isActive ? "text-slate-900" : "text-slate-400"}`}
+        } ${isActive ? "text-[#1A1A1A]" : "text-[#9CA3AF]"}`}
       />
       <motion.div
-        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-1/2 h-[2px] bg-[#F5C542]"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
@@ -1489,7 +1470,7 @@ function FloatingInput({ label, type = "text", value, onChange, placeholder }: F
         animate={{
           y: isActive ? -24 : isDateTime ? 6 : 14,
           scale: isActive ? 0.85 : 1,
-          color: isActive ? "#065F46" : "#9CA3AF",
+          color: isActive ? "#1A1A1A" : "#9CA3AF",
         }}
         transition={{ duration: 0.2 }}
       >
@@ -1518,10 +1499,10 @@ function FloatingTextArea({ label, value, onChange, rows = 4 }: FloatingTextArea
         rows={rows}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="w-full resize-none border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm text-gray-900 outline-none transition-colors focus:border-transparent"
+        className="w-full resize-none border-b-2 border-gray-200 bg-transparent pb-2 pt-6 text-sm text-[#1A1A1A] outline-none transition-colors focus:border-[#F5C542]"
       />
       <motion.div
-        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-1/2 h-[2px] bg-[#F5C542]"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
@@ -1535,7 +1516,7 @@ function FloatingTextArea({ label, value, onChange, rows = 4 }: FloatingTextArea
         animate={{
           y: isActive ? -24 : 14,
           scale: isActive ? 0.85 : 1,
-          color: isActive ? "#065F46" : "#9CA3AF",
+          color: isActive ? "#1A1A1A" : "#9CA3AF",
         }}
         transition={{ duration: 0.2 }}
       >

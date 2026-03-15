@@ -91,13 +91,13 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-white text-slate-900">
+    <main className="min-h-screen bg-[#FFF8E1] text-[#1A1A1A]">
       {/* ── Header ── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? "bg-white/90 shadow-md backdrop-blur-md"
-            : "bg-transparent"
+            ? "bg-[#F5C542] shadow-md"
+            : "bg-[#F5C542]"
         }`}
       >
         <div className="flex h-16 items-stretch">
@@ -111,7 +111,7 @@ export default function LandingPage() {
                 className="h-9 w-9"
               />
               <span
-                className="text-2xl font-extrabold tracking-[0.08em] text-[#0C3B2E] transition-colors duration-300"
+                className="text-2xl font-extrabold tracking-[0.08em] text-[#1A1A1A] transition-colors duration-300"
               >
                 LEMONTREE
               </span>
@@ -131,7 +131,7 @@ export default function LandingPage() {
                     key={link.label}
                     href={link.href}
                     className={`transition-colors duration-300 hover:opacity-80 ${
-                      scrolled ? "text-slate-700" : "text-[#0C3B2E]/80"
+                      scrolled ? "text-[#1A1A1A]" : "text-[#1A1A1A]/80"
                     } ${link.label === "Home" ? "font-semibold" : ""}`}
                   >
                     {link.label}
@@ -141,7 +141,7 @@ export default function LandingPage() {
                     key={link.label}
                     href={link.href}
                     className={`transition-colors duration-300 hover:opacity-80 ${
-                      scrolled ? "text-slate-700" : "text-[#0C3B2E]/80"
+                      scrolled ? "text-[#1A1A1A]" : "text-[#1A1A1A]/80"
                     }`}
                   >
                     {link.label}
@@ -153,7 +153,7 @@ export default function LandingPage() {
 
           <Link
             href="/auth?mode=signup"
-            className="hidden w-[180px] items-center justify-center bg-[#E5C64A] text-xl font-black tracking-[0.1em] text-[#0C3B2E] transition hover:bg-[#d9b83a] sm:flex"
+            className="hidden w-[180px] items-center justify-center bg-[#1A1A1A] text-xl font-black tracking-[0.1em] text-white transition hover:bg-[#111111] sm:flex"
           >
             REGISTER
           </Link>
@@ -161,7 +161,7 @@ export default function LandingPage() {
       </header>
 
       {/* ── Hero ── */}
-      <section className="relative min-h-[90vh] bg-[#FFF9D6] pt-16">
+      <section className="relative min-h-[90vh] bg-[#FFF8E1] pt-16">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 lg:grid-cols-2 lg:gap-16 lg:px-14 lg:py-28">
           <div>
             <motion.p
@@ -169,7 +169,7 @@ export default function LandingPage() {
               initial="hidden"
               animate="visible"
               custom={0}
-              className="text-sm font-semibold uppercase tracking-[0.2em] text-[#0C3B2E]/70"
+              className="text-sm font-semibold uppercase tracking-[0.2em] text-[#6B7280]"
             >
               Community Campaigns
             </motion.p>
@@ -179,10 +179,10 @@ export default function LandingPage() {
               initial="hidden"
               animate="visible"
               custom={1}
-              className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-[#0C3B2E] sm:text-5xl lg:text-7xl"
+              className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-[#1A1A1A] sm:text-5xl lg:text-7xl"
             >
               Give neighborhoods the{" "}
-              <span className="text-[#E5C64A]">visibility</span> they need.
+              <span className="text-[#F5C542]">visibility</span> they need.
             </motion.h1>
 
             <motion.p
@@ -190,7 +190,7 @@ export default function LandingPage() {
               initial="hidden"
               animate="visible"
               custom={2}
-              className="mt-6 max-w-lg text-lg leading-relaxed text-[#0C3B2E]/70"
+              className="mt-6 max-w-lg text-lg leading-relaxed text-[#6B7280]"
             >
               Plan flyer drops, organize volunteers, and track outreach with a
               visual board designed for fast local action.
@@ -205,13 +205,13 @@ export default function LandingPage() {
             >
               <Link
                 href="/auth?mode=signup"
-                className="rounded-full bg-[#0C3B2E] px-8 py-3.5 text-base font-bold text-white transition hover:bg-[#0C3B2E]/90"
+                className="rounded-lg bg-[#F5C542] px-8 py-3.5 text-base font-bold text-[#1A1A1A] transition hover:bg-[#E5B53A]"
               >
                 Start free
               </Link>
               <Link
                 href="/auth?mode=signin"
-                className="rounded-full border border-[#0C3B2E]/30 px-8 py-3.5 text-base font-semibold text-[#0C3B2E] transition hover:bg-[#0C3B2E]/10"
+                className="rounded-lg border border-[#1A1A1A] px-8 py-3.5 text-base font-semibold text-[#1A1A1A] transition hover:bg-[#1A1A1A]/5"
               >
                 I already have an account
               </Link>
@@ -240,14 +240,14 @@ export default function LandingPage() {
           <svg viewBox="0 0 1440 60" fill="none" className="w-full">
             <path
               d="M0 60V30C360 0 1080 0 1440 30V60H0Z"
-              fill="#F3F0EA"
+              fill="#FFF8E1"
             />
           </svg>
         </div>
       </section>
 
       {/* ── Stats ── */}
-      <section ref={statsRef} className="bg-[#F3F0EA] py-16 lg:py-24">
+      <section ref={statsRef} className="bg-[#FFF8E1] py-16 lg:py-24">
         <motion.div
           variants={stagger}
           initial="hidden"
@@ -256,11 +256,11 @@ export default function LandingPage() {
         >
           {highlightCards.map((card, i) => (
             <motion.div key={card.title} variants={fadeUp} custom={i}>
-              <p className="text-4xl font-extrabold tracking-tight text-[#0C3B2E] lg:text-5xl">
+              <p className="text-4xl font-extrabold tracking-tight text-[#1A1A1A] lg:text-5xl">
                 <CountUp end={card.end} suffix={card.suffix} />
               </p>
-              <div className="mt-3 h-1 w-10 rounded-full bg-[#E5C64A]" />
-              <p className="mt-2 text-sm font-medium text-slate-600">
+              <div className="mt-3 h-1 w-10 rounded-full bg-[#F5C542]" />
+              <p className="mt-2 text-sm font-medium text-[#6B7280]">
                 {card.subtitle}
               </p>
             </motion.div>
@@ -269,7 +269,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Mission ── */}
-      <section ref={missionRef} className="bg-white py-20 lg:py-28">
+      <section ref={missionRef} className="bg-[#FFF8E1] py-20 lg:py-28">
         <div className="mx-auto max-w-7xl items-center gap-16 px-6 lg:grid lg:grid-cols-2 lg:px-14">
           <motion.div
             variants={fadeUp}
@@ -277,10 +277,10 @@ export default function LandingPage() {
             animate={missionInView ? "visible" : "hidden"}
             custom={0}
           >
-            <h2 className="text-3xl font-bold tracking-tight text-slate-900 lg:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tight text-[#1A1A1A] lg:text-4xl">
               Built for communities that show up.
             </h2>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-slate-600">
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-[#6B7280]">
               Lemontree helps neighborhood leaders coordinate volunteers, plan
               outreach, and drive real change &mdash; from flyer drops to food
               pantries.
@@ -298,14 +298,14 @@ export default function LandingPage() {
                 key={f.title}
                 variants={fadeUp}
                 custom={i + 1}
-                className="flex items-start gap-4 rounded-2xl bg-[#F3F0EA] p-6"
+                className="flex items-start gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-lg">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-lg">
                   {f.icon}
                 </span>
                 <div>
-                  <p className="font-semibold text-slate-900">{f.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  <p className="font-semibold text-[#1A1A1A]">{f.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#6B7280]">
                     {f.desc}
                   </p>
                 </div>
@@ -316,7 +316,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Bottom CTA + Footer ── */}
-      <section ref={ctaRef} className="bg-[#0C3B2E]">
+      <section ref={ctaRef} className="bg-[#F5C542]">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -324,29 +324,29 @@ export default function LandingPage() {
           custom={0}
           className="mx-auto max-w-3xl px-6 py-20 text-center lg:py-28"
         >
-          <h2 className="text-3xl font-bold text-white lg:text-5xl">
+          <h2 className="text-3xl font-bold text-[#1A1A1A] lg:text-5xl">
             Ready to make an impact?
           </h2>
-          <p className="mt-4 text-lg text-emerald-200">
+          <p className="mt-4 text-lg text-[#1A1A1A]/70">
             Join hundreds of volunteers building stronger neighborhoods.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link
               href="/auth?mode=signup"
-              className="rounded-full bg-[#E5C64A] px-8 py-3.5 text-base font-bold text-[#0C3B2E] transition hover:bg-[#d9b83a]"
+              className="rounded-lg bg-[#1A1A1A] px-8 py-3.5 text-base font-bold text-white transition hover:bg-[#111111]"
             >
               Start free
             </Link>
             <Link
               href="/auth?mode=signin"
-              className="rounded-full border border-white/30 px-8 py-3.5 text-base font-semibold text-white transition hover:bg-white/10"
+              className="rounded-lg border border-[#1A1A1A] px-8 py-3.5 text-base font-semibold text-[#1A1A1A] transition hover:bg-[#1A1A1A]/5"
             >
               I already have an account
             </Link>
           </div>
         </motion.div>
 
-        <footer className="border-t border-white/10">
+        <footer className="border-t border-[#E5E7EB]">
           <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 py-8 sm:flex-row lg:px-14">
             <div className="flex items-center gap-3">
               <Image
@@ -356,12 +356,12 @@ export default function LandingPage() {
                 height={28}
                 className="h-7 w-7"
               />
-              <span className="text-lg font-extrabold tracking-[0.06em] text-white">
+              <span className="text-lg font-extrabold tracking-[0.06em] text-[#1A1A1A]">
                 LEMONTREE
               </span>
             </div>
 
-            <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-emerald-300">
+            <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#1A1A1A]">
               <Link href="/landing" className="hover:text-white">
                 Home
               </Link>
@@ -379,7 +379,7 @@ export default function LandingPage() {
               </a>
             </nav>
 
-            <p className="text-xs text-emerald-400/60">
+            <p className="text-xs text-[#6B7280]">
               &copy; 2026 Lemontree
             </p>
           </div>

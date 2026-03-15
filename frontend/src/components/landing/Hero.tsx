@@ -43,8 +43,8 @@ function MagneticButton({
 
   const baseStyles =
     variant === "primary"
-      ? "bg-[#FCD34D] text-[#1B4332] shadow-[0_20px_40px_rgba(252,211,77,0.28)]"
-      : "border border-white/60 text-white hover:bg-white hover:text-[#1B4332]";
+      ? "bg-[#F5C542] text-[#1A1A1A] shadow-[0_20px_40px_rgba(245,197,66,0.2)]"
+      : "border border-[#1A1A1A] text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white";
 
   return (
     <motion.div
@@ -76,28 +76,28 @@ export default function Hero() {
   const heroId = useMemo(() => Math.random().toString(36).slice(2), []);
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#1B4332] text-white">
+    <section className="relative min-h-screen overflow-hidden bg-[#FFF8E1] text-[#1A1A1A]">
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="sticky top-0 z-20 bg-[#1B4332]/80 backdrop-blur"
+        className="sticky top-0 z-20 bg-[#F5C542] backdrop-blur"
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3 text-sm font-semibold tracking-[0.3em]">
+          <div className="flex items-center gap-3 text-sm font-semibold tracking-[0.3em] text-[#1A1A1A]">
             <Image src="/logo.svg" alt="Lemontree" width={36} height={36} className="h-9 w-9" />
             <span>LEMONTREE</span>
           </div>
           <div className="hidden items-center gap-8 text-sm uppercase tracking-[0.14em] md:flex">
             {navLinks.map((link) => (
-              <Link key={link.label} href={link.href} className="text-white/70 hover:text-white">
+              <Link key={link.label} href={link.href} className="text-[#1A1A1A]/70 hover:text-[#1A1A1A]">
                 {link.label}
               </Link>
             ))}
           </div>
           <Link
             href="/auth"
-            className="rounded-full bg-[#FCD34D] px-5 py-2 text-sm font-semibold text-[#1B4332] shadow-[0_12px_28px_rgba(252,211,77,0.3)] transition hover:scale-[1.03]"
+            className="rounded-lg bg-[#1A1A1A] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#111111]"
           >
             Register
           </Link>
@@ -118,7 +118,7 @@ export default function Hero() {
                       key={wordText}
                       variants={word}
                       className={`mr-3 inline-block ${
-                        wordText === "visibility" ? "text-[#FCD34D]" : "text-white"
+                        wordText === "visibility" ? "text-[#F5C542]" : "text-[#1A1A1A]"
                       }`}
                     >
                       {wordText}
@@ -133,7 +133,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-6 max-w-xl text-base text-emerald-100 sm:text-lg"
+            className="mt-6 max-w-xl text-base text-[#374151] sm:text-lg"
           >
             Plan flyer drops, organize volunteers, and track outreach with a platform designed for fast local action.
           </motion.p>
@@ -154,11 +154,11 @@ export default function Hero() {
         </div>
 
         <div className="relative flex items-center justify-center">
-          <div className="absolute -right-10 -top-10 h-72 w-72 rounded-[30%_70%_70%_30%/30%_30%_70%_70%] bg-gradient-to-br from-yellow-300 via-[#FCD34D] to-emerald-400 opacity-80 blur-2xl animate-[morph_15s_ease-in-out_infinite]" />
-          <div className="relative z-10 rounded-[32px] border border-white/15 bg-white/10 p-6 backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.28em] text-emerald-100">Community Impact</p>
-            <p className="mt-3 text-3xl font-semibold">Every flyer finds a family.</p>
-            <p className="mt-3 text-sm text-emerald-100">
+          <div className="absolute -right-10 -top-10 h-72 w-72 rounded-[30%_70%_70%_30%/30%_30%_70%_70%] bg-[#FEF3C7] opacity-70 blur-2xl animate-[morph_15s_ease-in-out_infinite]" />
+          <div className="relative z-10 rounded-[32px] border border-[#E5E7EB] bg-white p-6 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.28em] text-[#6B7280]">Community Impact</p>
+            <p className="mt-3 text-3xl font-semibold text-[#1A1A1A]">Every flyer finds a family.</p>
+            <p className="mt-3 text-sm text-[#6B7280]">
               Build campaigns that connect neighbors with real food resources in minutes.
             </p>
           </div>
