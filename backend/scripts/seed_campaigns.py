@@ -32,7 +32,11 @@ from supabase import create_client
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 # Prefer service-role key (bypasses RLS); fall back to anon key
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ["SUPABASE_KEY"]
+SUPABASE_KEY = (
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    or os.environ.get("SUPABASE_KEY")
+    or os.environ["SUPABASE_ANON_KEY"]
+)
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ── Realistic data pools ───────────────────────────────────────────────────────
@@ -145,30 +149,19 @@ def _rand_date(start_offset_days: int = -90, end_offset_days: int = 120) -> date
 
 def _get_or_create_organizer() -> str:
     """Return the id of an existing organizer/admin user, or insert a seed one."""
-    result = (
-        sb.table("users")
-        .select("id")
-        .in_("role", ["organizer", "admin"])
-        .limit(1)
-        .execute()
-    )
-    if result.data:
-        return result.data[0]["id"]
-
-    # Fall back to any user
+    # Pick any existing user to act as organizer
     result = sb.table("users").select("id").limit(1).execute()
     if result.data:
         return result.data[0]["id"]
 
-    # No users at all — insert a placeholder seed user
+    # No users at all — insert a placeholder with the default volunteer role
     seed_id = str(uuid.uuid4())
     sb.table("users").insert({
         "id": seed_id,
         "email": "seed-organizer@lemontree.internal",
         "name": "Seed Organizer",
-        "role": "organizer",
     }).execute()
-    print("  Created placeholder seed organizer user.")
+    print("  Created placeholder seed user.")
     return seed_id
 
 
