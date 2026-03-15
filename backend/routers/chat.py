@@ -1,16 +1,16 @@
 """Chat router: session management, conversation turns, and agent tool endpoints."""
 
+import asyncio
 import logging
+import os
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Header, Path
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from agents.tools import build_bedrock_graph
+from agents.agent import run_agent
 from auth import get_current_user
 from agents.chat_service import (
-    CAMPAIGN_AGENT_SYSTEM_PROMPT,
     REQUIRED_FIELDS,
     VALID_CONTEXT_FIELDS,
 )
@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+# Include a short window of recent prior sessions to preserve continuity across sessions.
+_PREVIOUS_CONTEXT_SESSION_LIMIT = int(os.getenv("CHAT_PREVIOUS_SESSION_LIMIT", "2"))
+_PREVIOUS_CONTEXT_MESSAGES_PER_SESSION = int(os.getenv("CHAT_PREVIOUS_MESSAGES_PER_SESSION", "6"))
 
 # `REQUIRED_FIELDS` and `VALID_CONTEXT_FIELDS` are shared from agent_app.chat_service.
 
@@ -161,6 +165,51 @@ def _parse_bearer_token(authorization: Optional[str]) -> str:
     return ""
 
 
+def _load_previous_conversation_context(
+    supabase,
+    user_id: str,
+    current_session_id: str,
+    format_history,
+) -> list[dict[str, str]]:
+    """Fetch a small recent window from prior sessions for cross-session continuity."""
+    if _PREVIOUS_CONTEXT_SESSION_LIMIT <= 0 or _PREVIOUS_CONTEXT_MESSAGES_PER_SESSION <= 0:
+        return []
+
+    try:
+        session_result = (
+            supabase.table("chat_sessions")
+            .select("id")
+            .eq("user_id", user_id)
+            .neq("id", current_session_id)
+            .order("created_at", desc=True)
+            .limit(_PREVIOUS_CONTEXT_SESSION_LIMIT)
+            .execute()
+        )
+        previous_sessions = session_result.data if isinstance(session_result.data, list) else []
+
+        combined_rows: list[dict[str, Any]] = []
+        for session in reversed(previous_sessions):
+            previous_session_id = session.get("id")
+            if not previous_session_id:
+                continue
+
+            messages_result = (
+                supabase.table("chat_messages")
+                .select("role, content")
+                .eq("session_id", previous_session_id)
+                .order("created_at", desc=True)
+                .limit(_PREVIOUS_CONTEXT_MESSAGES_PER_SESSION)
+                .execute()
+            )
+            rows = messages_result.data if isinstance(messages_result.data, list) else []
+            combined_rows.extend(reversed(rows))
+
+        return format_history(combined_rows)
+    except Exception as exc:
+        logger.warning("Failed to load previous conversation context: %s", exc)
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -233,6 +282,15 @@ def send_message(
     # We already inserted this user message in DB; avoid sending it twice to the graph.
     if messages and messages[-1].get("role") == "user" and messages[-1].get("content") == body.message:
         chat_history = chat_history[:-1]
+
+    previous_history = _load_previous_conversation_context(
+        supabase=supabase,
+        user_id=user.user.id,
+        current_session_id=resolved_session_id,
+        format_history=format_history,
+    )
+    if previous_history:
+        chat_history = [*previous_history, *chat_history]
 
     try:
         result = executor.invoke({
@@ -462,24 +520,27 @@ def _extract_ai_text(message: Any) -> str:
 
 
 class _BedrockGraphExecutor:
-    """Adapter that offers executor.invoke(...) over a Bedrock LangGraph."""
+    """Adapter that offers executor.invoke(...) over the shared agent runtime."""
 
     def invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
         user_input = payload.get("input", "")
         chat_history = payload.get("chat_history") or []
-        session_id = payload.get("session_id", "")
-        token = payload.get("token", "")
+        session_id = payload.get("session_id")
+        token = payload.get("token")
 
-        graph_messages = [
-            SystemMessage(content=CAMPAIGN_AGENT_SYSTEM_PROMPT),
+        agent_messages = [
             *chat_history,
-            HumanMessage(content=user_input),
+            {"role": "user", "content": user_input},
         ]
-        graph = build_bedrock_graph(session_id=session_id, token=token)
-        result = graph.invoke({"messages": graph_messages})
 
-        last_message = (result.get("messages") or [None])[-1]
-        output = _extract_ai_text(last_message) if last_message else ""
+        result = asyncio.run(
+            run_agent(
+                agent_messages,
+                session_id=session_id,
+                token=token,
+            )
+        )
+        output = result.get("content", "")
         return {"output": output, "graph_result": result}
 
 
@@ -489,17 +550,15 @@ def _get_agent_executor():
 
 
 def _get_format_history():
-    """Convert DB chat rows into LangChain messages. Separate function for testability."""
+    """Convert DB chat rows into agent-compatible message dicts."""
 
-    def _format_history(messages: list[dict[str, Any]]) -> list[Any]:
-        history = []
+    def _format_history(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+        history: list[dict[str, str]] = []
         for message in messages:
             role = message.get("role")
             content = message.get("content", "")
-            if role == "user":
-                history.append(HumanMessage(content=content))
-            elif role == "assistant":
-                history.append(AIMessage(content=content))
+            if role in ("user", "assistant"):
+                history.append({"role": role, "content": content})
         return history
 
     return _format_history
