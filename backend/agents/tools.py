@@ -9,7 +9,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 
 BASE_URL = os.getenv("AGENT_BACKEND_BASE_URL", "http://localhost:8000")
-DEFAULT_MODEL_ID = "mistral.mistral-large-2402-v1:0"
+DEFAULT_MODEL_ID = "meta.llama3-3-70b-instruct-v1:0"
 DEFAULT_REGION = "us-east-1"
 
 
@@ -369,7 +369,7 @@ def build_request_tools(session_id: str, token: str):
     """Create request-scoped tools with server-injected session auth context."""
 
     @tool("save_event_field", description=save_event_field.__doc__)
-    def _save_event_field(field: str, value: Any) -> dict:
+    def _save_event_field(field: str, value: str) -> dict:
         return save_event_field.invoke(
             {
                 "session_id": session_id,

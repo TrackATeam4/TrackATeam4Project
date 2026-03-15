@@ -301,14 +301,8 @@ def send_message(
         })
         reply = result.get("output", "")
     except Exception as exc:
-        error_str = str(exc)
         logger.error("Agent invocation failed: %s", exc)
-        if "botocore" in type(exc).__module__ or "boto" in type(exc).__module__:
-            raise HTTPException(
-                status_code=503,
-                detail="AI service temporarily unavailable. Please try again later.",
-            )
-        raise HTTPException(status_code=500, detail="Failed to process message")
+        raise HTTPException(status_code=500, detail=str(exc))
 
     # Insert assistant reply
     supabase.table("chat_messages").insert({

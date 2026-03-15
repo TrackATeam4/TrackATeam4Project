@@ -23,6 +23,7 @@ The router after call_model inspects which tools were requested:
 Set this in your .env:
     AWS_BEARER_TOKEN_BEDROCK=your-token-here
     AWS_REGION=us-east-1
+    BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
 """
 
 import os
@@ -44,8 +45,8 @@ load_dotenv()
 # ============================================================
 
 BEDROCK_TOKEN = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-MODEL_ID = "mistral.mistral-large-2402-v1:0"
+AWS_REGION = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
+MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0").strip().strip('"')
 
 BEDROCK_URL = (
     f"https://bedrock-runtime.{AWS_REGION}.amazonaws.com"
@@ -54,6 +55,9 @@ BEDROCK_URL = (
 
 # Campaign tools — everything except web_search
 CAMPAIGN_TOOL_NAMES = {tool.name for tool in AGENT_TOOLS}
+
+# Maximum tool-call iterations per user message to prevent infinite loops
+MAX_TOOL_ITERATIONS = 8
 
 
 # ============================================================
@@ -68,7 +72,7 @@ class AgentState(TypedDict):
     session_id: str | None            # Session context for request-scoped tools
     token: str | None                 # Auth token for request-scoped tools
     _pending_tool_blocks: list[dict]  # Tools the model wants to call next
-
+    _tool_iteration: int              # Loop counter — resets each user message
 
 
 def _tool_input_schema(tool_obj: Any) -> dict:
@@ -108,6 +112,35 @@ def _resolve_tools_for_state(state: AgentState) -> tuple[dict[str, Any], list[di
     return registry, specs
 
 
+def _format_tool_result(tool_name: str, result: Any) -> str:
+    """Convert a raw tool result dict into a readable summary for the model."""
+    if not isinstance(result, dict):
+        return str(result)
+
+    # save_event_field endpoint returns {"context": {...}} — treat as success
+    has_context = "context" in result
+    status = result.get("status") or ("success" if result.get("success") else None)
+    is_success = has_context or status in ("success", "ok") or result.get("success") is True
+
+    if is_success:
+        parts = []
+        # Surface the saved context (save_event_field response)
+        ctx = result.get("context")
+        if ctx and isinstance(ctx, dict):
+            saved = {k: v for k, v in ctx.items() if v}
+            if saved:
+                parts.append(f"saved fields: {json.dumps(saved, default=str)}")
+        for key in ("summary", "campaign_id", "flyer_url", "thumbnail_url",
+                    "google_calendar_url", "invite_url", "content"):
+            val = result.get("data", {}).get(key) if isinstance(result.get("data"), dict) else result.get(key)
+            if val:
+                parts.append(f"{key}: {val}")
+        return "Success. " + "; ".join(parts) if parts else "Success."
+
+    error_msg = result.get("message") or result.get("detail") or result.get("error") or json.dumps(result, default=str)
+    return f"Error: {error_msg}"
+
+
 # ============================================================
 # FORMAT CONVERTERS (Bedrock Converse API)
 # ============================================================
@@ -126,6 +159,13 @@ def convert_tools_to_converse(tools: list[dict]) -> dict:
 
 
 def convert_messages_to_converse(messages: list[dict]) -> list[dict]:
+    # Bedrock requires conversations to start with a user message.
+    # Drop any leading assistant messages (can appear from cross-session history).
+    first_user = next((i for i, m in enumerate(messages) if m.get("role") == "user"), None)
+    if first_user is None:
+        return []
+    messages = messages[first_user:]
+
     converse_messages = []
     for msg in messages:
         role = msg["role"]
@@ -162,10 +202,25 @@ def convert_messages_to_converse(messages: list[dict]) -> list[dict]:
             continue
 
         converse_messages.append({"role": role, "content": [{"text": str(content)}]})
-    return converse_messages
+
+    # Bedrock requires strictly alternating user/assistant roles.
+    # Merge consecutive same-role messages — this can happen when cross-session history
+    # is prepended and creates a user→user or assistant→assistant boundary.
+    merged: list[dict] = []
+    for msg in converse_messages:
+        if merged and merged[-1]["role"] == msg["role"]:
+            merged[-1] = {
+                "role": msg["role"],
+                "content": merged[-1]["content"] + msg["content"],
+            }
+        else:
+            merged.append(msg)
+
+    return merged
 
 
 def parse_converse_response(response: dict) -> list[dict]:
+    """Parse a Bedrock Converse API response into a flat list of content blocks."""
     output = response.get("output", {})
     message = output.get("message", {})
     converse_content = message.get("content", [])
@@ -180,7 +235,7 @@ def parse_converse_response(response: dict) -> list[dict]:
                 "type": "tool_use",
                 "id": tu["toolUseId"],
                 "name": tu["name"],
-                "input": tu["input"]
+                "input": tu["input"],
             })
     return blocks
 
@@ -194,9 +249,11 @@ async def call_bedrock(messages: list[dict], system: str, tools: list[dict]) -> 
         "modelId": MODEL_ID,
         "messages": convert_messages_to_converse(messages),
         "system": [{"text": system}],
-        "toolConfig": convert_tools_to_converse(tools),
-        "inferenceConfig": {"maxTokens": 4096, "temperature": 0.7},
+        "inferenceConfig": {"maxTokens": 4096, "temperature": 0.3},
     }
+    # Bedrock rejects toolConfig with an empty tools list — only include when tools exist
+    if tools:
+        body["toolConfig"] = convert_tools_to_converse(tools)
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {BEDROCK_TOKEN}",
@@ -213,9 +270,7 @@ async def call_bedrock(messages: list[dict], system: str, tools: list[dict]) -> 
 # ============================================================
 
 async def duckduckgo_search(query: str) -> dict:
-    """
-    Search DuckDuckGo using the ddgs package.
-    """
+    """Search DuckDuckGo using the ddgs package."""
     try:
         from ddgs import DDGS
 
@@ -240,41 +295,25 @@ async def duckduckgo_search(query: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": f"Search failed: {str(e)}"}
 
-    # Fallback: use DuckDuckGo lite HTML search
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(
-            "https://lite.duckduckgo.com/lite/",
-            params={"q": query},
-            headers={"User-Agent": "LemontreeVolunteerApp/1.0"}
-        )
-        if resp.status_code == 200:
-            # Extract text snippets from the HTML (basic parsing)
-            import re as regex
-            snippets = regex.findall(r'<td class="result-snippet">(.*?)</td>', resp.text, regex.DOTALL)
-            links = regex.findall(r'<a rel="nofollow" href="(https?://[^"]+)"', resp.text)
-            results = []
-            for i, snippet in enumerate(snippets[:5]):
-                clean = regex.sub(r'<[^>]+>', '', snippet).strip()
-                url = links[i] if i < len(links) else ""
-                results.append({"text": clean, "url": url})
-            if results:
-                return {
-                    "status": "success",
-                    "abstract": results[0]["text"] if results else "",
-                    "source": "DuckDuckGo Search",
-                    "url": results[0]["url"] if results else "",
-                    "related": results[1:],
-                }
 
-    return {
-        "status": "error",
-        "message": f"No results found for '{query}'",
-    }
+def _format_search_result(result: dict) -> str:
+    """Format a DuckDuckGo search result into a readable string for the model."""
+    if result.get("status") != "success":
+        return f"Search failed: {result.get('message', 'unknown error')}"
+    items = result.get("results", [])
+    if not items:
+        return "No results found."
+    lines = []
+    for item in items[:3]:
+        title = item.get("title", "")
+        snippet = item.get("snippet", "")
+        url = item.get("url", "")
+        lines.append(f"- {title}: {snippet} ({url})")
+    return "Search results:\n" + "\n".join(lines)
 
 
 # ============================================================
 # NODE 1: CALL MODEL
-# Sends conversation to Bedrock, parses response.
 # ============================================================
 
 async def call_model_node(state: AgentState) -> dict:
@@ -283,7 +322,17 @@ async def call_model_node(state: AgentState) -> dict:
     Calls the LLM with all tools available. The model decides
     which tools (if any) to call based on the conversation.
     """
-    print(f"\n  [Node: call_model] Calling {MODEL_ID}...")
+    iteration = state.get("_tool_iteration", 0)
+
+    # Safety: bail out if we've looped too many times in one user turn
+    if iteration >= MAX_TOOL_ITERATIONS:
+        print(f"  [Node: call_model] ⚠ Loop limit reached ({iteration} iterations), stopping.")
+        return {
+            "final_response": "I've completed several steps in this turn. Let me know what you'd like to do next.",
+            "_pending_tool_blocks": [],
+        }
+
+    print(f"  [Node: call_model] Calling {MODEL_ID} (iteration {iteration})...")
 
     _, tool_specs = _resolve_tools_for_state(state)
     response = await call_bedrock(state["messages"], CAMPAIGN_AGENT_SYSTEM_PROMPT, tool_specs)
@@ -292,38 +341,36 @@ async def call_model_node(state: AgentState) -> dict:
     tool_blocks = [b for b in content_blocks if b.get("type") == "tool_use"]
 
     if not tool_blocks:
-        # No tools requested — extract final text
-        text = "".join(
-            b.get("text", "") for b in content_blocks if b.get("type") == "text"
-        )
-        text = re.sub(r'<thinking>[\s\S]*?</thinking>\n?', '', text)
+        text = "".join(b.get("text", "") for b in content_blocks if b.get("type") == "text")
+        # Strip thinking tags emitted by some models
+        text = re.sub(r'<thinking>[\s\S]*?</thinking>\n?', '', text).strip()
         print(f"  [Node: call_model] → Final response ({len(text)} chars)")
         return {"final_response": text, "_pending_tool_blocks": []}
 
-    # Tools requested — store in state for routing
     updated_messages = state["messages"] + [{"role": "assistant", "content": content_blocks}]
     tool_names = [b["name"] for b in tool_blocks]
     print(f"  [Node: call_model] → Tools requested: {tool_names}")
 
-    return {"messages": updated_messages, "_pending_tool_blocks": tool_blocks}
+    return {
+        "messages": updated_messages,
+        "_pending_tool_blocks": tool_blocks,
+        "_tool_iteration": iteration + 1,
+    }
 
 
 # ============================================================
 # NODE 2: EXECUTE CAMPAIGN TOOLS
-# Handles all Lemontree-specific tools.
 # ============================================================
 
 async def campaign_tools_node(state: AgentState) -> dict:
     """
     NODE: campaign_tools
-    Executes Lemontree campaign tools: pantry search, event creation,
-    flyer generation, invite drafting, zone assignments, impact summary.
+    Executes Lemontree campaign tools and returns readable results.
     """
     tool_blocks = state.get("_pending_tool_blocks", [])
     tool_calls = list(state.get("tool_calls", []))
     tool_results = []
 
-    # Only execute campaign tools (filter out web_search if mixed)
     for block in tool_blocks:
         if block["name"] not in CAMPAIGN_TOOL_NAMES:
             continue
@@ -344,12 +391,13 @@ async def campaign_tools_node(state: AgentState) -> dict:
             except Exception as exc:
                 result = {"status": "error", "message": str(exc)}
 
-        print(f"  [Node: campaign_tools] {tool_name} → {result.get('status', 'unknown')}")
+        readable = _format_tool_result(tool_name, result)
+        print(f"  [Node: campaign_tools] {tool_name} → {readable[:80]}")
 
         tool_results.append({
             "type": "tool_result",
             "tool_use_id": tool_id,
-            "content": json.dumps(result, default=str),
+            "content": readable,
         })
         tool_calls.append({"tool": tool_name, "input": tool_input, "result": result})
 
@@ -363,15 +411,12 @@ async def campaign_tools_node(state: AgentState) -> dict:
 
 # ============================================================
 # NODE 3: WEB SEARCH
-# Handles general/ambiguous questions via DuckDuckGo.
 # ============================================================
 
 async def web_search_node(state: AgentState) -> dict:
     """
     NODE: web_search
-    Executes DuckDuckGo web search for general questions about
-    food assistance, SNAP benefits, volunteer tips, or anything
-    the campaign tools can't answer.
+    Executes DuckDuckGo web search for general questions.
     """
     tool_blocks = state.get("_pending_tool_blocks", [])
     tool_calls = list(state.get("tool_calls", []))
@@ -384,14 +429,15 @@ async def web_search_node(state: AgentState) -> dict:
         query = block["input"].get("query", "")
         tool_id = block["id"]
 
-        print(f"  [Node: web_search] Searching DuckDuckGo: \"{query}\"")
+        print(f"  [Node: web_search] Searching: \"{query}\"")
         result = await duckduckgo_search(query)
+        readable = _format_search_result(result)
         print(f"  [Node: web_search] → {result.get('status', 'unknown')}")
 
         tool_results.append({
             "type": "tool_result",
             "tool_use_id": tool_id,
-            "content": json.dumps(result, default=str),
+            "content": readable,
         })
         tool_calls.append({"tool": "web_search", "input": {"query": query}, "result": result})
 
@@ -404,33 +450,20 @@ async def web_search_node(state: AgentState) -> dict:
 
 
 # ============================================================
-# ROUTER: Decides which node to go to after call_model
+# ROUTER
 # ============================================================
 
 def route_after_model(state: AgentState) -> str:
-    """
-    ROUTER: Inspects pending tool calls and routes to the correct node.
-
-    - If any tool is web_search → route to web_search node
-    - If any tool is a campaign tool → route to campaign_tools node
-    - If no tools → route to END
-
-    If BOTH types are requested in the same turn, web_search takes priority
-    (campaign tools will be called in the next loop iteration).
-    """
     pending = state.get("_pending_tool_blocks", [])
-
     if not pending:
         return END
 
     tool_names = {b["name"] for b in pending}
 
-    # Check if web_search is among the requested tools
     if "web_search" in tool_names:
-        print(f"  [Router] → web_search (query: general/ambiguous)")
+        print(f"  [Router] → web_search")
         return "web_search"
 
-    # Otherwise route to campaign tools
     if tool_names & CAMPAIGN_TOOL_NAMES:
         print(f"  [Router] → campaign_tools ({tool_names})")
         return "campaign_tools"
@@ -439,41 +472,26 @@ def route_after_model(state: AgentState) -> str:
 
 
 # ============================================================
-# BUILD THE GRAPH (3 nodes, conditional routing)
+# BUILD THE GRAPH
 # ============================================================
 
 def build_agent_graph() -> StateGraph:
-    """
-    Constructs the LangGraph StateGraph:
-
-        START → call_model → {route_after_model}
-                                ↓ campaign_tools    ↓ web_search      ↓ END
-                          [campaign_tools]     [web_search]
-                                ↓                    ↓
-                          call_model ←───────────────┘  (both loop back)
-    """
     graph = StateGraph(AgentState)
 
-    # Add 3 nodes
     graph.add_node("call_model", call_model_node)
     graph.add_node("campaign_tools", campaign_tools_node)
     graph.add_node("web_search", web_search_node)
 
-    # Entry point
     graph.add_edge(START, "call_model")
-
-    # Conditional routing after model call
     graph.add_conditional_edges("call_model", route_after_model, {
         "campaign_tools": "campaign_tools",
         "web_search": "web_search",
         END: END,
     })
-
-    # Both tool nodes loop back to call_model
     graph.add_edge("campaign_tools", "call_model")
     graph.add_edge("web_search", "call_model")
 
-    return graph.compile()
+    return graph.compile(checkpointer=None, debug=False)
 
 
 # Compile once at module load
@@ -481,7 +499,7 @@ agent_graph = build_agent_graph()
 
 
 # ============================================================
-# PUBLIC API (called from main.py — same interface as before)
+# PUBLIC API
 # ============================================================
 
 async def run_agent(
@@ -489,10 +507,7 @@ async def run_agent(
     session_id: str | None = None,
     token: str | None = None,
 ) -> dict:
-    """
-    Run the Campaign Builder Agent using LangGraph.
-    Supports optional session context for request-scoped tools.
-    """
+    """Run the Campaign Builder Agent using LangGraph."""
     if not BEDROCK_TOKEN:
         raise Exception(
             "AWS_BEARER_TOKEN_BEDROCK not set in .env file. "
@@ -506,9 +521,10 @@ async def run_agent(
         "session_id": session_id,
         "token": token,
         "_pending_tool_blocks": [],
+        "_tool_iteration": 0,
     }
 
-    final_state = await agent_graph.ainvoke(initial_state)
+    final_state = await agent_graph.ainvoke(initial_state, {"recursion_limit": 20})
 
     return {
         "role": "assistant",
