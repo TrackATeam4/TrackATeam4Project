@@ -132,8 +132,8 @@ export default function InvitePage() {
 
   if (!inviteData) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500">Loading invitation…</p>
+      <main className="min-h-screen flex items-center justify-center bg-[#FFF8E1]">
+        <p className="text-[#6B7280]">Loading invitation…</p>
       </main>
     )
   }
@@ -142,22 +142,22 @@ export default function InvitePage() {
 
   if (rsvpState === 'expired') {
     return (
-      <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow p-8 text-center">
-          <p className="text-gray-600">This invitation has expired.</p>
+      <main className="min-h-screen flex items-center justify-center p-6 bg-[#FFF8E1]">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-8 text-center">
+          <p className="text-[#6B7280]">This invitation has expired.</p>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
-      <div className="max-w-lg w-full bg-white rounded-2xl shadow-lg overflow-hidden">
-        <div className="bg-green-500 px-8 py-6">
-          <p className="text-green-100 text-sm font-medium uppercase tracking-wide">
+    <main className="min-h-screen flex items-center justify-center p-6 bg-[#FFF8E1]">
+      <div className="max-w-lg w-full bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-[#F5C542] px-8 py-6">
+          <p className="text-[#1A1A1A] text-sm font-medium uppercase tracking-wide">
             Volunteer Invitation
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-white">{campaign.title}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-[#1A1A1A]">{campaign.title}</h1>
         </div>
 
         <div className="px-8 py-6 space-y-3">
@@ -180,14 +180,14 @@ export default function InvitePage() {
           </div>
 
           {campaign.description && (
-            <p className="text-gray-600 text-sm leading-relaxed pt-2">{campaign.description}</p>
+            <p className="text-[#6B7280] text-sm leading-relaxed pt-2">{campaign.description}</p>
           )}
         </div>
 
         <div className="px-8 pb-8">
           {rsvpState === 'accepted' && (
-            <div className="rounded-xl bg-green-50 border border-green-200 p-5 space-y-3">
-              <p className="font-semibold text-green-700">You're going! A confirmation email has been sent.</p>
+            <div className="rounded-xl bg-[#E8F5E9] border border-[#BBF7D0] p-5 space-y-3">
+              <p className="font-semibold text-[#16A34A]">You're going! A confirmation email has been sent.</p>
               {calendarUrl && <AddToCalendarButton url={calendarUrl} />}
             </div>
           )}
@@ -200,13 +200,13 @@ export default function InvitePage() {
 
           {(rsvpState === 'idle' || rsvpState === 'loading' || rsvpState === 'error') && (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700">Will you attend?</p>
+              <p className="text-sm font-medium text-[#1A1A1A]">Will you attend?</p>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => handleRsvp('accept')}
                   disabled={rsvpState === 'loading'}
-                  className="flex-1 rounded-lg bg-green-500 px-4 py-3 text-white font-medium hover:bg-green-600 disabled:opacity-50 transition-colors"
+                  className="flex-1 rounded-lg bg-[#F5C542] px-4 py-3 text-[#1A1A1A] font-medium hover:bg-[#E5B53A] disabled:opacity-50 transition-colors"
                 >
                   {rsvpState === 'loading' ? 'Saving…' : "Yes, I'm going"}
                 </button>

@@ -29,7 +29,7 @@ const spaceMono = Space_Mono({
 
 export default function LandingPage() {
   return (
-    <div className={`${dmSerif.variable} ${dmSans.variable} ${spaceMono.variable} bg-[#FFFEF5]`}>
+    <div className={`${dmSerif.variable} ${dmSans.variable} ${spaceMono.variable} bg-[#FFF8E1]`}>
       <Hero />
       <StatsTicker />
       <HowItWorks />
@@ -70,8 +70,8 @@ export default function LandingPage() {
         }
 
         @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 0 rgba(252, 211, 77, 0.0); }
-          50% { box-shadow: 0 0 35px rgba(252, 211, 77, 0.5); }
+          0%, 100% { box-shadow: 0 0 0 rgba(245, 197, 66, 0.0); }
+          50% { box-shadow: 0 0 35px rgba(245, 197, 66, 0.35); }
         }
       `}</style>
     </div>

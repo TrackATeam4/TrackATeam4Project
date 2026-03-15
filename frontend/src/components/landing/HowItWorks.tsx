@@ -22,7 +22,7 @@ const cards = [
 
 export default function HowItWorks() {
   return (
-    <section className="bg-[#FFF8E7] py-20">
+    <section className="bg-[#FFF8E1] py-20">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -30,11 +30,11 @@ export default function HowItWorks() {
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          <p className="text-xs uppercase tracking-[0.3em] text-[#F97316]">How it works</p>
-          <h2 className="mt-4 text-4xl font-semibold text-[#1B4332] sm:text-5xl">
+          <p className="text-xs uppercase tracking-[0.3em] text-[#6B7280]">How it works</p>
+          <h2 className="mt-4 text-4xl font-semibold text-[#1A1A1A] sm:text-5xl">
             Built for communities that show up.
           </h2>
-          <p className="mt-4 max-w-2xl text-base text-[#334155]">
+          <p className="mt-4 max-w-2xl text-base text-[#6B7280]">
             Lemontree helps neighborhood leaders coordinate volunteers, plan outreach, and drive real change — from flyer drops to food pantries.
           </p>
         </motion.div>
@@ -48,12 +48,13 @@ export default function HowItWorks() {
               viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 0.6, delay: index * 0.15 }}
               whileHover={{ y: -8, scale: 1.02 }}
-              className="group relative overflow-hidden rounded-3xl bg-white p-8 shadow-lg"
+              className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-8 shadow-sm"
             >
-              <div className="text-4xl">{card.emoji}</div>
-              <h3 className="mt-6 text-xl font-semibold text-[#1B4332]">{card.title}</h3>
-              <p className="mt-3 text-sm text-[#334155]">{card.description}</p>
-              <div className="pointer-events-none absolute inset-0 rounded-3xl border border-transparent bg-gradient-to-br from-[#FCD34D]/40 via-transparent to-[#10B981]/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FEF3C7] text-2xl">
+                {card.emoji}
+              </div>
+              <h3 className="mt-6 text-xl font-semibold text-[#1A1A1A]">{card.title}</h3>
+              <p className="mt-3 text-sm text-[#6B7280]">{card.description}</p>
             </motion.div>
           ))}
         </div>

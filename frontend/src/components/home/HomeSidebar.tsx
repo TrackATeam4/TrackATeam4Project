@@ -38,13 +38,13 @@ export default function HomeSidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col bg-[#1B4332] px-6 py-8 text-white lg:flex">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 flex-col border-r border-gray-200 bg-white px-6 py-8 text-[#1A1A1A] lg:flex">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xl font-bold">
             <span className="text-[28px]">🍋</span>
             Lemontree
           </div>
-          <p className="text-xs uppercase tracking-[0.24em] text-emerald-400/60">Volunteer Hub</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-[#6B7280]">Volunteer Hub</p>
         </div>
 
         <nav className="mt-10 flex flex-1 flex-col gap-2 text-sm">
@@ -56,13 +56,10 @@ export default function HomeSidebar() {
                 href={item.href}
                 className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
                   isActive
-                    ? "bg-gradient-to-r from-emerald-500/20 to-transparent text-white font-semibold"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#FEF3C7] text-[#1A1A1A] font-semibold border-l-4 border-[#F5C542]"
+                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
                 }`}
               >
-                {isActive ? (
-                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#FCD34D]" />
-                ) : null}
                 <span className="text-[20px]">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
@@ -71,13 +68,13 @@ export default function HomeSidebar() {
         </nav>
 
         <div className="mt-6">
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#FCD34D] to-[#10B981] text-sm font-semibold text-[#1B4332]">
+          <div className="flex items-center gap-3 rounded-xl bg-gray-50 p-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-white">
               {userName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">{userName}</p>
-              <span className="rounded-full bg-emerald-500/30 px-2 py-0.5 text-xs text-emerald-200">
+              <p className="text-sm font-semibold text-[#1A1A1A]">{userName}</p>
+              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-[#6B7280]">
                 Volunteer
               </span>
             </div>
@@ -85,7 +82,7 @@ export default function HomeSidebar() {
         </div>
       </aside>
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col bg-[#1B4332] px-3 py-8 md:flex lg:hidden">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-24 flex-col border-r border-gray-200 bg-white px-3 py-8 md:flex lg:hidden">
         <div className="flex flex-col items-center gap-4 text-xl">
           {navItems.map((item) => {
             const isActive = isActiveRoute(item.href);
@@ -95,8 +92,8 @@ export default function HomeSidebar() {
                 href={item.href}
                 className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
                   isActive
-                    ? "bg-white/15 text-white"
-                    : "text-white/60 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#FEF3C7] text-[#1A1A1A]"
+                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
                 }`}
                 title={item.label}
               >

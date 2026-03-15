@@ -11,7 +11,7 @@ export function AddToCalendarButton({ url, className = '' }: AddToCalendarButton
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors ${className}`}
+      className={`inline-flex items-center gap-2 rounded-lg bg-[#F5C542] px-4 py-2 text-sm font-medium text-[#1A1A1A] hover:bg-[#E5B53A] transition-colors ${className}`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

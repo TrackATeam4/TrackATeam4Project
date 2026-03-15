@@ -208,34 +208,34 @@ export default function ChatbotPage() {
 	return (
 		<>
 			<HomeSidebar />
-			<main className="min-h-screen bg-[#FFFEF5] px-6 py-8 text-slate-700 md:ml-24 lg:ml-72">
+			<main className="min-h-screen bg-[#FFF8E1] px-6 py-8 text-[#1A1A1A] md:ml-24 lg:ml-72">
 				<div className="mx-auto max-w-5xl space-y-6">
 				<div className="flex items-center justify-end">
-					<span className="rounded-full bg-yellow-100 px-3 py-1 text-xs text-[#065F46]">
+					<span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
 						Session: {sessionId ? sessionId.slice(0, 8) : "none"}
 					</span>
 				</div>
 
 				<section className="grid gap-6 lg:grid-cols-[1fr_280px]">
-					<div className="rounded-3xl border border-yellow-100 bg-white p-6 shadow-lg shadow-yellow-100/60">
-						<h1 className="text-2xl font-bold text-[#0F172A]">Campaign Chatbot</h1>
-						<p className="mt-2 text-sm text-slate-500">
+					<div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+						<h1 className="text-2xl font-bold text-[#1A1A1A]">Campaign Chatbot</h1>
+						<p className="mt-2 text-sm text-[#6B7280]">
 							Connected to AI_BEDROCK endpoints with bearer-token auth.
 						</p>
 
-						<div className="mt-5 h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-yellow-100 bg-[#FFFEF5] p-4">
+						<div className="mt-5 h-[420px] space-y-3 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
 							{booting ? (
-								<p className="text-sm text-slate-400">Connecting...</p>
+								<p className="text-sm text-[#6B7280]">Connecting...</p>
 							) : messages.length === 0 ? (
-								<p className="text-sm text-slate-400">Start the conversation to create your campaign.</p>
+								<p className="text-sm text-[#6B7280]">Start the conversation to create your campaign.</p>
 							) : (
 								messages.map((message, index) => (
 									<div
 										key={`${message.role}-${index}`}
 										className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
 											message.role === "user"
-												? "ml-auto bg-emerald-600 text-white"
-												: "border border-yellow-100 bg-white text-slate-700"
+													? "ml-auto bg-[#F5C542] text-[#1A1A1A]"
+													: "border border-gray-200 bg-white text-[#1A1A1A]"
 										}`}
 									>
 										{message.content}
@@ -249,13 +249,13 @@ export default function ChatbotPage() {
 								value={input}
 								onChange={(event) => setInput(event.target.value)}
 								placeholder="Ask to create a campaign..."
-								className="flex-1 rounded-xl border border-yellow-100 px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+								className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
 								disabled={loading || !sessionId}
 							/>
 							<button
 								type="submit"
 								disabled={loading || !sessionId}
-								className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+								className="rounded-xl bg-[#F5C542] px-5 py-3 text-sm font-semibold text-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-70"
 							>
 								{loading ? "Sending..." : "Send"}
 							</button>
@@ -268,9 +268,9 @@ export default function ChatbotPage() {
 						) : null}
 					</div>
 
-					<aside className="rounded-3xl border border-yellow-100 bg-white p-5 shadow-lg shadow-yellow-100/60">
-						<h2 className="text-sm font-semibold text-[#0F172A]">Context Snapshot</h2>
-						<pre className="mt-3 max-h-[450px] overflow-auto rounded-xl bg-[#FFFEF5] p-3 text-xs text-slate-600">
+					<aside className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+						<h2 className="text-sm font-semibold text-[#1A1A1A]">Context Snapshot</h2>
+						<pre className="mt-3 max-h-[450px] overflow-auto rounded-xl bg-[#FFF8E1] p-3 text-xs text-[#6B7280]">
 							{JSON.stringify(context, null, 2)}
 						</pre>
 					</aside>
