@@ -38,7 +38,7 @@ app = FastAPI(title="TrackA API", version="1.0.0")
 # Middleware must be added before routers for predictable ordering
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "**.vercel.app"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
