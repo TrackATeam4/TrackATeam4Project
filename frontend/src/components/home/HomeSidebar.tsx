@@ -1,9 +1,16 @@
 "use client";
 
+import { DM_Serif_Display } from "next/font/google";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import LemonLogo from "@/components/LemonLogo";
+
+const dmSerif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--home-display",
+});
 
 const navItems = [
   {

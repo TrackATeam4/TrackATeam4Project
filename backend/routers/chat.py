@@ -18,6 +18,7 @@ from supabase_client import get_supabase_client
 from services.rewards import award_points, haversine_km
 from services.event_normalization import normalize_context_field
 from services.flyer_generator import FlyerCampaignData, generate_flyer_bytes
+from services.geocoding import geocode_address
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,34 @@ def _find_nearby_pantries(supabase, lat: float, lng: float) -> list[dict]:
             })
     pantries.sort(key=lambda x: x["distance_km"])
     return pantries
+
+
+def _resolve_coordinates_from_context(context: dict) -> Optional[tuple[float, float]]:
+    """Resolve coordinates from existing context or by geocoding address/location."""
+    lat = context.get("latitude")
+    lng = context.get("longitude")
+    if lat is not None and lng is not None:
+        return float(lat), float(lng)
+
+    location = str(context.get("location") or "").strip()
+    address = str(context.get("address") or "").strip()
+    if not location and not address:
+        return None
+
+    queries = []
+    if address and location:
+        queries.append(f"{address}, {location}")
+    if address:
+        queries.append(address)
+    if location:
+        queries.append(location)
+
+    # Try progressively broader inputs so we can still resolve if one field is noisy.
+    for query in dict.fromkeys(queries):
+        coords = geocode_address(query)
+        if coords:
+            return coords
+    return None
 
 
 def _parse_bearer_token(authorization: Optional[str]) -> str:
@@ -409,13 +438,17 @@ def suggest_pantries(
     _verify_ownership(session, user.user.id)
 
     context = session.get("context", {})
-    lat = context.get("latitude")
-    lng = context.get("longitude")
-    if lat is None or lng is None:
+    coords = _resolve_coordinates_from_context(context)
+    if coords is None:
         raise HTTPException(
             status_code=400,
-            detail="Missing latitude/longitude in session context",
+            detail="Missing latitude/longitude or geocodable location/address in session context",
         )
+
+    lat, lng = coords
+    if context.get("latitude") is None or context.get("longitude") is None:
+        context = {**context, "latitude": lat, "longitude": lng}
+        supabase.table("chat_sessions").update({"context": context}).eq("id", session_id).execute()
 
     pantries = _find_nearby_pantries(supabase, lat, lng)
     return {"pantries": pantries}

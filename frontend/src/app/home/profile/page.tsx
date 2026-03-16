@@ -140,7 +140,7 @@ export default function HomeProfilePage() {
   return (
     <>
       <HomeSidebar />
-      <main className="min-h-screen bg-[#FFFEF5] px-6 py-10 text-[#111827] md:ml-[68px] lg:ml-72">
+      <main className="min-h-screen bg-[#FFF8E1] px-6 py-10 text-[#1A1A1A] md:ml-24 lg:ml-72">
         <div className="mx-auto max-w-4xl space-y-6">
 
           {/* Profile hero */}

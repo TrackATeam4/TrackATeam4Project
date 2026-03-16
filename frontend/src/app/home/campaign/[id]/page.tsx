@@ -46,7 +46,7 @@ type ImpactReport = {
   notes?: string | null;
 };
 
-type TabId = "tasks" | "impact" | "calendar" | "checkin";
+type TabId = "tasks" | "impact" | "calendar" | "checkin" | "invite";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,7 @@ export default function CampaignDetailPage() {
   const [bskyText, setBskyText] = useState("");
   const [bskyPosting, setBskyPosting] = useState(false);
   const [bskyMsg, setBskyMsg] = useState("");
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // ── Load all data ──────────────────────────────────────────────────────────
 
@@ -367,7 +368,7 @@ export default function CampaignDetailPage() {
             <div className="sticky top-[49px] z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
               <div className="mx-auto max-w-3xl px-6">
                 <div className="flex gap-0">
-                  {(["tasks", "impact", "calendar", "checkin"] as TabId[]).map((tab) => (
+                  {(["tasks", "impact", "calendar", "checkin", "invite"] as TabId[]).map((tab) => (
                     <button
                       key={tab}
                       type="button"
@@ -393,10 +394,15 @@ export default function CampaignDetailPage() {
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                           Calendar
                         </span>
-                      ) : (
+                      ) : tab === "checkin" ? (
                         <span className="flex items-center gap-1.5">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           Check In
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+                          Invite
                         </span>
                       )}
                       {activeTab === tab && (
@@ -677,6 +683,77 @@ export default function CampaignDetailPage() {
                         </motion.button>
                       </div>
                     )}
+                  </motion.div>
+                )}
+                {/* Invite */}
+                {activeTab === "invite" && (
+                  <motion.div
+                    key="invite"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-4"
+                  >
+                    {/* QR card */}
+                    <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm text-center">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Scan to RSVP</p>
+                      <div className="flex justify-center">
+                        <div className="rounded-2xl border border-gray-200 p-3 shadow-sm inline-block bg-white">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                              typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : `/c/${id}`
+                            )}&color=1B4332&bgcolor=ffffff`}
+                            alt="RSVP QR Code"
+                            width={220}
+                            height={220}
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#0F172A]">Share this to invite volunteers</p>
+                      <p className="mt-1 text-xs text-slate-400">Anyone who scans this can view the campaign and sign up</p>
+                      <div className="mt-4 flex items-center gap-2 justify-center">
+                        <code className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs text-slate-600 truncate max-w-[240px]">
+                          {typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : `/c/${id}`}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : "";
+                            void navigator.clipboard.writeText(url);
+                            setCopiedInvite(true);
+                            setTimeout(() => setCopiedInvite(false), 2000);
+                          }}
+                          className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                            copiedInvite
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-gray-200 text-slate-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {copiedInvite ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Info card */}
+                    <div className="rounded-2xl border border-[#F5C542]/30 bg-[#FFFBEB] px-5 py-4 text-sm text-[#92400E]">
+                      <p className="font-semibold">How invites work</p>
+                      <ul className="mt-2 space-y-1 text-xs text-[#B45309]">
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Scan the QR or share the link — no account needed to RSVP
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          RSVPs appear in your Dashboard under Volunteers
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Use the Check In tab QR on the day of the event
+                        </li>
+                      </ul>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

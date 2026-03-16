@@ -6,11 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from fpdf import FPDF
 
-DEFAULT_DESCRIPTION = "Join us to spread the word and help families find food resources."
+DEFAULT_DESCRIPTION = (
+    "Join us to spread the word and help families find food resources."
+)
 DEFAULT_POSTER_STYLE = "color_blocked"
 
 # do not use dark_centered style for now
-SUPPORTED_STYLES = {"dark_centered", "color_blocked"}
+SUPPORTED_STYLES = {"dark_centered", "color_blocked", "modern_bordered"}
 
 LEMON_YELLOW = (255, 214, 10)
 LEMON_DARK = (214, 163, 0)
@@ -232,7 +234,9 @@ def create_dark_centered_poster(pdf: FPDF, data: dict[str, str]) -> None:
     pdf.set_text_color(*LEMON_YELLOW)
     pdf.set_font("Helvetica", "B", 13)
     pdf.set_y(31)
-    pdf.cell(0, 8, "LEMONTREE COMMUNITY FLYER", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        0, 8, "LEMONTREE COMMUNITY FLYER", align="C", new_x="LMARGIN", new_y="NEXT"
+    )
 
     pdf.set_draw_color(*LEAF_GREEN)
     pdf.set_line_width(1.4)
@@ -257,7 +261,14 @@ def create_dark_centered_poster(pdf: FPDF, data: dict[str, str]) -> None:
 
     pdf.set_text_color(196, 181, 253)
     pdf.set_font("Helvetica", "I", 14)
-    pdf.cell(0, 10, "Bring a friend and spread the word!", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        0,
+        10,
+        "Bring a friend and spread the word!",
+        align="C",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
 
     # Date + time
     pdf.set_text_color(232, 232, 232)
@@ -304,7 +315,14 @@ def create_dark_centered_poster(pdf: FPDF, data: dict[str, str]) -> None:
     pdf.set_text_color(167, 243, 208)
     pdf.set_font("Helvetica", "B", 13)
     pdf.set_y(274)
-    pdf.cell(0, 8, "Volunteer. Share. Show up for your community.", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        0,
+        8,
+        "Volunteer. Share. Show up for your community.",
+        align="C",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
 
 
 def create_color_blocked_poster(pdf: FPDF, data: dict[str, str]) -> None:
@@ -433,7 +451,194 @@ def create_color_blocked_poster(pdf: FPDF, data: dict[str, str]) -> None:
     pdf.set_text_color(*LEMON_YELLOW)
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_y(284)
-    pdf.cell(0, 8, "LEMONTREE | Volunteer. Share. Show up.", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(
+        0,
+        8,
+        "LEMONTREE | Volunteer. Share. Show up.",
+        align="C",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
+
+
+def create_modern_bordered_poster(pdf: FPDF, data: dict[str, str]) -> None:
+    # Background and frame
+    pdf.set_fill_color(255, 250, 240)
+    pdf.rect(0, 0, 210, 297, style="F")
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(9, 9, 192, 279, style="F")
+    pdf.set_draw_color(13, 77, 58)
+    pdf.set_line_width(1.9)
+    pdf.rect(9, 9, 192, 279)
+
+    # Top campaign band
+    pdf.set_fill_color(13, 77, 58)
+    pdf.rect(9, 9, 192, 16, style="F")
+    pdf.set_text_color(245, 255, 125)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_xy(9, 12)
+    pdf.cell(192, 8, "COMMUNITY VOLUNTEER CAMPAIGN", align="C")
+
+    # Hero block
+    pdf.set_fill_color(255, 183, 3)
+    pdf.rect(9, 25, 192, 62, style="F")
+    pdf.set_draw_color(13, 77, 58)
+    pdf.set_line_width(0.7)
+    pdf.line(9, 25, 201, 25)
+
+    pdf.set_text_color(106, 4, 15)
+    pdf.set_font("Helvetica", "B", 21)
+    pdf.set_xy(17, 33)
+    pdf.cell(120, 9, "VOLUNTEERS NEEDED")
+
+    _draw_fit_text_box(
+        pdf,
+        x=17,
+        y=44,
+        width=128,
+        height=36,
+        text=data["title"],
+        family="Helvetica",
+        style="B",
+        max_size=_fit_title_font_size(data["title"], base=32),
+        min_size=16,
+        color=(16, 42, 67),
+        align="L",
+        line_height_factor=1.05,
+    )
+
+    # Date card
+    pdf.set_fill_color(106, 4, 15)
+    pdf.rect(151, 33, 42, 10, style="F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_xy(151, 35)
+    pdf.cell(42, 6, "EVENT DATE", align="C")
+
+    pdf.set_fill_color(255, 255, 255)
+    pdf.rect(151, 43, 42, 24, style="F")
+    pdf.set_draw_color(106, 4, 15)
+    pdf.set_line_width(0.8)
+    pdf.rect(151, 43, 42, 24)
+    _draw_fit_text_box(
+        pdf,
+        x=154,
+        y=46,
+        width=36,
+        height=18,
+        text=data["date"],
+        family="Helvetica",
+        style="B",
+        max_size=11,
+        min_size=8,
+        color=(106, 4, 15),
+        line_height_factor=1.0,
+    )
+
+    # Content block separator
+    pdf.set_draw_color(13, 77, 58)
+    pdf.set_line_width(0.7)
+    pdf.line(9, 87, 201, 87)
+
+    # Description card
+    pdf.set_fill_color(232, 255, 246)
+    pdf.rect(17, 97, 176, 24, style="F")
+    pdf.set_draw_color(13, 77, 58)
+    pdf.set_line_width(0.8)
+    pdf.rect(17, 97, 176, 24)
+    _draw_fit_text_box(
+        pdf,
+        x=21,
+        y=102,
+        width=168,
+        height=15,
+        text=data.get("description") or DEFAULT_DESCRIPTION,
+        family="Helvetica",
+        style="B",
+        max_size=14,
+        min_size=10,
+        color=(18, 58, 44),
+        align="L",
+        line_height_factor=1.0,
+    )
+
+    # Detail table frame
+    table_x = 17
+    table_y = 129
+    table_w = 176
+    row_h = 18
+    label_w = 56
+    value_w = table_w - label_w
+    rows = [
+        ("LOCATION", data["location"]),
+        ("ADDRESS", data["address"]),
+        ("TIME", f"{data['start_time']} - {data['end_time']}"),
+    ]
+
+    pdf.set_draw_color(18, 58, 44)
+    pdf.set_line_width(0.8)
+    pdf.rect(table_x, table_y, table_w, row_h * len(rows))
+
+    for i, (label, value) in enumerate(rows):
+        y = table_y + i * row_h
+        if i > 0:
+            pdf.line(table_x, y, table_x + table_w, y)
+        pdf.line(table_x + label_w, y, table_x + label_w, y + row_h)
+
+        if label == "TIME":
+            pdf.set_fill_color(255, 243, 205)
+            pdf.rect(table_x + label_w, y, value_w, row_h, style="F")
+
+        pdf.set_fill_color(18, 58, 44)
+        pdf.rect(table_x, y, label_w, row_h, style="F")
+
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_xy(table_x + 3, y + 5)
+        pdf.cell(label_w - 6, 7, label, align="L")
+
+        _draw_fit_text_box(
+            pdf,
+            x=table_x + label_w + 3,
+            y=y + 4,
+            width=value_w - 6,
+            height=row_h - 8,
+            text=value,
+            family="Helvetica",
+            style="B",
+            max_size=14,
+            min_size=9,
+            color=(15, 47, 63),
+            align="L",
+            line_height_factor=1.0,
+        )
+
+    # CTA + footer with a single separator between sections
+    pdf.set_fill_color(106, 4, 15)
+    pdf.rect(17, 190, 176, 16, style="F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 17)
+    pdf.set_xy(17, 194)
+    pdf.cell(176, 8, "SHOW UP. PITCH IN. MAKE IMPACT.", align="C")
+
+    pdf.set_draw_color(13, 77, 58)
+    pdf.set_line_width(0.8)
+    pdf.line(17, 214, 193, 214)
+
+    pdf.set_text_color(13, 77, 58)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_xy(17, 218)
+    pdf.cell(176, 8, "Bring a friend and help us serve more neighbors.", align="C")
+
+
+def _render_style(pdf: FPDF, payload: dict[str, str], style: str) -> None:
+    if style == "dark_centered":
+        create_dark_centered_poster(pdf, payload)
+        return
+    if style == "color_blocked":
+        create_color_blocked_poster(pdf, payload)
+        return
+    create_modern_bordered_poster(pdf, payload)
 
 
 def generate_flyer_bytes(
@@ -442,7 +647,9 @@ def generate_flyer_bytes(
 ) -> bytes:
     """Render the flyer to PDF in memory and return the raw bytes."""
     if style not in SUPPORTED_STYLES:
-        raise ValueError(f"Unsupported poster style '{style}'. Valid styles: {sorted(SUPPORTED_STYLES)}")
+        raise ValueError(
+            f"Unsupported poster style '{style}'. Valid styles: {sorted(SUPPORTED_STYLES)}"
+        )
 
     payload = _campaign_payload(campaign)
 
@@ -450,10 +657,7 @@ def generate_flyer_bytes(
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
 
-    if style == "dark_centered":
-        create_dark_centered_poster(pdf, payload)
-    else:
-        create_color_blocked_poster(pdf, payload)
+    _render_style(pdf, payload, style)
 
     return bytes(pdf.output())
 
@@ -465,7 +669,9 @@ def generate_flyer_pdf(
 ) -> Path:
     """Render the flyer to PDF and return the saved path."""
     if style not in SUPPORTED_STYLES:
-        raise ValueError(f"Unsupported poster style '{style}'. Valid styles: {sorted(SUPPORTED_STYLES)}")
+        raise ValueError(
+            f"Unsupported poster style '{style}'. Valid styles: {sorted(SUPPORTED_STYLES)}"
+        )
 
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -475,10 +681,7 @@ def generate_flyer_pdf(
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
 
-    if style == "dark_centered":
-        create_dark_centered_poster(pdf, payload)
-    else:
-        create_color_blocked_poster(pdf, payload)
+    _render_style(pdf, payload, style)
 
     pdf.output(str(path))
     return path
