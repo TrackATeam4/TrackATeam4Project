@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from routes.map import router as map_router, pantry_router, admin_analytics_router, admin_campaign_router
 from routers import campaigns, impact, feed, promotion, leaderboard, chat, tasks, invitations, map
+from importlib import import_module
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -41,24 +42,24 @@ app.include_router(leaderboard.router)
 app.include_router(chat.router)
 app.include_router(tasks.router)
 app.include_router(invitations.router)
-<<<<<<< Updated upstream
-app.include_router(map.router)
-=======
 
 # routers/map.py must come before routes/map.py; both define /map/food-pantries
 # but routers/map.py returns {"data": [...]} (flat array) which the frontend expects.
 # routes/map.py returns {"data": {"pantries": [...]}} (nested), which parseArrayData
 # cannot handle and silently returns [].
 app.include_router(map.router)
-app.include_router(bsky.router)
-app.include_router(flyers.router)
+for optional_router_module in ("routers.bsky", "routers.flyers"):
+    try:
+        module = import_module(optional_router_module)
+        app.include_router(module.router)
+    except ModuleNotFoundError:
+        logger.warning("Optional router module not found: %s", optional_router_module)
 
 # Legacy map/pantry/admin routers; keep for admin endpoints not in routers/map.py
 app.include_router(map_router)
 app.include_router(pantry_router)
 app.include_router(admin_analytics_router)
 app.include_router(admin_campaign_router)
->>>>>>> Stashed changes
 
 
 @app.on_event("startup")
@@ -184,7 +185,38 @@ async def reset_password(request: ResetPasswordRequest):
 
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
-    return {"user": user}
+    auth_user = getattr(user, "user", user)
+    user_id = getattr(auth_user, "id", None)
+    user_email = getattr(auth_user, "email", None)
+
+    app_user = None
+    try:
+        supabase = get_supabase_client()
+        query = supabase.table("users").select("id, email, name, role").limit(1)
+        if user_id:
+            result = query.eq("id", user_id).execute()
+        elif user_email:
+            result = query.eq("email", user_email).execute()
+        else:
+            result = None
+        rows = (result.data if result else None) or []
+        app_user = rows[0] if rows else None
+    except Exception as exc:
+        logger.warning("Could not load app user for /auth/me: %s", exc)
+
+    return {
+        "success": True,
+        "data": {
+            "id": (app_user or {}).get("id") or user_id,
+            "email": (app_user or {}).get("email") or user_email,
+            "name": (app_user or {}).get("name"),
+            "role": (app_user or {}).get("role"),
+            "user": {
+                "id": user_id,
+                "email": user_email,
+            },
+        },
+    }
 
 
 @app.exception_handler(StarletteHTTPException)

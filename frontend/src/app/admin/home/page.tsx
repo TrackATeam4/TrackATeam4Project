@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -65,6 +65,11 @@ interface CampaignSummary {
 }
 
 type TrendPeriod = "weekly" | "monthly";
+type MapboxMap = import("mapbox-gl").Map;
+type MapboxMarker = import("mapbox-gl").Marker;
+type MapboxModule = typeof import("mapbox-gl")["default"];
+
+const MAPBOX_TOKEN = (process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || "").trim();
 
 const formatDelta = (current: number, previous: number) => {
   const delta = current - previous;
@@ -79,8 +84,13 @@ const secsAgo = (at: Date | null) => {
 };
 
 export default function AdminHomePage() {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapboxMap | null>(null);
+  const impactMarkersRef = useRef<MapboxMarker[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [trendBuckets, setTrendBuckets] = useState<TrendBucket[]>([]);
   const [impactPoints, setImpactPoints] = useState<ImpactPoint[]>([]);
@@ -97,6 +107,101 @@ export default function AdminHomePage() {
     const t = setInterval(() => setClock((v) => v + 1), 1000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !mapContainerRef.current || mapRef.current) return;
+    let cancelled = false;
+
+    const initMap = async () => {
+      const mapboxgl = (await import("mapbox-gl")).default;
+      if (cancelled || !mapContainerRef.current) return;
+
+      const fallbackCenter: [number, number] = impactPoints.length
+        ? [impactPoints[0].longitude, impactPoints[0].latitude]
+        : [-74.006, 40.7128];
+
+      mapboxgl.accessToken = MAPBOX_TOKEN;
+      const map = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: fallbackCenter,
+        zoom: 10,
+      });
+
+      map.on("load", () => {
+        if (!cancelled) setMapReady(true);
+      });
+
+      mapRef.current = map;
+    };
+
+    void initMap();
+
+    return () => {
+      cancelled = true;
+      impactMarkersRef.current.forEach((m) => m.remove());
+      impactMarkersRef.current = [];
+      mapRef.current?.remove();
+      mapRef.current = null;
+      setMapReady(false);
+    };
+  }, [impactPoints]);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !mapReady || !mapRef.current) return;
+
+    const renderImpactMarkers = async () => {
+      const mapboxgl: MapboxModule = (await import("mapbox-gl")).default;
+      const map = mapRef.current;
+      if (!map) return;
+
+      impactMarkersRef.current.forEach((m) => m.remove());
+      impactMarkersRef.current = [];
+
+      const validPoints = impactPoints.filter(
+        (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+      );
+      if (!validPoints.length) return;
+
+      const bounds = new mapboxgl.LngLatBounds(
+        [validPoints[0].longitude, validPoints[0].latitude],
+        [validPoints[0].longitude, validPoints[0].latitude]
+      );
+
+      for (const point of validPoints) {
+        const size = Math.max(12, Math.min(28, 12 + Math.sqrt(Math.max(0, point.families_reached))));
+        const markerEl = document.createElement("div");
+        markerEl.className = "rounded-full border border-white/70 bg-amber-400/85 shadow-[0_0_18px_rgba(251,191,36,0.55)]";
+        markerEl.style.width = `${size}px`;
+        markerEl.style.height = `${size}px`;
+        markerEl.style.cursor = "pointer";
+
+        const popup = new mapboxgl.Popup({ offset: 18, className: "tracka-popup" }).setHTML(
+          `<div style="font-family:system-ui;min-width:200px;padding:4px 2px">
+            <div style="font-weight:700;font-size:14px;color:#0f172a;margin-bottom:4px">${point.title || "Untitled"}</div>
+            <div style="font-size:12px;color:#475569;margin-bottom:3px">Families: ${point.families_reached.toLocaleString()}</div>
+            <div style="font-size:12px;color:#475569">Flyers: ${point.flyers_distributed.toLocaleString()}</div>
+          </div>`
+        );
+
+        const marker = new mapboxgl.Marker({ element: markerEl, anchor: "center" })
+          .setLngLat([point.longitude, point.latitude])
+          .setPopup(popup)
+          .addTo(map);
+
+        impactMarkersRef.current.push(marker);
+        bounds.extend([point.longitude, point.latitude]);
+      }
+
+      if (validPoints.length === 1) {
+        map.flyTo({ center: [validPoints[0].longitude, validPoints[0].latitude], zoom: 11, duration: 700 });
+      } else {
+        map.fitBounds(bounds, { padding: 60, duration: 700, maxZoom: 12 });
+      }
+    };
+
+    void renderImpactMarkers();
+  }, [impactPoints, mapReady]);
 
   const fetchData = useCallback(async () => {
     setError("");
@@ -210,29 +315,6 @@ export default function AdminHomePage() {
   const topImpact = [...impactPoints]
     .sort((a, b) => b.families_reached - a.families_reached)
     .slice(0, 3);
-
-  const mapBounds = useMemo(() => {
-    if (!impactPoints.length) return null;
-    const lats = impactPoints.map((p) => p.latitude);
-    const lngs = impactPoints.map((p) => p.longitude);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    return { minLat, maxLat, minLng, maxLng };
-  }, [impactPoints]);
-
-  const toMapPosition = (p: ImpactPoint) => {
-    if (!mapBounds) return { x: 50, y: 50 };
-    const lngSpan = Math.max(0.0001, mapBounds.maxLng - mapBounds.minLng);
-    const latSpan = Math.max(0.0001, mapBounds.maxLat - mapBounds.minLat);
-    const x = ((p.longitude - mapBounds.minLng) / lngSpan) * 100;
-    const y = 100 - ((p.latitude - mapBounds.minLat) / latSpan) * 100;
-    return {
-      x: Math.min(96, Math.max(4, x)),
-      y: Math.min(96, Math.max(4, y)),
-    };
-  };
 
   if (loading && !overview) {
     return (
@@ -376,23 +458,18 @@ export default function AdminHomePage() {
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
-            <div className="relative h-80 overflow-hidden rounded-2xl border border-yellow-100 bg-gradient-to-br from-slate-800 via-emerald-900 to-slate-900">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.12),transparent_40%),radial-gradient(circle_at_80%_70%,rgba(255,255,255,0.08),transparent_35%)]" />
-              {impactPoints.map((point) => {
-                const pos = toMapPosition(point);
-                const size = Math.max(8, Math.min(24, 8 + Math.sqrt(Math.max(0, point.families_reached))));
-                return (
-                  <div
-                    key={point.campaign_id}
-                    title={`${point.title || "Untitled"} - Families: ${point.families_reached}`}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/40 bg-amber-300/80 shadow-[0_0_20px_rgba(251,191,36,0.45)]"
-                    style={{ left: `${pos.x}%`, top: `${pos.y}%`, width: `${size}px`, height: `${size}px` }}
-                  />
-                );
-              })}
-              <div className="absolute bottom-3 left-3 rounded-lg bg-black/35 px-3 py-2 text-xs text-emerald-100">
-                Live impact density by campaign location
-              </div>
+            <div className="relative h-80 overflow-hidden rounded-2xl border border-yellow-100 bg-slate-100">
+              {!MAPBOX_TOKEN && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-amber-50/95 px-6 text-center text-sm text-amber-700">
+                  Add NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN to render the live impact map.
+                </div>
+              )}
+              <div ref={mapContainerRef} className="h-full w-full" />
+              {MAPBOX_TOKEN && (
+                <div className="absolute bottom-3 left-3 rounded-lg bg-black/45 px-3 py-2 text-xs text-emerald-100">
+                  Live map of campaign impact by coordinates
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-yellow-100 bg-[#FFFEF8] p-4">
