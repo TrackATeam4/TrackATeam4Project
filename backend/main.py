@@ -34,11 +34,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="TrackA API", version="1.0.0")
-
+origins = [
+    "https://track-a-team4-project.vercel.app",
+    "http://localhost:3000",   # optional for local dev
+    "http://localhost:5173",   # optional if using Vite
+]
 # Middleware must be added before routers for predictable ordering
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
