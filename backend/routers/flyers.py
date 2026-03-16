@@ -1,7 +1,7 @@
 """Flyers router: generate and retrieve campaign flyers."""
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -125,3 +125,54 @@ def generate_flyer(
         "flyer_url": generated_file_url,
         "thumbnail_url": template.get("thumbnail_url", ""),
     }
+
+
+def _extract_public_url(url_payload: Any) -> str:
+    if isinstance(url_payload, str):
+        return url_payload
+    if isinstance(url_payload, dict):
+        for key in ("publicUrl", "publicURL", "signedUrl", "signedURL"):
+            value = url_payload.get(key)
+            if isinstance(value, str):
+                return value
+        nested = url_payload.get("data")
+        if isinstance(nested, dict):
+            for key in ("publicUrl", "publicURL", "signedUrl", "signedURL"):
+                value = nested.get(key)
+                if isinstance(value, str):
+                    return value
+    return ""
+
+
+@router.get("/templates")
+def list_flyer_templates(supabase=Depends(get_supabase_client)):
+    """List all PDF templates currently stored in the Supabase 'flyers' bucket."""
+    bucket = supabase.storage.from_("flyers")
+    try:
+        listed = bucket.list(path="templates")
+    except Exception as exc:
+        logger.error("Failed listing flyer templates from storage: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to fetch flyer templates")
+
+    if isinstance(listed, list):
+        rows = listed
+    else:
+        rows = getattr(listed, "data", None) or []
+
+    templates = []
+    for row in rows:
+        name = str(row.get("name", "")).strip() if isinstance(row, dict) else ""
+        if not name or not name.lower().endswith(".pdf"):
+            continue
+        templates.append(
+            {
+                "name": name,
+                "path": name,
+                "url": _extract_public_url(bucket.get_public_url(name)),
+                "updated_at": row.get("updated_at") if isinstance(row, dict) else None,
+                "created_at": row.get("created_at") if isinstance(row, dict) else None,
+            }
+        )
+
+    templates.sort(key=lambda item: item["name"].lower())
+    return {"templates": templates}
