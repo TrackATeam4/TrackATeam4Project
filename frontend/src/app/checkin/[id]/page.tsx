@@ -177,7 +177,7 @@ export default function CheckinPage() {
             >
               {/* Hero */}
               <div className="bg-[#1B4332] px-8 py-10 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#F5C542]/70">
                   Volunteer Check-In
                 </p>
                 <h1 className="mt-2 text-2xl font-bold leading-tight">{campaign.title}</h1>
@@ -206,7 +206,7 @@ export default function CheckinPage() {
                         placeholder="e.g. Alex Johnson"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-2 focus:ring-[#F5C542]/30"
                       />
                     </div>
                     <div>
@@ -217,7 +217,7 @@ export default function CheckinPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") void handleCheckin(); }}
-                        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-2 focus:ring-[#F5C542]/30"
                       />
                     </div>
                   </>
@@ -277,7 +277,7 @@ export default function CheckinPage() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
-                className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 ring-4 ring-emerald-400/30"
+                className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#F5C542]/20 ring-4 ring-[#F5C542]/30"
               >
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                   <motion.path
@@ -290,7 +290,7 @@ export default function CheckinPage() {
               </motion.div>
               <h2 className="mt-5 text-2xl font-bold">You&apos;re checked in!</h2>
               {campaign && (
-                <p className="mt-2 font-semibold text-emerald-300">{campaign.title}</p>
+                <p className="mt-2 font-semibold text-[#F5C542]/70">{campaign.title}</p>
               )}
               <p className="mt-3 text-sm text-white/60">See you there!</p>
             </motion.div>

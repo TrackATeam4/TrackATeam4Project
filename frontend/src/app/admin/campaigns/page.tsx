@@ -106,7 +106,7 @@ export default function AdminCampaignsPage() {
         </div>
         <Link
           href="/home/create"
-          className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-teal-600 hover:shadow-emerald-300"
+          className="flex items-center gap-2 rounded-xl bg-[#F5C542] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition hover:bg-[#E0B63A]"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />

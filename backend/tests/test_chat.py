@@ -478,6 +478,57 @@ class TestSuggestPantries:
         body = resp.json()
         assert isinstance(body["pantries"], list)
 
+    def test_suggest_pantries_geocodes_from_address_and_persists_coords(self, client, mock_supabase, monkeypatch):
+        monkeypatch.setattr(
+            "routers.chat.geocode_address",
+            lambda query: (40.785091, -73.968285) if "123 Main St" in query else None,
+        )
+
+        session_tbl = MagicMock()
+        ctx = {**MOCK_SESSION, "context": {
+            "location": "Central Park",
+            "address": "123 Main St, New York, NY",
+        }}
+        _set_session_lookup(session_tbl, [ctx])
+        session_tbl.update.return_value.eq.return_value.execute.return_value = _mock_table_result([{}])
+
+        pantry_tbl = MagicMock()
+        pantry_tbl.select.return_value.execute.return_value = _mock_table_result([{
+            "id": "p-1",
+            "name": "Community Food Bank",
+            "latitude": 40.786,
+            "longitude": -73.969,
+            "services": ["food distribution"],
+        }])
+
+        mock_supabase.table.side_effect = _make_table_router({
+            "chat_sessions": session_tbl,
+            "food_pantries": pantry_tbl,
+        })
+
+        resp = client.get(f"/chat/session/{SESSION_ID}/suggest-pantries")
+        assert resp.status_code == 200
+        assert isinstance(resp.json()["pantries"], list)
+
+        updated_context = session_tbl.update.call_args[0][0]["context"]
+        assert updated_context["latitude"] == 40.785091
+        assert updated_context["longitude"] == -73.968285
+
+    def test_suggest_pantries_geocode_failure_returns_400(self, client, mock_supabase, monkeypatch):
+        monkeypatch.setattr("routers.chat.geocode_address", lambda _query: None)
+
+        session_tbl = MagicMock()
+        ctx = {**MOCK_SESSION, "context": {
+            "location": "Unknown Place",
+            "address": "No Match",
+        }}
+        _set_session_lookup(session_tbl, [ctx])
+
+        mock_supabase.table.side_effect = _make_table_router({"chat_sessions": session_tbl})
+
+        resp = client.get(f"/chat/session/{SESSION_ID}/suggest-pantries")
+        assert resp.status_code == 400
+
     def test_suggest_pantries_missing_coords(self, client, mock_supabase):
         session_tbl = MagicMock()
         ctx = {**MOCK_SESSION, "context": {"title": "Event"}}  # no coords

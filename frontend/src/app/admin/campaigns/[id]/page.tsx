@@ -77,7 +77,7 @@ export default function AdminCampaignDetailPage() {
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      published: "bg-emerald-100 text-emerald-700",
+      published: "bg-[#F5C542]/15 text-[#A66F00]",
       draft: "bg-slate-100 text-slate-600",
       cancelled: "bg-rose-100 text-rose-700",
       completed: "bg-blue-100 text-blue-700",
@@ -88,7 +88,7 @@ export default function AdminCampaignDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#F5C542]/40 border-t-[#E0B63A]" />
       </div>
     );
   }
@@ -96,7 +96,7 @@ export default function AdminCampaignDetailPage() {
   if (error || !campaign) {
     return (
       <div className="px-6 py-8">
-        <Link href="/admin/campaigns" className="text-sm text-emerald-700 hover:underline">
+        <Link href="/admin/campaigns" className="text-sm text-[#A66F00] hover:underline">
           &larr; Back to Campaigns
         </Link>
         <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -111,7 +111,7 @@ export default function AdminCampaignDetailPage() {
 
   return (
     <div className="px-6 py-8 text-slate-700">
-      <Link href="/admin/campaigns" className="inline-flex items-center text-sm text-emerald-700 hover:underline">
+      <Link href="/admin/campaigns" className="inline-flex items-center text-sm text-[#A66F00] hover:underline">
         &larr; Back to Campaigns
       </Link>
 
@@ -170,7 +170,7 @@ export default function AdminCampaignDetailPage() {
           <h2 className="text-lg font-semibold text-[#0F172A]">Signups &amp; Attendance</h2>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-slate-500">
-              Signups: <span className="font-semibold text-emerald-700">{signups.length}</span>
+              Signups: <span className="font-semibold text-[#A66F00]">{signups.length}</span>
               {campaign.max_volunteers ? ` / ${campaign.max_volunteers}` : ""}
             </span>
             <span className="text-slate-500">
@@ -202,7 +202,7 @@ export default function AdminCampaignDetailPage() {
                     </td>
                     <td className="py-3">
                       {s.attended ? (
-                        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        <span className="inline-flex rounded-full bg-[#F5C542]/15 px-2.5 py-1 text-xs font-semibold text-[#A66F00]">
                           Yes
                         </span>
                       ) : (

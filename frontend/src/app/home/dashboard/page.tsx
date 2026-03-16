@@ -67,7 +67,7 @@ const fmtDate = (v?: string | null) => {
 };
 
 const statusColor = (s: string) =>
-  s === "confirmed" ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+  s === "confirmed" ? "bg-[#F5C542]/15 text-[#A66F00] border-[#F5C542]/40"
   : s === "cancelled" ? "bg-rose-50 text-rose-600 border-rose-200"
   : s === "accepted" ? "bg-blue-50 text-blue-700 border-blue-200"
   : "bg-amber-50 text-amber-700 border-amber-200";
@@ -361,7 +361,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
           {open && (
             <div className="mt-2 flex gap-3 text-xs">
               <span className="rounded-full bg-amber-50 border border-amber-100 px-2 py-0.5 text-amber-700">{pendingCount} pending</span>
-              <span className="rounded-full bg-emerald-50 border border-emerald-100 px-2 py-0.5 text-emerald-700">{confirmedCount} confirmed</span>
+              <span className="rounded-full bg-[#F5C542]/10 border border-[#F5C542]/30 px-2 py-0.5 text-[#A66F00]">{confirmedCount} confirmed</span>
               <span className="rounded-full bg-blue-50 border border-blue-100 px-2 py-0.5 text-blue-700">{tasks.length} tasks</span>
             </div>
           )}
@@ -439,7 +439,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                               whileTap={{ scale: 0.95 }}
                               disabled={confirmingId === signup.user_id}
                               onClick={() => confirmAttendance(signup.user_id)}
-                              className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
+                              className="rounded-xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-3 py-1.5 text-xs font-semibold text-[#1A1A1A]"
                             >
                               {confirmingId === signup.user_id ? "..." : "Confirm ✓"}
                             </motion.button>
@@ -493,19 +493,19 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                     <>
                       {tasks.map((task) =>
                         editingTaskId === task.id ? (
-                          <div key={task.id} className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
+                          <div key={task.id} className="rounded-2xl border border-[#F5C542]/40 bg-[#F5C542]/15 p-4 space-y-2">
                             <input
                               type="text"
                               value={taskEditDraft.title}
                               onChange={(e) => setTaskEditDraft({ ...taskEditDraft, title: e.target.value })}
-                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none"
                               placeholder="Task title"
                             />
                             <input
                               type="text"
                               value={taskEditDraft.description}
                               onChange={(e) => setTaskEditDraft({ ...taskEditDraft, description: e.target.value })}
-                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none"
                               placeholder="Description (optional)"
                             />
                             <div className="flex items-center gap-2">
@@ -514,14 +514,14 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                                 min="1"
                                 value={taskEditDraft.max_assignees}
                                 onChange={(e) => setTaskEditDraft({ ...taskEditDraft, max_assignees: e.target.value })}
-                                className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-emerald-400 focus:outline-none"
+                                className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-[#F5C542] focus:outline-none"
                               />
                               <motion.button
                                 type="button"
                                 whileTap={{ scale: 0.97 }}
                                 disabled={savingTaskId === task.id}
                                 onClick={() => saveTaskEdit(task.id)}
-                                className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                className="rounded-xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-4 py-2 text-xs font-semibold text-[#1A1A1A] disabled:opacity-50"
                               >
                                 {savingTaskId === task.id ? "Saving..." : "Save"}
                               </motion.button>
@@ -563,21 +563,21 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       )}
 
                       {/* Add task form */}
-                      <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 p-4 space-y-2">
-                        <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Add New Task</p>
+                      <div className="rounded-2xl border border-dashed border-[#F5C542]/40 bg-[#F5C542]/15 p-4 space-y-2">
+                        <p className="text-xs font-semibold text-[#A66F00] uppercase tracking-wider">Add New Task</p>
                         <input
                           type="text"
                           placeholder="Task title"
                           value={newTask.title}
                           onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/30"
                         />
                         <input
                           type="text"
                           placeholder="Description (optional)"
                           value={newTask.description}
                           onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/30"
                         />
                         <div className="flex items-center gap-2">
                           <input
@@ -586,14 +586,14 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                             placeholder="Max people"
                             value={newTask.max_assignees}
                             onChange={(e) => setNewTask({ ...newTask, max_assignees: e.target.value })}
-                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none"
                           />
                           <motion.button
                             type="button"
                             whileTap={{ scale: 0.97 }}
                             disabled={addingTask || !newTask.title.trim()}
                             onClick={addTask}
-                            className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                            className="rounded-xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-5 py-2 text-xs font-semibold text-[#1A1A1A] disabled:opacity-50"
                           >
                             {addingTask ? "Adding..." : "Add Task"}
                           </motion.button>
@@ -614,20 +614,20 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") void sendInvite(); }}
-                      className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                      className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/30"
                     />
                     <motion.button
                       type="button"
                       whileTap={{ scale: 0.97 }}
                       disabled={sendingInvite || !inviteEmail.trim()}
                       onClick={sendInvite}
-                      className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                      className="rounded-xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-5 py-2.5 text-xs font-semibold text-[#1A1A1A] disabled:opacity-50"
                     >
                       {sendingInvite ? "Sending..." : "Send Invite"}
                     </motion.button>
                   </div>
                   {inviteMsg && (
-                    <p className={`text-xs ${inviteMsg.startsWith("Inv") ? "text-emerald-700" : "text-rose-600"}`}>{inviteMsg}</p>
+                    <p className={`text-xs ${inviteMsg.startsWith("Inv") ? "text-[#A66F00]" : "text-rose-600"}`}>{inviteMsg}</p>
                   )}
                   {invitations.length > 0 && (
                     <div className="space-y-2">
@@ -649,7 +649,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
               {activeTab === "impact" && (
                 <div className="space-y-4">
                   {impactExists ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
+                    <div className="rounded-2xl border border-[#F5C542]/40 bg-[#F5C542]/10 px-5 py-4 text-sm text-[#8A5A00]">
                       Impact report already submitted for this campaign.{" "}
                       <Link href={`/home/campaign/${campaign.id}`} className="underline">View on campaign page →</Link>
                     </div>
@@ -668,7 +668,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                             min="0"
                             value={impactDraft[key as keyof ImpactDraft]}
                             onChange={(e) => setImpactDraft({ ...impactDraft, [key]: e.target.value })}
-                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none"
                           />
                         </div>
                       ))}
@@ -678,19 +678,19 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                           rows={3}
                           value={impactDraft.notes}
                           onChange={(e) => setImpactDraft({ ...impactDraft, notes: e.target.value })}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none resize-none"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none resize-none"
                           placeholder="How did the campaign go?"
                         />
                       </div>
                       {impactMsg && (
-                        <p className={`text-xs ${impactMsg.includes("+10") ? "text-emerald-700" : "text-rose-600"}`}>{impactMsg}</p>
+                        <p className={`text-xs ${impactMsg.includes("+10") ? "text-[#A66F00]" : "text-rose-600"}`}>{impactMsg}</p>
                       )}
                       <motion.button
                         type="button"
                         whileTap={{ scale: 0.97 }}
                         disabled={impactSubmitting}
                         onClick={submitImpact}
-                        className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-100 disabled:opacity-50"
+                        className="w-full rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] py-3 text-sm font-semibold text-[#1A1A1A] shadow-md shadow-[#F5C542]/30 disabled:opacity-50"
                       >
                         {impactSubmitting ? "Submitting..." : "Submit Impact Report"}
                       </motion.button>
@@ -718,7 +718,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                         min={type === "number" ? "1" : undefined}
                         value={editDraft[key as keyof typeof editDraft]}
                         onChange={(e) => setEditDraft({ ...editDraft, [key]: e.target.value })}
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none"
                       />
                     </div>
                   ))}
@@ -728,13 +728,13 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       rows={3}
                       value={editDraft.description}
                       onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none resize-none"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none resize-none"
                       placeholder="Campaign description"
                     />
                   </div>
 
                   {editMsg && (
-                    <p className={`text-xs font-semibold ${editMsg.includes("success") ? "text-emerald-700" : editMsg.includes("cancel") ? "text-slate-500" : "text-rose-600"}`}>
+                    <p className={`text-xs font-semibold ${editMsg.includes("success") ? "text-[#A66F00]" : editMsg.includes("cancel") ? "text-slate-500" : "text-rose-600"}`}>
                       {editMsg}
                     </p>
                   )}
@@ -744,7 +744,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                     whileTap={{ scale: 0.97 }}
                     disabled={editSaving}
                     onClick={saveEdit}
-                    className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-100 disabled:opacity-50"
+                    className="w-full rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] py-3 text-sm font-semibold text-[#1A1A1A] shadow-md shadow-[#F5C542]/30 disabled:opacity-50"
                   >
                     {editSaving ? "Saving..." : "Save Changes"}
                   </motion.button>
@@ -804,7 +804,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                       </>
                     )}
                     {promoteMsg && (
-                      <p className="mt-3 text-xs text-emerald-700 font-semibold">{promoteMsg}</p>
+                      <p className="mt-3 text-xs text-[#A66F00] font-semibold">{promoteMsg}</p>
                     )}
                   </div>
                 </div>
@@ -861,7 +861,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                   <svg className="w-8 h-8 text-[#F5C542]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /></svg>
                 </div>
                 <h2 className="mt-3 text-2xl font-bold text-white">We Made an Impact!</h2>
-                <p className="mt-1 text-sm font-semibold text-emerald-300">{campaign.title}</p>
+                <p className="mt-1 text-sm font-semibold text-[#F5C542]/70">{campaign.title}</p>
               </div>
 
               {/* Stats */}
@@ -873,7 +873,7 @@ function CampaignPanel({ campaign }: { campaign: Campaign }) {
                 ].map(({ label, value }) => (
                   <div key={label} className="rounded-2xl bg-white/10 px-3 py-4 text-center">
                     <AnimatedShareNumber value={value} />
-                    <p className="mt-1 text-xs text-emerald-200/70">{label}</p>
+                    <p className="mt-1 text-xs text-[#F5C542]/60">{label}</p>
                   </div>
                 ))}
               </div>
@@ -1019,8 +1019,8 @@ export default function DashboardPage() {
             </div>
           ) : campaigns.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-24 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50">
-                <svg className="w-8 h-8 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F5C542]/10">
+                <svg className="w-8 h-8 text-[#F5C542]/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
               </div>
               <p className="mt-4 text-lg font-semibold text-slate-700">No campaigns yet</p>
               <p className="mt-2 text-sm text-slate-400">Create your first campaign to get started.</p>
