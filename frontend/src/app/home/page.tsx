@@ -609,6 +609,26 @@ export default function HomePage() {
     [apiBase, getChatAuthHeaders]
   );
 
+  const startNewChatSession = useCallback(async () => {
+    if (chatBooting || chatLoading) return;
+
+    setChatBooting(true);
+    setChatInitializedForOpen(true);
+    setChatError("");
+    setChatInput("");
+    setChatSessionId(null);
+    setChatMessages([]);
+    localStorage.removeItem("tracka.chat_session_id");
+
+    try {
+      await createChatSession();
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unable to start a new chatbot session.");
+    } finally {
+      setChatBooting(false);
+    }
+  }, [chatBooting, chatLoading, createChatSession]);
+
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const message = chatInput.trim();
@@ -1416,8 +1436,8 @@ export default function HomePage() {
               <div className="flex items-center gap-3">
                 <Image src="/logo.svg" alt="Lemontree Bot" width={28} height={28} />
                 <div>
-                  <p className="text-base font-semibold text-[#1A1A1A]">Lemontree Chatbot</p>
-                  <p className="text-sm text-slate-500">Campaign assistant</p>
+                  <p className="text-base font-semibold text-[#1A1A1A]">LemonAI</p>
+                  <p className="text-sm text-slate-500">Your Squeeze Chatbot!</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

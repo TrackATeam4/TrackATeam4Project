@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import LemonLogo from "@/components/LemonLogo";
 import { supabase } from "@/lib/supabase";
 import { authFetch } from "@/lib/api";
 import { signOut } from "@/lib/auth";
@@ -138,8 +139,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         <div className="flex items-center gap-3 border-b border-yellow-100 px-5 py-5">
-          <Image src="/logo.svg" alt="Lemontree" width={28} height={28} className="h-7 w-7" />
-          <span className="text-lg font-bold text-[#A66F00]">Lemontree</span>
+          <LemonLogo size={30} />
+          <div>
+            <Image src="/wordmark.svg" alt="Lemontree" width={108} height={20} className="h-5 w-auto" />
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#9CA3AF]">Squeeze</p>
+          </div>
           <span className="ml-auto rounded-full bg-[#F5C542]/15 px-2 py-0.5 text-[10px] font-semibold text-[#A66F00]">
             Admin
           </span>
@@ -153,7 +157,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Volunteer Hub
+            Squeeze
           </Link>
         </div>
 
@@ -207,7 +211,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-[#A66F00]">Lemontree Admin</span>
+          <div className="flex items-center gap-2">
+            <LemonLogo size={22} />
+            <Image src="/wordmark.svg" alt="Lemontree" width={86} height={16} className="h-4 w-auto" />
+            <span className="rounded-full bg-[#F5C542]/15 px-2 py-0.5 text-[10px] font-semibold text-[#A66F00]">
+              Admin
+            </span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">{children}</main>
