@@ -220,11 +220,27 @@ class TestCreateCampaign:
         assert resp.status_code == 422
 
     def test_create_invalid_start_time_format_returns_422(self, client, mock_supabase):
-        """Returns 422 when start_time is not in HH:MM format."""
+        """Returns 422 when start_time is not a valid time string."""
         resp = client.post(
-            "/campaigns", json={**VALID_CREATE_BODY, "start_time": "10:00:00"}
+            "/campaigns", json={**VALID_CREATE_BODY, "start_time": "10am"}
         )
         assert resp.status_code == 422
+
+    def test_create_with_seconds_in_time_succeeds(self, client, mock_supabase):
+        """Frontend sends HH:MM:SS — backend must accept it (regression test for #33)."""
+        mock_supabase.table.side_effect = _make_table_router(insert_data=MOCK_CAMPAIGN)
+        body = {**VALID_CREATE_BODY, "start_time": "10:00:00", "end_time": "13:00:00"}
+        resp = client.post("/campaigns", json=body)
+        assert resp.status_code == 201
+
+    def test_create_with_status_published(self, client, mock_supabase):
+        """Frontend can set status=published when creating a campaign."""
+        published_campaign = {**MOCK_CAMPAIGN, "status": "published"}
+        mock_supabase.table.side_effect = _make_table_router(insert_data=published_campaign)
+        body = {**VALID_CREATE_BODY, "status": "published"}
+        resp = client.post("/campaigns", json=body)
+        assert resp.status_code == 201
+        assert resp.json()["data"]["status"] == "published"
 
     def test_create_invalid_end_time_format_returns_422(self, client, mock_supabase):
         """Returns 422 when end_time contains extra characters."""
