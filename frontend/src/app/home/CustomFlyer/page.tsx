@@ -4,14 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import HomeSidebar from "../../../components/home/HomeSidebar";
 import { authFetch } from "../../../lib/api";
 
-type FlyerTemplateListItem = {
-  name: string;
-  path: string;
-  url: string;
-  updated_at?: string | null;
-  created_at?: string | null;
-};
-
 type FlyerGenerateResponse = {
   campaign_id?: string;
   flyer_url?: string;
@@ -30,6 +22,13 @@ type CampaignSummary = {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 const DEFAULT_LANGUAGES = ["en", "es"];
+const SUPPORTED_STYLES = ["color_blocked", "modern_bordered"] as const;
+type SupportedStyle = (typeof SUPPORTED_STYLES)[number];
+
+const styleLabel = (style: SupportedStyle) => {
+  if (style === "color_blocked") return "Color Blocked";
+  return "Modern Bordered";
+};
 
 const languageLabel = (code: string) => {
   const map: Record<string, string> = {
@@ -48,11 +47,7 @@ export default function CustomFlyerPage() {
   const [selectedCampaignIndex, setSelectedCampaignIndex] = useState<number | null>(null);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [language, setLanguage] = useState("en");
-
-  const [templates, setTemplates] = useState<FlyerTemplateListItem[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [templatesError, setTemplatesError] = useState("");
-  const [selectedTemplateIndex, setSelectedTemplateIndex] = useState<number | null>(null);
+  const [selectedStyle, setSelectedStyle] = useState<SupportedStyle>("color_blocked");
 
   const [generatingFlyer, setGeneratingFlyer] = useState(false);
   const [previewMode, setPreviewMode] = useState(true);
@@ -73,11 +68,6 @@ export default function CustomFlyerPage() {
   const selectedCampaignId = selectedCampaign?.id ?? "";
 
   const availableLanguages = DEFAULT_LANGUAGES;
-
-  const selectedTemplate = useMemo(() => {
-    if (selectedTemplateIndex === null) return null;
-    return templates[selectedTemplateIndex] ?? null;
-  }, [selectedTemplateIndex, templates]);
 
   useEffect(() => {
     const loadCampaigns = async () => {
@@ -105,46 +95,6 @@ export default function CustomFlyerPage() {
     };
 
     void loadCampaigns();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const loadTemplates = async () => {
-      if (!API_BASE) return;
-
-      setTemplatesLoading(true);
-      setTemplatesError("");
-
-      try {
-        const response = await fetch(`${API_BASE}/flyers/templates`);
-        const payload = (await response.json().catch(() => ({}))) as {
-          templates?: FlyerTemplateListItem[];
-          detail?: string;
-        };
-
-        if (!response.ok) {
-          throw new Error(payload.detail || "Could not load flyer templates.");
-        }
-
-        const list = Array.isArray(payload.templates) ? payload.templates : [];
-        setTemplates(list);
-        setSelectedTemplateIndex((prev) => {
-          if (list.length === 0) return null;
-          if (prev === null) return 0;
-          if (prev < 0) return 0;
-          if (prev >= list.length) return 0;
-          return prev;
-        });
-      } catch (err) {
-        setTemplates([]);
-        setSelectedTemplateIndex(null);
-        setTemplatesError(err instanceof Error ? err.message : "Could not load flyer templates.");
-      } finally {
-        setTemplatesLoading(false);
-      }
-    };
-
-    void loadTemplates();
   }, []);
 
   useEffect(() => {
@@ -172,8 +122,9 @@ export default function CustomFlyerPage() {
 
       const body: Record<string, string> = {
         campaign_id: selectedCampaignId.trim(),
+        style: selectedStyle,
       };
-
+    console.log(body);
       const response = await fetch(`${API_BASE}/flyers`, {
         method: "POST",
         headers: {
@@ -288,33 +239,19 @@ export default function CustomFlyerPage() {
                     ))}
                   </select>
 
-    
-                  <h3 className="mt-4 text-sm font-semibold text-slate-700">Template</h3>
-                    <select
-                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                      value={selectedTemplateIndex === null ? "" : String(selectedTemplateIndex)}
-                      onChange={(event) => {
-                        const nextIndex = Number.parseInt(event.target.value, 10);
-                        setSelectedTemplateIndex(Number.isFinite(nextIndex) ? nextIndex : null);
-                      }}
-                      disabled={templatesLoading || templates.length === 0}
-                    >
-                      {templates.length === 0 ? (
-                        <option value="">
-                          {templatesLoading ? "Loading templates..." : "No templates available"}
-                        </option>
-                      ) : (
-                        templates.map((template, index) => (
-                          <option key={`${template.name}-${index}`} value={String(index)}>
-                            {template.name}
-                          </option>
-                        ))
-                      )}
-                    </select>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {selectedTemplate ? `Selected: ${selectedTemplate.name}` : "Select a template (optional)."}
-                    </p>
-                    {templatesError ? <p className="mt-2 text-xs text-red-600">{templatesError}</p> : null}
+                  <h3 className="mt-4 text-sm font-semibold text-slate-700">Style</h3>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    value={selectedStyle}
+                    onChange={(event) => setSelectedStyle(event.target.value as SupportedStyle)}
+                  >
+                    {SUPPORTED_STYLES.map((style) => (
+                      <option key={style} value={style}>
+                        {styleLabel(style)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">Selected: {styleLabel(selectedStyle)}</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
