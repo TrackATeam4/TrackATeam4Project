@@ -1309,7 +1309,7 @@ async def get_admin_analytics_trends(
     user_points = points_result.data or []
 
     today = date.today()
-    bucket_count = 52 if period == "weekly" else 15
+    bucket_count = 12
 
     if period == "weekly":
         start_bucket = get_week_start(today) - timedelta(weeks=bucket_count - 1)
