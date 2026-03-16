@@ -19,6 +19,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/flyers", tags=["flyers"])
 
+
+def _is_storage_exists_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "already exists" in message or "resource already exists" in message
+
+
+def _upload_flyer_pdf(bucket, storage_path: str, pdf_bytes: bytes) -> None:
+    file_options = {
+        "content-type": "application/pdf",
+        # Supabase Storage expects string values for this option in some client versions.
+        "upsert": "true",
+    }
+    try:
+        bucket.upload(path=storage_path, file=pdf_bytes, file_options=file_options)
+    except Exception as exc:
+        if not _is_storage_exists_error(exc):
+            raise
+        # Fallback for SDK versions that ignore upload upsert and still return duplicate errors.
+        bucket.update(
+            path=storage_path,
+            file=pdf_bytes,
+            file_options={"content-type": "application/pdf"},
+        )
+
+
 _CAMPAIGN_SELECT_FIELDS = (
     "title, location, address, date, start_time, end_time, description"
 )
@@ -90,31 +115,29 @@ def generate_flyer(
 
     # Upload to Supabase Storage bucket "flyers"
     storage_path = f"flyers/{body.campaign_id}.pdf"
+    bucket = supabase.storage.from_("flyers")
     try:
-        supabase.storage.from_("flyers").upload(
-            path=storage_path,
-            file=pdf_bytes,
-            file_options={"content-type": "application/pdf"},
-        )
+        _upload_flyer_pdf(bucket, storage_path, pdf_bytes)
     except Exception as exc:
         logger.error("Flyer upload failed for campaign %s: %s", body.campaign_id, exc)
         raise HTTPException(status_code=500, detail="Failed to upload flyer")
 
-    generated_file_url = supabase.storage.from_("flyers").get_public_url(storage_path)
+    generated_file_url = bucket.get_public_url(storage_path)
 
     # Upsert campaign_flyers record
     try:
-        supabase.table("campaign_flyers").insert(
+        supabase.table("campaign_flyers").upsert(
             {
                 "campaign_id": body.campaign_id,
                 "template_id": template["id"],
                 "custom_fields": {},
                 "generated_file_url": generated_file_url,
-            }
+            },
+            on_conflict="campaign_id",
         ).execute()
     except Exception as exc:
         logger.error(
-            "Failed to insert campaign_flyers record for campaign %s: %s",
+            "Failed to upsert campaign_flyers record for campaign %s: %s",
             body.campaign_id,
             exc,
         )

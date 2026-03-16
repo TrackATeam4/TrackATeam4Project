@@ -71,6 +71,18 @@ const navItems = [
     ),
   },
   {
+    label: "Custom Flyer",
+    href: "/home/CustomFlyer",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10z" />
+        <polyline points="14 3 14 10 21 10" />
+        <line x1="8" y1="14" x2="16" y2="14" />
+        <line x1="8" y1="18" x2="13" y2="18" />
+      </svg>
+    ),
+  },
+  {
     label: "My Profile",
     href: "/home/profile",
     icon: (
