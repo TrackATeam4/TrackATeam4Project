@@ -83,18 +83,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      // TEMPORARY: admin role check bypassed for testing
-      // To re-enable, uncomment the block below and remove setAuthed(true)
-      // try {
-      //   const res = await authFetch<{ role?: string }>("/auth/me");
-      //   if (res.data?.role !== "admin") {
-      //     router.replace("/home");
-      //     return;
-      //   }
-      // } catch {
-      //   router.replace("/home");
-      //   return;
-      // }
+      try {
+        const res = await authFetch<{ role?: string }>("/auth/me");
+        if (res.data?.role !== "admin") {
+          router.replace("/home");
+          return;
+        }
+      } catch {
+        router.replace("/home");
+        return;
+      }
 
       setAuthed(true);
       setChecking(false);
@@ -145,6 +143,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
             Admin
           </span>
+        </div>
+
+        <div className="border-b border-yellow-100 px-3 py-2">
+          <Link
+            href="/home"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-yellow-50 hover:text-slate-600"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Volunteer Hub
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
