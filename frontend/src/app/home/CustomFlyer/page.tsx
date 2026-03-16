@@ -84,7 +84,7 @@ export default function CustomFlyerPage() {
       setLoadingCampaigns(true);
       setError("");
       try {
-        const response = await authFetch<CampaignSummary[]>("/campaigns/mine");
+        const response = await authFetch<CampaignSummary[]>("/campaigns");
         const list = response.data ?? [];
         const titledList = list.filter((campaign) => (campaign.title ?? "").trim().length > 0);
         setCampaigns(list);
