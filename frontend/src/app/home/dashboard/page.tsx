@@ -972,13 +972,6 @@ export default function DashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/auth"); return; }
 
-      // Only admins can access the dashboard
-      const role = localStorage.getItem("tracka.user_role") ?? "volunteer";
-      if (role !== "admin") {
-        router.replace("/home");
-        return;
-      }
-
       try {
         const res = await authFetch<Campaign[]>("/campaigns/mine");
         setCampaigns((res.data as unknown as Campaign[]) ?? []);
