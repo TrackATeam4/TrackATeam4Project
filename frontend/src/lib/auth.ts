@@ -36,6 +36,10 @@ export async function signUpWithEmail(email: string, password: string, name?: st
 }
 
 export async function signInWithEmail(email: string, password: string) {
+  // Clear any stale session before signing in to prevent a previous user's
+  // session from persisting in the Supabase SDK client.
+  await supabase.auth.signOut()
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,

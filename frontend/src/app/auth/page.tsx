@@ -2,9 +2,9 @@
 
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
+import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -21,8 +21,6 @@ const dmSans = DM_Sans({
 const headline = ["Every", "flyer", "feeds", "a", "neighborhood."];
 
 const tickerText = "🍋 Chelsea • Harlem • Bronx • Washington Heights • Sunset Park • East Village • Astoria • Newark • Philadelphia • Boston • Baltimore •";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type AuthStatus = "idle" | "loading" | "error" | "success";
 
@@ -89,40 +87,12 @@ function AuthPageInner() {
 
     try {
       if (mode === "signup") {
-        const signupResponse = await fetch(`${API_BASE}/auth/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (!signupResponse.ok) {
-          throw new Error("Unable to create account.");
-        }
-
+        await signUpWithEmail(email, password, name);
         localStorage.setItem("tracka.signup_name", name);
       }
 
-      const signinResponse = await fetch(`${API_BASE}/auth/signin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!signinResponse.ok) {
-        throw new Error("Invalid email or password.");
-      }
-
-      const payload = (await signinResponse.json()) as {
-        session?: { access_token?: string };
-      };
-
-      const accessToken = payload.session?.access_token;
-      if (!accessToken) {
-        throw new Error("Missing access token.");
-      }
-
-      localStorage.setItem("tracka.access_token", accessToken);
-      localStorage.setItem("tracka.user_email", email);
+      await signInWithEmail(email, password);
+      localStorage.setItem("tracka.signup_name", name || email.split("@")[0]);
 
       setStatus("success");
       setTimeout(() => setShowSuccess(true), 500);
@@ -392,12 +362,8 @@ function AuthPageInner() {
                           setStatus("loading");
                           setMessage("");
                           try {
-                            const res = await fetch(`${API_BASE}/auth/reset-password`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ email }),
-                            });
-                            if (!res.ok) throw new Error("Unable to send reset email.");
+                            const { resetPassword } = await import("@/lib/auth");
+                            await resetPassword(email);
                             setStatus("success");
                             setMessage("Reset link sent! Check your inbox.");
                           } catch (e) {
