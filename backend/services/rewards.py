@@ -8,7 +8,7 @@ LEVELS = [
     (50, 2, "Sprout"),
     (150, 3, "Bloom"),
     (350, 4, "Branch"),
-    (700, 5, "Lemontree Champion"),
+    (700, 5, "Squeeze Champion"),
 ]
 
 

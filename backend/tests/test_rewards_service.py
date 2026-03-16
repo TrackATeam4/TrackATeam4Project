@@ -46,7 +46,7 @@ class TestGetLevel:
 
         result = get_level(700)
         assert result["level"] == 5
-        assert result["name"] == "Lemontree Champion"
+        assert result["name"] == "Squeeze Champion"
         assert result["progress_pct"] == 100
 
     def test_above_champion(self):

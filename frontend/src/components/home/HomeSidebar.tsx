@@ -202,7 +202,7 @@ export default function HomeSidebar() {
           <LemonLogo size={30} />
           <div>
             <img src="/wordmark.svg" alt="Lemontree" className="h-5 w-auto" />
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#9CA3AF]">Volunteer Hub</p>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#9CA3AF]">Squeeze</p>
           </div>
         </div>
 
