@@ -31,7 +31,7 @@ type Badge = {
 
 const BADGE_META: Record<string, { label: string; desc: string; color: string }> = {
   impact_100:    { label: "Flyer Hero",     desc: "Distributed 100+ flyers",      color: "from-amber-400 to-yellow-300" },
-  first_signup:  { label: "First Step",     desc: "Joined your first campaign",    color: "from-emerald-400 to-teal-400" },
+  first_signup:  { label: "First Step",     desc: "Joined your first campaign",    color: "from-[#F5C542] to-[#E0B63A]" },
   volunteer_5:   { label: "Regular",        desc: "Volunteered 5 times",           color: "from-violet-400 to-purple-400" },
   organizer:     { label: "Organizer",      desc: "Created your first campaign",   color: "from-rose-400 to-pink-400" },
   top_volunteer: { label: "Top Volunteer",  desc: "Reached leaderboard top 10",    color: "from-sky-400 to-blue-400" },
@@ -144,14 +144,13 @@ export default function HomeProfilePage() {
         <div className="mx-auto max-w-4xl space-y-6">
 
           {/* Profile hero */}
-          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            <div className="h-24 bg-gradient-to-r from-[#1B4332] to-[#2D6A4F]" />
-            <div className="px-8 pb-8">
-              <div className="-mt-10 flex items-end gap-5">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-3xl font-bold text-white shadow-md ring-4 ring-white">
+          <div className="rounded-3xl border border-[#F5C542]/30 bg-gradient-to-r from-[#FFF4CC] via-[#FFF8E1] to-[#FFFBEB] p-6 shadow-sm">
+            <div className="rounded-2xl border border-gray-100 bg-white px-7 py-6">
+              <div className="flex items-center gap-5">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542] to-[#E5A800] text-3xl font-bold text-white shadow-md ring-4 ring-[#F5C542]/20">
                   {userName.charAt(0).toUpperCase()}
                 </div>
-                <div className="mb-1">
+                <div>
                   <h1 className="text-2xl font-bold text-[#111827]">{userName}</h1>
                   <p className="text-sm text-[#6B7280]">{email}</p>
                 </div>
@@ -167,7 +166,7 @@ export default function HomeProfilePage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9CA3AF]">Reward Points</p>
-              <p className="mt-2 text-3xl font-bold text-[#1B4332]">
+              <p className="mt-2 text-3xl font-bold text-[#8A5A00]">
                 {loading ? "—" : (pointsTotal ?? 0).toLocaleString()}
               </p>
             </div>
@@ -268,7 +267,7 @@ export default function HomeProfilePage() {
                         {(entry.user?.name ?? "?").charAt(0).toUpperCase()}
                       </div>
                       <p className="flex-1 text-sm text-[#111827]">{entry.user?.name ?? "Volunteer"}</p>
-                      <p className="text-xs font-semibold text-[#1B4332]">{(entry.total_points ?? 0).toLocaleString()} pts</p>
+                      <p className="text-xs font-semibold text-[#8A5A00]">{(entry.total_points ?? 0).toLocaleString()} pts</p>
                     </div>
                   ))
                 )}
@@ -287,7 +286,7 @@ export default function HomeProfilePage() {
                 ) : (
                   recentTransactions.slice(0, 5).map((txn, index) => (
                     <div key={`${txn.action ?? "reward"}-${index}`} className="flex items-center gap-3 rounded-xl bg-[#FFFEF5] px-3 py-2.5">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F5C542]/15 text-[#A66F00]">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                         </svg>
@@ -296,7 +295,7 @@ export default function HomeProfilePage() {
                         <p className="truncate text-sm font-medium text-[#111827]">{txn.action ?? "Reward"}</p>
                         {txn.campaign_title && <p className="truncate text-[10px] text-[#9CA3AF]">{txn.campaign_title}</p>}
                       </div>
-                      <p className="text-xs font-bold text-emerald-600">+{typeof txn.points === "number" ? txn.points : 0}</p>
+                      <p className="text-xs font-bold text-[#B7791F]">+{typeof txn.points === "number" ? txn.points : 0}</p>
                     </div>
                   ))
                 )}

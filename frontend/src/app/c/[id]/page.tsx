@@ -165,7 +165,7 @@ export default function PublicCampaignPage() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="h-10 w-10 rounded-full border-4 border-emerald-200 border-t-emerald-600"
+          className="h-10 w-10 rounded-full border-4 border-[#F5C542]/40 border-t-[#E0B63A]"
         />
       </div>
     );
@@ -227,13 +227,13 @@ export default function PublicCampaignPage() {
             {campaign.title}
           </h1>
           {campaign.description && (
-            <p className="mt-4 text-base leading-relaxed text-emerald-100/80 max-w-2xl">
+            <p className="mt-4 text-base leading-relaxed text-[#F5C542]/70 max-w-2xl">
               {campaign.description}
             </p>
           )}
 
           {/* Info chips */}
-          <div className="mt-6 flex flex-wrap gap-4 text-sm text-emerald-100/70">
+          <div className="mt-6 flex flex-wrap gap-4 text-sm text-[#F5C542]/60">
             {campaign.date && (
               <span className="flex items-center gap-1.5">
                 <span className="text-yellow-400">📅</span>
@@ -256,13 +256,13 @@ export default function PublicCampaignPage() {
 
           {/* Progress bar */}
           <div className="mt-8 max-w-sm space-y-2">
-            <div className="flex justify-between text-xs text-emerald-200/60">
+            <div className="flex justify-between text-xs text-[#F5C542]/55">
               <span>👥 {signupCount} / {spotsTotal} volunteers joined</span>
               <span>{progress}%</span>
             </div>
             <div className="h-2 w-full rounded-full bg-white/10">
               <motion.div
-                className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-emerald-400"
+                className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-[#F5C542]"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -287,25 +287,25 @@ export default function PublicCampaignPage() {
                 key="success"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center"
+                className="mt-5 rounded-2xl border border-[#F5C542]/40 bg-[#F5C542]/10 p-6 text-center"
               >
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                  className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10"
+                  className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#F5C542]/10"
                 >
                   <span className="text-3xl">✅</span>
                 </motion.div>
-                <p className="font-bold text-emerald-800">
+                <p className="font-bold text-[#8A5A00]">
                   {rsvpState === "alreadyDone" ? "Already registered!" : "You're registered!"}
                 </p>
-                <p className="mt-1 text-sm text-emerald-600">See you at {campaign.title}!</p>
+                <p className="mt-1 text-sm text-[#B7791F]">See you at {campaign.title}!</p>
                 <a
                   href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(campaign.title)}&dates=${campaign.date?.replace(/-/g, "") ?? ""}/${campaign.date?.replace(/-/g, "") ?? ""}&location=${encodeURIComponent(campaign.address ?? "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 inline-block rounded-xl border border-emerald-300 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                  className="mt-4 inline-block rounded-xl border border-[#F5C542]/50 px-4 py-2 text-xs font-semibold text-[#A66F00] transition hover:bg-[#F5C542]/15"
                 >
                   📅 Add to Calendar
                 </a>
@@ -324,7 +324,7 @@ export default function PublicCampaignPage() {
                     placeholder="Your name"
                     value={rsvpName}
                     onChange={(e) => setRsvpName(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/30"
                   />
                 </div>
                 <div>
@@ -335,7 +335,7 @@ export default function PublicCampaignPage() {
                     value={rsvpEmail}
                     onChange={(e) => setRsvpEmail(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") void handleRsvp(); }}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/30"
                   />
                 </div>
 
@@ -349,14 +349,14 @@ export default function PublicCampaignPage() {
                   whileHover={{ scale: 1.02 }}
                   disabled={rsvpState === "submitting"}
                   onClick={handleRsvp}
-                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-100 disabled:opacity-60"
+                  className="w-full rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] py-3.5 text-sm font-bold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 disabled:opacity-60"
                 >
                   {rsvpState === "submitting" ? "Registering..." : "Join This Campaign →"}
                 </motion.button>
 
                 <p className="text-center text-xs text-slate-400">
                   Already have an account?{" "}
-                  <Link href="/auth" className="text-emerald-600 underline underline-offset-2 hover:text-emerald-700">
+                  <Link href="/auth" className="text-[#B7791F] underline underline-offset-2 hover:text-[#A66F00]">
                     Sign in for full features
                   </Link>
                 </p>
@@ -406,10 +406,10 @@ export default function PublicCampaignPage() {
             <h2 className="mb-4 text-xl font-bold text-[#0F172A]" style={{ fontFamily: "var(--display)" }}>
               Campaign Impact
             </h2>
-            <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-8">
+            <div className="rounded-3xl border border-[#F5C542]/30 bg-gradient-to-br from-[#F5C542]/10 to-white p-8">
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { label: "Flyers Distributed", value: impact.flyers_distributed, icon: "📄", colorClass: "border-emerald-100 bg-emerald-50 text-emerald-700" },
+                  { label: "Flyers Distributed", value: impact.flyers_distributed, icon: "📄", colorClass: "border-[#F5C542]/30 bg-[#F5C542]/10 text-[#A66F00]" },
                   { label: "Families Reached", value: impact.families_reached, icon: "👨‍👩‍👧", colorClass: "border-yellow-100 bg-yellow-50 text-yellow-700" },
                   { label: "Volunteers Attended", value: impact.volunteers_attended, icon: "🙌", colorClass: "border-teal-100 bg-teal-50 text-teal-700" },
                 ].map(({ label, value, icon, colorClass }) => (

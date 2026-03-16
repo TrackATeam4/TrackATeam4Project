@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
 _UUID_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-_TIME_PATTERN = r"^\d{2}:\d{2}$"
+_TIME_PATTERN = r"^\d{2}:\d{2}(:\d{2})?$"
 
 CampaignStatus = Literal["draft", "published", "completed", "cancelled"]
 
@@ -39,6 +39,7 @@ class CampaignCreate(BaseModel):
     target_flyers: int = Field(ge=0)
     flyer_template_id: Optional[str] = Field(default=None, pattern=_UUID_PATTERN)
     food_pantry_id: Optional[str] = Field(default=None, pattern=_UUID_PATTERN)
+    status: CampaignStatus = "draft"
     tags: Annotated[list[str], Field(max_length=20)] = []
 
 
@@ -141,7 +142,7 @@ def create_campaign(
         "flyer_template_id": body.flyer_template_id,
         "food_pantry_id": body.food_pantry_id,
         "tags": body.tags,
-        "status": "draft",
+        "status": body.status,
     }
 
     try:

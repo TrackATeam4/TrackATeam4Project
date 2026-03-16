@@ -83,18 +83,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      // TEMPORARY: admin role check bypassed for testing
-      // To re-enable, uncomment the block below and remove setAuthed(true)
-      // try {
-      //   const res = await authFetch<{ role?: string }>("/auth/me");
-      //   if (res.data?.role !== "admin") {
-      //     router.replace("/home");
-      //     return;
-      //   }
-      // } catch {
-      //   router.replace("/home");
-      //   return;
-      // }
+      try {
+        const res = await authFetch<{ role?: string }>("/auth/me");
+        if (res.data?.role !== "admin") {
+          router.replace("/home");
+          return;
+        }
+      } catch {
+        router.replace("/home");
+        return;
+      }
 
       setAuthed(true);
       setChecking(false);
@@ -116,7 +114,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#FFF9D6]">
         <div className="text-center">
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#F5C542]/40 border-t-[#E0B63A]" />
           <p className="text-sm text-slate-500">Verifying access...</p>
         </div>
       </div>
@@ -141,10 +139,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         <div className="flex items-center gap-3 border-b border-yellow-100 px-5 py-5">
           <Image src="/logo.svg" alt="Lemontree" width={28} height={28} className="h-7 w-7" />
-          <span className="text-lg font-bold text-[#065F46]">Lemontree</span>
-          <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+          <span className="text-lg font-bold text-[#A66F00]">Lemontree</span>
+          <span className="ml-auto rounded-full bg-[#F5C542]/15 px-2 py-0.5 text-[10px] font-semibold text-[#A66F00]">
             Admin
           </span>
+        </div>
+
+        <div className="border-b border-yellow-100 px-3 py-2">
+          <Link
+            href="/home"
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-yellow-50 hover:text-slate-600"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Volunteer Hub
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -157,11 +167,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-emerald-50 text-emerald-700"
+                    ? "bg-[#F5C542]/10 text-[#A66F00]"
                     : "text-slate-500 hover:bg-yellow-50 hover:text-slate-700"
                 }`}
               >
-                <NavIcon name={item.icon} className={`h-5 w-5 ${active ? "text-emerald-600" : ""}`} />
+                <NavIcon name={item.icon} className={`h-5 w-5 ${active ? "text-[#B7791F]" : ""}`} />
                 {item.label}
               </Link>
             );
@@ -197,7 +207,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
-          <span className="text-sm font-semibold text-[#065F46]">Lemontree Admin</span>
+          <span className="text-sm font-semibold text-[#A66F00]">Lemontree Admin</span>
         </header>
 
         <main className="flex-1 overflow-y-auto">{children}</main>
