@@ -44,6 +44,11 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+app.include_router(map_router)
+app.include_router(pantry_router)
+app.include_router(admin_analytics_router)
+app.include_router(admin_campaign_router)
+
 app.include_router(campaigns.router)
 app.include_router(impact.router)
 app.include_router(feed.router)
@@ -190,7 +195,26 @@ async def reset_password(request: ResetPasswordRequest):
 
 @app.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
-    return {"user": user}
+    supabase = get_supabase_client()
+    raw_user = getattr(user, "user", user)
+    user_id = getattr(raw_user, "id", None)
+    user_email = getattr(raw_user, "email", None)
+
+    app_user = None
+    if user_id:
+        result = supabase.table("users").select("id, email, name, role").eq("id", user_id).limit(1).execute()
+        if result.data:
+            app_user = result.data[0]
+
+    if not app_user and user_email:
+        result = supabase.table("users").select("id, email, name, role").eq("email", user_email).limit(1).execute()
+        if result.data:
+            app_user = result.data[0]
+
+    if app_user:
+        return {"success": True, "data": app_user}
+
+    return {"success": True, "data": {"id": user_id, "email": user_email, "role": "volunteer"}}
 
 
 @app.exception_handler(StarletteHTTPException)

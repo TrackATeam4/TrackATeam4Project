@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { authFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
+import HomeSidebar from "@/components/home/HomeSidebar";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -194,6 +195,8 @@ const CHAT_API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   "";
 
+const CHAT_AUTO_OPEN_TAB_KEY = "tracka.home_chat_auto_opened";
+
 const subscribeToStorage = (callback: () => void) => {
   if (typeof window === "undefined") return () => undefined;
   window.addEventListener("storage", callback);
@@ -231,7 +234,14 @@ export default function HomePage() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [forYouPosts, setForYouPosts] = useState<Post[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
+  const [dbComments, setDbComments] = useState<Record<string, { id: string; author_name: string; body: string; created_at: string }[]>>({});
+  const [loadedComments, setLoadedComments] = useState<Set<string>>(new Set());
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [submittingComment, setSubmittingComment] = useState<string | null>(null);
+  const [copiedShare, setCopiedShare] = useState<string | null>(null);
   const apiBase = CHAT_API_BASE;
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const userName = useSyncExternalStore(
     subscribeToStorage,
     () => getLocalStorageValue("tracka.signup_name", "Volunteer"),
@@ -245,7 +255,19 @@ export default function HomePage() {
       } = await supabase.auth.getSession();
       if (!session) {
         router.push("/auth");
+        return;
       }
+
+      // Open chat once per browser tab to reduce repeated popup interruptions.
+      const shouldAutoOpenChat = sessionStorage.getItem(CHAT_AUTO_OPEN_TAB_KEY) !== "1";
+      if (!shouldAutoOpenChat) {
+        return;
+      }
+
+      sessionStorage.setItem(CHAT_AUTO_OPEN_TAB_KEY, "1");
+      setChatError("");
+      setChatInitializedForOpen(false);
+      setIsChatOpen(true);
     };
 
     void ensureSession();
@@ -259,20 +281,23 @@ export default function HomePage() {
       setFeedError("");
 
       try {
-        const [feedPayload, joinedPayload, trendingPayload] = await Promise.all([
+        const [feedPayload, joinedPayload, trendingPayload, likedPayload] = await Promise.all([
           authFetch<FeedCampaign[]>(`/campaigns?page=1&limit=20`),
-          authFetch<{ id: string }[]>(`/campaigns/joined?limit=100`).catch(() => ({ success: true as const, data: [] })),
-          authFetch<FeedCampaign[]>(`/feed/trending`).catch(() => ({ success: true as const, data: [] })),
+          authFetch<{ id: string }[]>(`/campaigns/joined?limit=100`).catch(() => ({ success: true as const, data: [] as { id: string }[] })),
+          authFetch<FeedCampaign[]>(`/feed/trending`).catch(() => ({ success: true as const, data: [] as FeedCampaign[] })),
+          authFetch<string[]>(`/campaigns/liked`).catch(() => ({ success: true as const, data: [] as string[] })),
         ]);
 
         const campaigns = extractFeedCampaigns(feedPayload);
         const mappedPosts = campaigns.map(campaignToPost);
         const joinedIds = new Set((joinedPayload.data ?? []).map((c) => c.id));
+        const likedIds = new Set((likedPayload.data ?? []) as string[]);
 
         const trending = extractFeedCampaigns(trendingPayload).slice(0, 5);
         if (!cancelled) {
           setPosts(mappedPosts);
           setJoinedPosts(joinedIds);
+          setLikedPosts(likedIds);
           setTrendingCampaigns(trending);
           setFeedError("");
         }
@@ -329,27 +354,90 @@ export default function HomePage() {
     } catch { setForYouPosts([]); } finally { setForYouLoading(false); }
   };
 
-  const toggleLike = (postId: string) => {
-    setPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const isLiked = likedPosts.has(postId);
-        return {
-          ...post,
-          likes: isLiked ? post.likes - 1 : post.likes + 1,
-        };
-      })
-    );
-
+  const toggleLike = async (postId: string) => {
+    const wasLiked = likedPosts.has(postId);
+    // Optimistic update
     setLikedPosts((prev) => {
       const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
+      wasLiked ? next.delete(postId) : next.add(postId);
       return next;
     });
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id !== postId ? p : { ...p, likes: wasLiked ? p.likes - 1 : p.likes + 1 }
+      )
+    );
+    try {
+      const res = await authFetch<{ liked: boolean; count: number }>(`/campaigns/${postId}/like`, { method: "POST" });
+      const { liked, count } = res.data as { liked: boolean; count: number };
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        liked ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+      setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, likes: count })));
+    } catch {
+      // Revert on failure
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        wasLiked ? next.add(postId) : next.delete(postId);
+        return next;
+      });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id !== postId ? p : { ...p, likes: wasLiked ? p.likes + 1 : p.likes - 1 }
+        )
+      );
+    }
+  };
+
+  const toggleComments = async (postId: string) => {
+    const isOpening = !expandedComments.has(postId);
+    setExpandedComments((prev) => {
+      const next = new Set(prev);
+      isOpening ? next.add(postId) : next.delete(postId);
+      return next;
+    });
+    // Fetch comments the first time this post is expanded
+    if (isOpening && !loadedComments.has(postId)) {
+      try {
+        const res = await authFetch<{ id: string; author_name: string; body: string; created_at: string }[]>(
+          `/campaigns/${postId}/comments`
+        );
+        const comments = (res.data ?? []) as { id: string; author_name: string; body: string; created_at: string }[];
+        setDbComments((prev) => ({ ...prev, [postId]: comments }));
+        setLoadedComments((prev) => new Set(prev).add(postId));
+        setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, comments: comments.length })));
+      } catch { /* show empty state */ }
+    }
+  };
+
+  const submitComment = async (postId: string) => {
+    const text = (commentDrafts[postId] ?? "").trim();
+    if (!text || submittingComment === postId) return;
+    setSubmittingComment(postId);
+    setCommentDrafts((prev) => ({ ...prev, [postId]: "" }));
+    try {
+      const res = await authFetch<{ id: string; author_name: string; body: string; created_at: string }>(
+        `/campaigns/${postId}/comments`,
+        { method: "POST", body: JSON.stringify({ body: text }) }
+      );
+      const newComment = res.data as { id: string; author_name: string; body: string; created_at: string };
+      setDbComments((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), newComment] }));
+      setPosts((prev) => prev.map((p) => (p.id !== postId ? p : { ...p, comments: p.comments + 1 })));
+    } catch {
+      // Restore draft on failure
+      setCommentDrafts((prev) => ({ ...prev, [postId]: text }));
+    } finally {
+      setSubmittingComment(null);
+    }
+  };
+
+  const copyShare = (postId: string) => {
+    const url = `${window.location.origin}/c/${postId}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopiedShare(postId);
+    setTimeout(() => setCopiedShare(null), 2000);
   };
 
   const toggleJoin = async (postId: string) => {
@@ -467,9 +555,9 @@ export default function HomePage() {
           const contentValue =
             typeof candidate.content === "string"
               ? candidate.content
-              : typeof candidate.message === "string"
-                ? candidate.message
-                : "";
+              : typeof candidate.message === "string" && candidate.message
+              ? candidate.message
+              : "";
 
           if (contentValue.trim().length > 0) {
             return { role, content: contentValue };
@@ -542,6 +630,25 @@ export default function HomePage() {
     },
     [apiBase, getChatAuthHeaders]
   );
+
+  const startNewChatSession = useCallback(async () => {
+    if (chatLoading || chatBooting) return;
+
+    setChatBooting(true);
+    setChatError("");
+    setChatInput("");
+    setChatSessionId(null);
+    setChatMessages([]);
+    localStorage.removeItem("tracka.chat_session_id");
+
+    try {
+      await createChatSession();
+    } catch (error) {
+      setChatError(error instanceof Error ? error.message : "Unable to start a new chat session.");
+    } finally {
+      setChatBooting(false);
+    }
+  }, [chatBooting, chatLoading, createChatSession]);
 
   const sendChatMessage = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -643,6 +750,11 @@ export default function HomePage() {
     loadChatSession,
   ]);
 
+  useEffect(() => {
+    if (!isChatOpen) return;
+    chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chatMessages, chatLoading, chatBooting, isChatOpen]);
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -678,99 +790,15 @@ export default function HomePage() {
       className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFF8E1] text-[#1A1A1A]`}
       style={{ fontFamily: "var(--home-body)" }}
     >
+      <HomeSidebar />
+
       <div className="flex">
-        <motion.aside
-          className="fixed left-0 top-0 z-50 h-screen w-72 flex-col bg-white px-6 py-8 text-[#1A1A1A] flex border-r border-[#E5E7EB] shadow-[0_18px_45px_rgba(15,23,42,0.14)]"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="space-y-1">
-            <div
-              className="flex items-center gap-2 text-xl font-bold"
-              style={{ fontFamily: "var(--home-display)" }}
-            >
-              <span className="text-[28px]"><img src="/logo.svg" alt="Logo" className="h-7 w-7" /></span>
-              Lemontree
-            </div>
-            <p className="text-xs uppercase tracking-[0.24em] text-[#9CA3AF]">Volunteer Hub</p>
-          </div>
-
-          <motion.nav
-            className="mt-10 flex flex-1 flex-col gap-2 text-sm"
-            initial="hidden"
-            animate="show"
-            variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
-          >
-            {navItems.map((item) => {
-              const isActive = item.label === "Feed";
-              return (
-                <motion.div
-                  key={item.label}
-                  variants={{ hidden: { opacity: 0, x: -12 }, show: { opacity: 1, x: 0 } }}
-                  whileHover={{ x: 4 }}
-                >
-                  <Link
-                    href={item.href}
-                    className={`relative flex items-center gap-3 rounded-xl px-4 py-3 transition ${
-                      isActive
-                        ? "bg-[#FEF3C7] text-[#1A1A1A] font-semibold border-l-4 border-[#F5C542]"
-                        : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
-                    }`}
-                  >
-                    {isActive ? (
-                      <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-[#F5C542]" />
-                    ) : null}
-                    <span className="text-[20px]">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.nav>
-
-          <div className="mt-6 space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5C542] text-sm font-semibold text-[#1A1A1A]">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-[#1A1A1A]">{userName}</p>
-                  <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-[#6B7280]">
-                    Volunteer
-                  </span>
-                </div>
-              </div>
-              <button className="text-lg text-gray-300 transition hover:text-[#1A1A1A]">⎋</button>
-            </div>
-          </div>
-        </motion.aside>
-
-        <aside className="fixed left-0 top-0 z-40 h-screen w-24 flex-col bg-white px-3 py-8 flex border-r border-[#E5E7EB] shadow-[0_18px_45px_rgba(15,23,42,0.14)]">
-          <div className="flex flex-col items-center gap-4 text-xl">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex h-12 w-12 items-center justify-center rounded-2xl transition ${
-                  item.label === "Feed"
-                    ? "bg-[#FEF3C7] text-[#1A1A1A]"
-                    : "text-[#6B7280] hover:bg-gray-50 hover:text-[#1A1A1A]"
-                }`}
-              >
-                {item.icon}
-              </Link>
-            ))}
-          </div>
-        </aside>
-
         <main className="flex-1 px-5 pb-24 pt-8 lg:ml-72 md:ml-24 xl:mr-[300px]">
           <div className="mx-auto max-w-2xl space-y-8">
             {/* ── Trending Carousel ── */}
             {trendingCampaigns.length > 0 && !searchQuery && (
               <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">🔥 Trending Now</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[#6B7280]">🔥 Trending Now</p>
                 <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
                   {trendingCampaigns.map((c) => (
                     <Link
@@ -781,7 +809,7 @@ export default function HomePage() {
                       <div className="absolute top-3 right-3 rounded-full bg-amber-400/20 border border-amber-300/40 px-1.5 py-0.5 text-xs font-bold text-amber-700">
                         🔥
                       </div>
-                      <p className="pr-8 text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-emerald-800 transition">{c.title}</p>
+                      <p className="pr-8 text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#8A5A00] transition">{c.title}</p>
                       <p className="mt-2 text-xs text-slate-500 line-clamp-1">{c.location ?? "Location TBD"}</p>
                       <p className="mt-1 text-xs text-amber-600 font-medium">{(c as { recent_signups?: number }).recent_signups ?? 0} recent joins</p>
                     </Link>
@@ -806,8 +834,8 @@ export default function HomePage() {
                       }}
                       className={`rounded-lg px-4 py-1.5 transition ${
                         feedMode === mode
-                          ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-700"
+                          ? "bg-[#F5C542] text-[#1A1A1A] shadow-sm font-bold"
+                          : "text-[#6B7280] hover:text-[#1A1A1A]"
                       }`}
                     >
                       {mode === "all" ? "📋 All" : mode === "foryou" ? "✨ For You" : "📍 Nearby"}
@@ -818,7 +846,7 @@ export default function HomePage() {
 
               {/* Search input */}
               <div className="relative">
-                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6B7280]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
@@ -826,7 +854,7 @@ export default function HomePage() {
                   placeholder="Search campaigns..."
                   value={searchQuery}
                   onChange={(e) => { void handleSearch(e.target.value); }}
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-[#1A1A1A] placeholder-[#9CA3AF] shadow-sm focus:border-[#F5C542] focus:outline-none focus:ring-1 focus:ring-[#F5C542]/40"
                 />
                 {searchQuery && (
                   <button
@@ -901,7 +929,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => openModal()}
                   whileHover={{ scale: 1.01 }}
-                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-slate-400 transition hover:bg-gray-100"
+                  className="flex-1 rounded-xl bg-gray-50 px-4 py-3 text-left text-sm text-[#9CA3AF] transition hover:bg-gray-100"
                 >
                   Share an upcoming event or campaign update...
                 </motion.button>
@@ -1050,7 +1078,7 @@ export default function HomePage() {
                       <motion.button
                         type="button"
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => toggleLike(post.id)}
+                        onClick={() => void toggleLike(post.id)}
                         className="flex items-center gap-2 transition hover:text-slate-600"
                       >
                         <motion.span
@@ -1066,14 +1094,73 @@ export default function HomePage() {
                         {post.likes} likes
                       </motion.button>
                       <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => void toggleComments(post.id)}
+                        className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-[#B7791F] font-semibold" : ""}`}
+                      >
                         💬 {post.comments} comments
                       </button>
                       <span className="text-slate-300">·</span>
-                      <button type="button" className="flex items-center gap-2 transition hover:text-slate-600">
-                        🔗 Share
+                      <button
+                        type="button"
+                        onClick={() => copyShare(post.id)}
+                        className={`flex items-center gap-2 transition ${copiedShare === post.id ? "text-[#B7791F] font-semibold" : "hover:text-slate-600"}`}
+                      >
+                        {copiedShare === post.id ? "✓ Copied!" : "🔗 Share"}
                       </button>
                     </div>
+
+                    <AnimatePresence>
+                      {expandedComments.has(post.id) && (
+                        <motion.div
+                          key={`comments-${post.id}`}
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="mt-3 overflow-hidden"
+                        >
+                          <div className="space-y-2 border-t border-gray-100 pt-3">
+                            {!loadedComments.has(post.id) && (
+                              <p className="text-xs text-slate-400 italic">Loading comments…</p>
+                            )}
+                            {loadedComments.has(post.id) && (dbComments[post.id] ?? []).length === 0 && (
+                              <p className="text-xs text-slate-400 italic">No comments yet. Be the first!</p>
+                            )}
+                            {(dbComments[post.id] ?? []).map((c) => (
+                              <div key={c.id} className="flex items-start gap-2">
+                                <div className="h-6 w-6 shrink-0 rounded-full bg-[#FFFBEB] border border-[#F5C542]/40 flex items-center justify-center text-xs font-bold text-[#1B4332]">
+                                  {c.author_name[0]?.toUpperCase() ?? "?"}
+                                </div>
+                                <div className="rounded-xl bg-gray-50 px-3 py-1.5 text-xs text-slate-700">
+                                  <span className="font-semibold text-slate-800">{c.author_name}</span>{" "}
+                                  {c.body}
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex items-center gap-2 pt-1">
+                              <input
+                                type="text"
+                                value={commentDrafts[post.id] ?? ""}
+                                onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                onKeyDown={(e) => { if (e.key === "Enter") void submitComment(post.id); }}
+                                placeholder="Write a comment…"
+                                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-[#F5C542] focus:ring-1 focus:ring-[#F5C542]/30"
+                              />
+                              <button
+                                type="button"
+                                disabled={submittingComment === post.id}
+                                onClick={() => void submitComment(post.id)}
+                                className="rounded-full bg-[#1B4332] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#163828] transition disabled:opacity-50"
+                              >
+                                {submittingComment === post.id ? "…" : "Post"}
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 );
               })}
@@ -1081,7 +1168,7 @@ export default function HomePage() {
           </div>
         </main>
 
-        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto bg-[#FFF8E1] px-6 py-8 xl:flex">
+        <aside className="fixed right-0 top-0 hidden h-screen w-[280px] flex-col gap-6 overflow-y-auto border-l border-gray-200 bg-white px-6 py-8 xl:flex">
           <motion.div
             className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
             initial={{ opacity: 0, x: 20 }}
@@ -1153,14 +1240,14 @@ export default function HomePage() {
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <a
                 href="https://www.foodhelpline.org/share"
-                className="block rounded-xl bg-[#FFF8E1] px-4 py-3 transition hover:text-[#7C3AED]"
+                className="block rounded-xl bg-gray-50 px-4 py-3 transition hover:text-[#1B4332]"
               >
                 📄 Download Flyers
               </a>
-              <button className="block w-full rounded-xl bg-[#FFF8E1] px-4 py-3 text-left transition hover:text-[#7C3AED]">
+              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
                 📖 Volunteer Guide
               </button>
-              <button className="block w-full rounded-xl bg-[#FFF8E1] px-4 py-3 text-left transition hover:text-[#7C3AED]">
+              <button className="block w-full rounded-xl bg-gray-50 px-4 py-3 text-left transition hover:text-[#1B4332]">
                 💬 Contact Lemontree
               </button>
             </div>
@@ -1173,12 +1260,12 @@ export default function HomePage() {
           const isActive = item.label === "Feed";
           return (
             <Link key={item.label} href={item.href} className="flex flex-col items-center gap-1">
-              <span className={`text-xl ${isActive ? "text-[#7C3AED]" : "text-slate-400"}`}>
+              <span className={`text-xl ${isActive ? "text-[#1B4332]" : "text-[#9CA3AF]"}`}>
                 {item.icon}
               </span>
               <span
                 className={`h-1 w-1 rounded-full ${
-                  isActive ? "bg-[#7C3AED]" : "bg-transparent"
+                  isActive ? "bg-[#F5C542]" : "bg-transparent"
                 }`}
               />
             </Link>
@@ -1374,13 +1461,23 @@ export default function HomePage() {
                   <p className="text-sm text-slate-500">Campaign assistant</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={closeChatPopup}
-                className="text-base text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void startNewChatSession()}
+                  disabled={chatBooting || chatLoading}
+                  className="rounded-full border border-[#F5C542]/40 px-3 py-1 text-xs font-semibold text-[#A66F00] transition hover:bg-[#F5C542]/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  New session
+                </button>
+                <button
+                  type="button"
+                  onClick={closeChatPopup}
+                  className="text-base text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="h-80 space-y-3 overflow-y-auto px-5 py-4">
@@ -1414,6 +1511,7 @@ export default function HomePage() {
                   Bot is typing...
                 </p>
               )}
+              <div ref={chatMessagesEndRef} />
             </div>
 
             <form onSubmit={sendChatMessage} className="border-t border-yellow-100 px-4 py-4">

@@ -95,7 +95,7 @@ function AuthPageInner() {
 
   const passwordStrength = useMemo(() => {
     const length = password.length;
-    if (length >= 12) return { width: "100%", color: "bg-emerald-500" };
+    if (length >= 12) return { width: "100%", color: "bg-[#F5C542]" };
     if (length >= 8) return { width: "75%", color: "bg-yellow-400" };
     if (length >= 4) return { width: "50%", color: "bg-orange-400" };
     return { width: "25%", color: "bg-rose-400" };
@@ -270,7 +270,7 @@ function AuthPageInner() {
           onMouseEnter={() => setShowCursor(true)}
           onMouseLeave={() => setShowCursor(false)}
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(124, 58, 237, 0.08) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(circle, rgba(245, 197, 66, 0.08) 1px, transparent 1px)",
             backgroundSize: "24px 24px",
           }}
         >
@@ -290,16 +290,9 @@ function AuthPageInner() {
           </motion.span>
 
           <div className="relative z-10 w-full max-w-md">
-            <div className="relative rounded-3xl p-[1px] shadow-[0_30px_80px_rgba(15,23,42,0.2)]">
-              <div
-                className="auth-border absolute inset-0 rounded-3xl"
-                style={{
-                  background:
-                    "conic-gradient(from var(--angle), #F5C542, #F5C542, #1F2937, #EA580C, #F5C542)",
-                }}
-              />
-              <div className="relative rounded-3xl bg-white/90 p-10 backdrop-blur-xl shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
-                <div className="relative flex rounded-full border border-gray-200 bg-[#FFF8E1]/70 p-1 shadow-inner">
+            <div className="relative rounded-3xl p-[1px]">
+              <div className="relative rounded-3xl bg-white p-10 shadow-sm border border-gray-200">
+                <div className="relative flex rounded-full border border-gray-200 bg-gray-50 p-1">
                   <motion.div
                     layoutId="authTab"
                     className={`absolute top-1 bottom-1 rounded-full ${
@@ -318,7 +311,7 @@ function AuthPageInner() {
                       setShowSuccess(false);
                     }}
                     className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
-                    style={{ color: mode === "signin" ? "white" : "#64748b" }}
+                    style={{ color: mode === "signin" ? "#1A1A1A" : "#6B7280" }}
                   >
                     Sign in
                   </button>
@@ -331,7 +324,7 @@ function AuthPageInner() {
                       setShowSuccess(false);
                     }}
                     className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
-                    style={{ color: mode === "signup" ? "white" : "#64748b" }}
+                    style={{ color: mode === "signup" ? "#1A1A1A" : "#6B7280" }}
                   >
                     Sign up
                   </button>
@@ -462,7 +455,7 @@ function AuthPageInner() {
                             setMessage(e instanceof Error ? e.message : "Something went wrong.");
                           }
                         }}
-                        className="w-full rounded-2xl bg-[#F5C542] py-3 text-sm font-semibold text-[#1A1A1A] shadow-md shadow-yellow-200 disabled:opacity-50"
+                        className="w-full rounded-2xl bg-[#F5C542] py-3 text-sm font-semibold text-[#1A1A1A] shadow-sm disabled:opacity-50 hover:bg-[#E0B63A] transition"
                       >
                         {status === "loading" ? "Sending..." : "Send Reset Link"}
                       </motion.button>
@@ -581,17 +574,16 @@ function AuthPageInner() {
                         }}
                         style={{ x: springX, y: springY }}
                         whileTap={{ scale: 0.97 }}
-                        className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${
                           status === "success"
-                            ? "bg-[#F5C542]"
-                            : "bg-gradient-to-r from-[#F5C542] to-[#E0B63A]"
+                            ? "bg-[#F5C542] text-[#1A1A1A]"
+                            : mode === "signup"
+                            ? "bg-[#F5C542] text-[#1A1A1A]"
+                            : "bg-[#F5C542] text-[#1A1A1A]"
                         }`}
                       >
                         {status !== "success" ? (
-                          <>
-                            <span className="absolute inset-0 bg-gradient-to-r from-[#F5C542] to-[#E0B63A] bg-[length:200%_200%] transition-all duration-500 group-hover:bg-[position:100%_50%]" />
-                            <span className="absolute inset-0 rounded-xl bg-white/10 opacity-0 transition group-hover:opacity-100" />
-                          </>
+                          <span className="absolute inset-0 rounded-xl bg-black/5 opacity-0 transition group-hover:opacity-100" />
                         ) : null}
                         <span className="relative z-10">
                           {status === "loading" ? (
@@ -645,25 +637,6 @@ function AuthPageInner() {
       <style jsx global>{`
         body {
           font-family: var(--auth-body, 'DM Sans', sans-serif);
-        }
-        @property --angle {
-          syntax: "<angle>";
-          initial-value: 0deg;
-          inherits: false;
-        }
-        @keyframes spin-gradient {
-          to { --angle: 360deg; }
-        }
-        @keyframes spin-rotate {
-          to { transform: rotate(360deg); }
-        }
-        .auth-border {
-          animation: spin-gradient 4s linear infinite;
-        }
-        @supports not (background: conic-gradient(from 0deg, #000, #fff)) {
-          .auth-border {
-            animation: spin-rotate 12s linear infinite;
-          }
         }
         @keyframes ticker {
           0% { transform: translateX(0); }

@@ -46,7 +46,7 @@ type ImpactReport = {
   notes?: string | null;
 };
 
-type TabId = "tasks" | "impact" | "calendar";
+type TabId = "tasks" | "impact" | "calendar" | "checkin" | "invite";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,7 @@ export default function CampaignDetailPage() {
   const [bskyText, setBskyText] = useState("");
   const [bskyPosting, setBskyPosting] = useState(false);
   const [bskyMsg, setBskyMsg] = useState("");
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // ── Load all data ──────────────────────────────────────────────────────────
 
@@ -232,7 +233,7 @@ export default function CampaignDetailPage() {
 
         {/* ── Back bar ── */}
         <div className="sticky top-0 z-30 border-b border-white/20 bg-[#1B4332]/95 backdrop-blur-sm px-6 py-3 flex items-center gap-3">
-          <Link href="/home" className="flex items-center gap-2 text-sm text-emerald-200 hover:text-white transition">
+          <Link href="/home" className="flex items-center gap-2 text-sm text-[#F5C542]/60 hover:text-white transition">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
@@ -250,13 +251,13 @@ export default function CampaignDetailPage() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              className="h-10 w-10 rounded-full border-4 border-emerald-200 border-t-emerald-600"
+              className="h-10 w-10 rounded-full border-4 border-[#F5C542]/40 border-t-[#E0B63A]"
             />
           </div>
         ) : error ? (
           <div className="mx-auto max-w-3xl px-6 py-16 text-center">
             <p className="text-lg font-semibold text-rose-600">{error}</p>
-            <Link href="/home" className="mt-4 inline-block text-sm text-emerald-700 underline">
+            <Link href="/home" className="mt-4 inline-block text-sm text-[#A66F00] underline">
               Go back to feed
             </Link>
           </div>
@@ -269,11 +270,15 @@ export default function CampaignDetailPage() {
 
               <div className="relative mx-auto max-w-3xl">
                 <div className="flex flex-wrap items-start gap-3">
-                  <span className="rounded-full border border-yellow-400/40 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300 uppercase tracking-wider">
-                    📍 Upcoming Campaign
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-yellow-400/40 bg-yellow-400/10 px-3 py-1 text-xs font-semibold text-yellow-300 uppercase tracking-wider">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    Upcoming Campaign
                   </span>
                   {campaign.status === "published" && (
-                    <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                    <span className="rounded-full border border-[#F5C542]/50 bg-[#F5C542]/15 px-3 py-1 text-xs font-semibold text-[#F5C542]/70">
                       Active
                     </span>
                   )}
@@ -283,12 +288,12 @@ export default function CampaignDetailPage() {
                   {campaign.title}
                 </h1>
                 {campaign.description && (
-                  <p className="mt-3 text-base leading-relaxed text-emerald-100/80 max-w-2xl">
+                  <p className="mt-3 text-base leading-relaxed text-[#F5C542]/70 max-w-2xl">
                     {campaign.description}
                   </p>
                 )}
 
-                <div className="mt-6 flex flex-wrap gap-4 text-sm text-emerald-100/70">
+                <div className="mt-6 flex flex-wrap gap-4 text-sm text-[#F5C542]/60">
                   <span className="flex items-center gap-1.5">
                     <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -312,13 +317,16 @@ export default function CampaignDetailPage() {
 
                 {/* Volunteer progress */}
                 <div className="mt-8 space-y-2 max-w-sm">
-                  <div className="flex justify-between text-xs text-emerald-200/60">
-                    <span>👥 {signupCount} / {spotsTotal} volunteers joined</span>
+                  <div className="flex justify-between text-xs text-[#F5C542]/55">
+                    <span className="flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                      {signupCount} / {spotsTotal} volunteers joined
+                    </span>
                     <span>{progress}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-white/10">
                     <motion.div
-                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-emerald-400"
+                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-[#F5C542]"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.8, ease: "easeOut" }}
@@ -347,9 +355,10 @@ export default function CampaignDetailPage() {
                     onClick={openBsky}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
                   >
-                    🦋 Share on Bluesky
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 01-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.479 0-.688-.139-1.86-.902-2.203-.659-.299-1.664-.621-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>
+                    Share on Bluesky
                   </motion.button>
                 </div>
               </div>
@@ -359,22 +368,47 @@ export default function CampaignDetailPage() {
             <div className="sticky top-[49px] z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
               <div className="mx-auto max-w-3xl px-6">
                 <div className="flex gap-0">
-                  {(["tasks", "impact", "calendar"] as TabId[]).map((tab) => (
+                  {(["tasks", "impact", "calendar", "checkin", "invite"] as TabId[]).map((tab) => (
                     <button
                       key={tab}
                       type="button"
                       onClick={() => setActiveTab(tab)}
                       className={`relative px-5 py-4 text-sm font-medium transition capitalize ${
                         activeTab === tab
-                          ? "text-emerald-700"
+                          ? "text-[#A66F00]"
                           : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
-                      {tab === "tasks" ? "📋 Tasks" : tab === "impact" ? "📊 Impact" : "📅 Calendar"}
+                      {tab === "tasks" ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                          Tasks
+                        </span>
+                      ) : tab === "impact" ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                          Impact
+                        </span>
+                      ) : tab === "calendar" ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                          Calendar
+                        </span>
+                      ) : tab === "checkin" ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Check In
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+                          Invite
+                        </span>
+                      )}
                       {activeTab === tab && (
                         <motion.div
                           layoutId="tab-underline"
-                          className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-emerald-500"
+                          className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[#F5C542]"
                         />
                       )}
                     </button>
@@ -403,7 +437,9 @@ export default function CampaignDetailPage() {
                     )}
                     {tasks.length === 0 ? (
                       <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-16 text-center">
-                        <p className="text-4xl">📋</p>
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
+                          <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                        </div>
                         <p className="mt-3 font-semibold text-slate-700">No tasks yet</p>
                         <p className="mt-1 text-sm text-slate-400">The organizer hasn't added tasks yet.</p>
                       </div>
@@ -423,7 +459,7 @@ export default function CampaignDetailPage() {
                               variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
                               className={`rounded-2xl border bg-white p-5 shadow-sm transition ${
                                 isClaimed
-                                  ? "border-emerald-200 ring-1 ring-emerald-200"
+                                  ? "border-[#F5C542]/40 ring-1 ring-[#F5C542]/40"
                                   : "border-gray-100 hover:border-gray-200"
                               }`}
                             >
@@ -443,7 +479,7 @@ export default function CampaignDetailPage() {
                                       </span>
                                     )}
                                     {isClaimed && (
-                                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs text-emerald-700">
+                                      <span className="rounded-full bg-[#F5C542]/10 border border-[#F5C542]/40 px-2 py-0.5 text-xs text-[#A66F00]">
                                         ✓ Claimed by you
                                       </span>
                                     )}
@@ -458,7 +494,7 @@ export default function CampaignDetailPage() {
                                     className={`shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition ${
                                       isClaimed
                                         ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
-                                        : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
+                                        : "bg-gradient-to-r from-[#F5C542] to-[#E0B63A] text-[#1A1A1A]"
                                     }`}
                                   >
                                     {taskLoading === task.id ? "..." : isClaimed ? "Unclaim" : "Claim Task"}
@@ -484,29 +520,28 @@ export default function CampaignDetailPage() {
                   >
                     {impact ? (
                       <div className="space-y-6">
-                        <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-8">
+                        <div className="rounded-3xl border border-[#F5C542]/30 bg-gradient-to-br from-[#F5C542]/10 to-white p-8">
                           <h2 className="text-xl font-bold text-[#0F172A]" style={{ fontFamily: "var(--display)" }}>
                             Campaign Impact Report
                           </h2>
                           <div className="mt-6 grid grid-cols-3 gap-4">
                             {[
-                              { label: "Flyers Distributed", value: impact.flyers_distributed, icon: "📄", color: "emerald" },
-                              { label: "Families Reached", value: impact.families_reached, icon: "👨‍👩‍👧", color: "yellow" },
-                              { label: "Volunteers Attended", value: impact.volunteers_attended, icon: "🙌", color: "teal" },
-                            ].map(({ label, value, icon, color }) => (
+                              { label: "Flyers Distributed", value: impact.flyers_distributed, color: "mustard" },
+                              { label: "Families Reached", value: impact.families_reached, color: "yellow" },
+                              { label: "Volunteers Attended", value: impact.volunteers_attended, color: "teal" },
+                            ].map(({ label, value, color }) => (
                               <div
                                 key={label}
                                 className={`rounded-2xl border p-5 text-center ${
-                                  color === "emerald"
-                                    ? "border-emerald-100 bg-emerald-50"
+                                  color === "mustard"
+                                    ? "border-[#F5C542]/30 bg-[#F5C542]/10"
                                     : color === "yellow"
                                     ? "border-yellow-100 bg-yellow-50"
                                     : "border-teal-100 bg-teal-50"
                                 }`}
                               >
-                                <p className="text-2xl">{icon}</p>
                                 <p className={`mt-2 text-3xl font-bold ${
-                                  color === "emerald" ? "text-emerald-700" : color === "yellow" ? "text-yellow-700" : "text-teal-700"
+                                  color === "mustard" ? "text-[#A66F00]" : color === "yellow" ? "text-yellow-700" : "text-teal-700"
                                 }`}>
                                   <AnimatedNumber value={value} />
                                 </p>
@@ -524,7 +559,9 @@ export default function CampaignDetailPage() {
                       </div>
                     ) : (
                       <div className="rounded-3xl border border-dashed border-gray-200 bg-white py-20 text-center">
-                        <p className="text-5xl">📊</p>
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50">
+                          <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                        </div>
                         <p className="mt-4 font-semibold text-slate-700">No impact report yet</p>
                         <p className="mt-1 text-sm text-slate-400">
                           The organizer will submit a report after the campaign ends.
@@ -545,8 +582,8 @@ export default function CampaignDetailPage() {
                     className="space-y-4"
                   >
                     <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 text-3xl">
-                        📅
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542]/20 to-[#F5C542]/10">
+                        <svg className="w-8 h-8 text-[#B7791F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                       </div>
                       <h2 className="mt-4 text-xl font-bold text-[#0F172A]">Add to Your Calendar</h2>
                       <p className="mt-2 text-sm text-slate-500">
@@ -560,7 +597,7 @@ export default function CampaignDetailPage() {
                             href={calendarUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-600 hover:to-emerald-700"
+                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-8 py-3 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition hover:from-[#E0B63A] hover:to-[#CFA72F]"
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/>
@@ -575,11 +612,146 @@ export default function CampaignDetailPage() {
 
                     <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-5 py-4 text-sm text-yellow-800">
                       <p className="font-semibold">Campaign Details</p>
-                      <ul className="mt-2 space-y-1 text-yellow-700">
-                        <li>📅 {fmtDate(campaign.date)}</li>
-                        <li>🕐 {fmtTime(campaign.start_time)} – {fmtTime(campaign.end_time)}</li>
-                        <li>📍 {campaign.address ?? "Location TBD"}</li>
-                        <li>👥 {spotsTotal} volunteer spots</li>
+                      <ul className="mt-2 space-y-1.5 text-yellow-700">
+                        <li className="flex items-center gap-2"><svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>{fmtDate(campaign.date)}</li>
+                        <li className="flex items-center gap-2"><svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m-4-8a9 9 0 110 18 9 9 0 010-18z" /></svg>{fmtTime(campaign.start_time)} – {fmtTime(campaign.end_time)}</li>
+                        <li className="flex items-center gap-2"><svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>{campaign.address ?? "Location TBD"}</li>
+                        <li className="flex items-center gap-2"><svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>{spotsTotal} volunteer spots</li>
+                      </ul>
+                    </div>
+                  </motion.div>
+                )}
+                {/* Check In */}
+                {activeTab === "checkin" && (
+                  <motion.div
+                    key="checkin"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-6"
+                  >
+                    {/* QR Code card */}
+                    <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm text-center">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Scan to Check In</p>
+                      <div className="flex justify-center">
+                        <div className="rounded-2xl border border-gray-200 p-3 shadow-sm inline-block bg-white">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                              typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : `/checkin/${id}`
+                            )}&color=1B4332&bgcolor=ffffff`}
+                            alt="Check-in QR Code"
+                            width={220}
+                            height={220}
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#0F172A]">Show this to volunteers on arrival</p>
+                      <p className="mt-1 text-xs text-slate-400">or share the link below</p>
+                      <div className="mt-4 flex items-center gap-2 justify-center">
+                        <code className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs text-slate-600">
+                          {typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : `/checkin/${id}`}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = typeof window !== "undefined" ? `${window.location.origin}/checkin/${id}` : "";
+                            void navigator.clipboard.writeText(url);
+                          }}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-gray-50 transition"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    {/* Self check-in button */}
+                    {isJoined && (
+                      <div className="rounded-3xl border border-[#F5C542]/30 bg-[#F5C542]/10 p-6 text-center">
+                        <p className="text-sm text-[#A66F00] font-semibold mb-3">You&apos;re signed up — check yourself in when you arrive</p>
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.97 }}
+                          onClick={async () => {
+                            try {
+                              await authFetch(`/campaigns/${id}/checkin`, { method: "POST" });
+                            } catch { /* ignore */ }
+                          }}
+                          className="rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-8 py-3 text-sm font-bold text-[#1A1A1A] shadow-md"
+                        >
+                          ✓ Check In Now
+                        </motion.button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+                {/* Invite */}
+                {activeTab === "invite" && (
+                  <motion.div
+                    key="invite"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="space-y-4"
+                  >
+                    {/* QR card */}
+                    <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm text-center">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4">Scan to RSVP</p>
+                      <div className="flex justify-center">
+                        <div className="rounded-2xl border border-gray-200 p-3 shadow-sm inline-block bg-white">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+                              typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : `/c/${id}`
+                            )}&color=1B4332&bgcolor=ffffff`}
+                            alt="RSVP QR Code"
+                            width={220}
+                            height={220}
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#0F172A]">Share this to invite volunteers</p>
+                      <p className="mt-1 text-xs text-slate-400">Anyone who scans this can view the campaign and sign up</p>
+                      <div className="mt-4 flex items-center gap-2 justify-center">
+                        <code className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs text-slate-600 truncate max-w-[240px]">
+                          {typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : `/c/${id}`}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = typeof window !== "undefined" ? `${window.location.origin}/c/${id}` : "";
+                            void navigator.clipboard.writeText(url);
+                            setCopiedInvite(true);
+                            setTimeout(() => setCopiedInvite(false), 2000);
+                          }}
+                          className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                            copiedInvite
+                              ? "border-[#F5C542]/40 bg-[#F5C542]/10 text-[#A66F00]"
+                              : "border-gray-200 text-slate-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {copiedInvite ? "Copied!" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Info card */}
+                    <div className="rounded-2xl border border-[#F5C542]/30 bg-[#FFFBEB] px-5 py-4 text-sm text-[#92400E]">
+                      <p className="font-semibold">How invites work</p>
+                      <ul className="mt-2 space-y-1 text-xs text-[#B45309]">
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Scan the QR or share the link — no account needed to RSVP
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          RSVPs appear in your Dashboard under Volunteers
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          Use the Check In tab QR on the day of the event
+                        </li>
                       </ul>
                     </div>
                   </motion.div>
@@ -608,8 +780,8 @@ export default function CampaignDetailPage() {
                 className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl"
               >
                 <div className="bg-[#0085FF] px-6 py-5">
-                  <div className="flex items-center gap-2 text-white">
-                    <span className="text-xl">🦋</span>
+                  <div className="flex items-center gap-2.5 text-white">
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 01-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.479 0-.688-.139-1.86-.902-2.203-.659-.299-1.664-.621-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>
                     <h3 className="font-bold">Share on Bluesky</h3>
                   </div>
                 </div>
@@ -626,7 +798,7 @@ export default function CampaignDetailPage() {
                       {bskyText.length}/300
                     </span>
                     {bskyMsg && (
-                      <span className={`text-xs font-semibold ${bskyMsg.startsWith("Posted") ? "text-emerald-600" : "text-rose-500"}`}>
+                      <span className={`text-xs font-semibold ${bskyMsg.startsWith("Posted") ? "text-[#B7791F]" : "text-rose-500"}`}>
                         {bskyMsg}
                       </span>
                     )}

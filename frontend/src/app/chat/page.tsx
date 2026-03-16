@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
@@ -92,6 +92,7 @@ export default function ChatPage() {
   const [error, setError] = useState("");
   const [sessionReady, setSessionReady] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const latestToolCalls = useMemo(() => {
     const lastAssistant = [...messages].reverse().find((msg) => msg.role === "assistant");
@@ -127,6 +128,38 @@ export default function ChatPage() {
     };
   }, []);
 
+  const createSession = useCallback(async () => {
+    const sessionResponse = await fetch(`${API_BASE}/chat/session`, {
+      method: "POST",
+      headers: await getAuthHeaders(),
+    });
+
+    if (!sessionResponse.ok) {
+      throw new Error("Unable to start campaign builder session.");
+    }
+
+    const sessionPayload = (await sessionResponse.json()) as {
+      session_id?: string;
+      data?: { session_id?: string };
+    };
+    const newSessionId = sessionPayload.session_id ?? sessionPayload.data?.session_id ?? null;
+    if (!newSessionId) {
+      throw new Error("Chat session id missing from response.");
+    }
+
+    setSessionId(newSessionId);
+    return newSessionId;
+  }, [getAuthHeaders]);
+
+  const startNewSession = useCallback(() => {
+    if (loading) return;
+
+    setMessages([]);
+    setInput("");
+    setError("");
+    setSessionId(null);
+  }, [loading]);
+
   const submitMessage = useCallback(
     async (prompt: string) => {
       if (!prompt.trim() || loading) return;
@@ -145,22 +178,7 @@ export default function ChatPage() {
       try {
         let activeSessionId = sessionId;
         if (!activeSessionId) {
-          const sessionResponse = await fetch(`${API_BASE}/chat/session`, {
-            method: "POST",
-            headers: await getAuthHeaders(),
-          });
-
-          if (!sessionResponse.ok) {
-            throw new Error("Unable to start campaign builder session.");
-          }
-
-          const sessionPayload = (await sessionResponse.json()) as { session_id?: string };
-          activeSessionId = sessionPayload.session_id ?? null;
-          if (!activeSessionId) {
-            throw new Error("Chat session id missing from response.");
-          }
-
-          setSessionId(activeSessionId);
+          activeSessionId = await createSession();
         }
 
         const response = await fetch(`${API_BASE}/chat/message`, {
@@ -194,13 +212,17 @@ export default function ChatPage() {
         setLoading(false);
       }
     },
-    [getAuthHeaders, loading, sessionId]
+    [createSession, getAuthHeaders, loading, sessionId]
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void submitMessage(input);
   };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
 
   if (!sessionReady) {
     return null;
@@ -219,9 +241,19 @@ export default function ChatPage() {
                 Chat with the agent to plan flyering campaigns and generate resources.
               </p>
             </div>
-            <span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
-              Bedrock Agent
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startNewSession}
+                disabled={loading}
+                className="rounded-full border border-[#F5C542] px-3 py-1 text-xs font-semibold text-[#92400E] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                New session
+              </button>
+              <span className="rounded-full bg-[#FEF3C7] px-3 py-1 text-xs text-[#92400E]">
+                Bedrock Agent
+              </span>
+            </div>
           </div>
 
           <div className="mt-5 h-[520px] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4">
@@ -273,6 +305,7 @@ export default function ChatPage() {
                 ) : null}
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {error ? (

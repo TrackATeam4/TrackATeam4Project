@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime, time, timezone
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from auth import get_current_user
@@ -42,6 +42,16 @@ class CampaignCreate(BaseModel):
     tags: Annotated[list[str], Field(max_length=20)] = []
 
 
+class CheckinRequest(BaseModel):
+    email: Optional[str] = None
+    name: Optional[str] = None
+
+
+class PublicRsvpRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+
+
 class CampaignUpdate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=5000)
@@ -69,13 +79,28 @@ def geocode(address: str = Query(..., min_length=3), limit: int = Query(default=
     return {"success": True, "data": results}
 
 
+import uuid as _uuid
+
+
+def _find_or_create_user_by_email(supabase, email: str, name: str | None = None) -> str:
+    res = supabase.table("users").select("id").eq("email", email).limit(1).execute()
+    if res.data:
+        return res.data[0]["id"]
+    new_id = str(_uuid.uuid4())
+    supabase.table("users").insert(
+        {"id": new_id, "email": email, "name": name or email.split("@")[0], "role": "volunteer"}
+    ).execute()
+    return new_id
+
+
 def _get_campaign_or_404(supabase, campaign_id: str) -> dict:
     result = (
-        supabase.table("campaigns").select("*").eq("id", campaign_id).single().execute()
+        supabase.table("campaigns").select("*").eq("id", campaign_id).limit(1).execute()
     )
-    if not result.data:
+    rows = result.data or []
+    if not rows:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    return result.data
+    return rows[0]
 
 
 # ── POST /campaigns ──────────────────────────────────────────────────────────
@@ -170,11 +195,156 @@ def list_campaigns(
     for c in campaigns:
         c["signup_count"] = signup_counts.get(c["id"], 0)
 
+    # Attach like and comment counts
+    if campaign_ids:
+        likes_result = (
+            supabase.table("campaign_likes")
+            .select("campaign_id")
+            .in_("campaign_id", campaign_ids)
+            .execute()
+        )
+        like_counts: dict[str, int] = {}
+        for row in likes_result.data or []:
+            cid = row["campaign_id"]
+            like_counts[cid] = like_counts.get(cid, 0) + 1
+
+        comments_result = (
+            supabase.table("campaign_comments")
+            .select("campaign_id")
+            .in_("campaign_id", campaign_ids)
+            .execute()
+        )
+        comment_counts: dict[str, int] = {}
+        for row in comments_result.data or []:
+            cid = row["campaign_id"]
+            comment_counts[cid] = comment_counts.get(cid, 0) + 1
+
+        for c in campaigns:
+            c["likes"] = like_counts.get(c["id"], 0)
+            c["comments"] = comment_counts.get(c["id"], 0)
+
     return {
         "success": True,
         "data": campaigns,
         "meta": {"total": total, "page": page, "limit": limit},
     }
+
+
+# ── GET /campaigns/liked ─────────────────────────────────────────────────────
+
+
+@router.get("/liked")
+def get_liked_campaigns(
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Return campaign IDs the current user has liked."""
+    user_id = user.user.id
+    result = (
+        supabase.table("campaign_likes")
+        .select("campaign_id")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    ids = [row["campaign_id"] for row in (result.data or [])]
+    return {"success": True, "data": ids}
+
+
+# ── POST /campaigns/{id}/like ─────────────────────────────────────────────────
+
+
+class CommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=1000)
+
+
+@router.post("/{campaign_id}/like")
+def toggle_like(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Toggle like on a campaign. Returns {liked, count}."""
+    user_id = user.user.id
+    _get_campaign_or_404(supabase, campaign_id)
+
+    existing = (
+        supabase.table("campaign_likes")
+        .select("campaign_id")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if existing.data:
+        supabase.table("campaign_likes").delete().eq("campaign_id", campaign_id).eq("user_id", user_id).execute()
+        liked = False
+    else:
+        supabase.table("campaign_likes").insert({"campaign_id": campaign_id, "user_id": user_id}).execute()
+        liked = True
+
+    count_result = (
+        supabase.table("campaign_likes")
+        .select("campaign_id", count="exact")
+        .eq("campaign_id", campaign_id)
+        .execute()
+    )
+    count = count_result.count or 0
+    return {"success": True, "data": {"liked": liked, "count": count}}
+
+
+# ── GET /campaigns/{id}/comments ─────────────────────────────────────────────
+
+
+@router.get("/{campaign_id}/comments")
+def get_comments(
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    supabase=Depends(get_supabase_client),
+):
+    """Public list of comments for a campaign."""
+    result = (
+        supabase.table("campaign_comments")
+        .select("id, author_name, body, created_at")
+        .eq("campaign_id", campaign_id)
+        .order("created_at", desc=False)
+        .execute()
+    )
+    return {"success": True, "data": result.data or []}
+
+
+# ── POST /campaigns/{id}/comments ────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/comments", status_code=201)
+def post_comment(
+    body: CommentCreate,
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    user=Depends(get_current_user),
+    supabase=Depends(get_supabase_client),
+):
+    """Post a comment on a campaign."""
+    user_id = user.user.id
+    _get_campaign_or_404(supabase, campaign_id)
+
+    # Resolve display name
+    user_row = supabase.table("users").select("name").eq("id", user_id).single().execute()
+    author_name = (user_row.data or {}).get("name") or "Volunteer"
+
+    try:
+        result = (
+            supabase.table("campaign_comments")
+            .insert({
+                "campaign_id": campaign_id,
+                "user_id": user_id,
+                "author_name": author_name,
+                "body": body.body.strip(),
+            })
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Failed to post comment on campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Failed to post comment")
+
+    return {"success": True, "data": result.data[0] if result.data else {}}
 
 
 # ── GET /campaigns/mine ───────────────────────────────────────────────────────
@@ -578,3 +748,108 @@ def send_campaign_reminders(
             sent += 1
 
     return {"success": True, "data": {"sent": sent, "total": len(user_ids)}}
+
+
+# ── POST /campaigns/{id}/checkin ──────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/checkin")
+def campaign_checkin(
+    body: CheckinRequest = CheckinRequest(),
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    authorization: Optional[str] = Header(default=None),
+    supabase=Depends(get_supabase_client),
+):
+    """Self check-in for a campaign. Auth optional — can also supply email."""
+    _get_campaign_or_404(supabase, campaign_id)
+
+    user_id: Optional[str] = None
+
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            user_resp = supabase.auth.get_user(authorization[7:])
+            if user_resp and user_resp.user:
+                user_id = user_resp.user.id
+                u = user_resp.user
+                meta = u.user_metadata or {}
+                display = meta.get("full_name") or meta.get("name") or (u.email or "").split("@")[0]
+                supabase.table("users").upsert(
+                    {"id": user_id, "email": u.email, "name": display, "role": "volunteer"},
+                    on_conflict="id",
+                ).execute()
+        except Exception:
+            pass
+
+    if not user_id and body.email:
+        user_id = _find_or_create_user_by_email(supabase, body.email, body.name)
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Provide auth token or email to check in")
+
+    existing = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    try:
+        if existing.data:
+            signup = existing.data[0]
+            if signup["status"] == "confirmed":
+                return {"success": True, "data": signup, "message": "Already checked in"}
+            result = (
+                supabase.table("signups")
+                .update({"status": "confirmed"})
+                .eq("id", signup["id"])
+                .execute()
+            )
+            return {"success": True, "data": result.data[0] if result.data else signup}
+        result = (
+            supabase.table("signups")
+            .insert({"campaign_id": campaign_id, "user_id": user_id, "status": "confirmed"})
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Check-in failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="Check-in failed")
+
+    return {"success": True, "data": result.data[0] if result.data else {}}
+
+
+# ── POST /campaigns/{id}/rsvp ─────────────────────────────────────────────────
+
+
+@router.post("/{campaign_id}/rsvp", status_code=201)
+def public_rsvp(
+    body: PublicRsvpRequest,
+    campaign_id: str = Path(..., pattern=_UUID_PATTERN),
+    supabase=Depends(get_supabase_client),
+):
+    """Public RSVP — no auth required. Creates a pending signup."""
+    _get_campaign_or_404(supabase, campaign_id)
+    user_id = _find_or_create_user_by_email(supabase, body.email, body.name)
+
+    existing = (
+        supabase.table("signups")
+        .select("id, status")
+        .eq("campaign_id", campaign_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if existing.data and existing.data[0]["status"] in ("pending", "confirmed"):
+        return {"success": True, "data": existing.data[0], "message": "Already registered"}
+
+    try:
+        result = (
+            supabase.table("signups")
+            .insert({"campaign_id": campaign_id, "user_id": user_id, "status": "pending"})
+            .execute()
+        )
+    except Exception as exc:
+        logger.error("Public RSVP failed for campaign %s: %s", campaign_id, exc)
+        raise HTTPException(status_code=500, detail="RSVP failed")
+
+    return {"success": True, "data": result.data[0] if result.data else {}}
