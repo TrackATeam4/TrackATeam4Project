@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import HomeSidebar from "../../../components/home/HomeSidebar";
-import { apiFetch, authFetch } from "../../../lib/api";
+import { authFetch } from "../../../lib/api";
 
 type FlyerTemplate = {
   id: string;
@@ -30,29 +30,14 @@ type CampaignSummary = {
   status?: string;
 };
 
-type EditableLocalDetails = {
-  title: string;
-  event_date: string;
-  event_time: string;
-  location: string;
-  contact_name: string;
-  contact_phone: string;
-  local_note: string;
-};
-
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 const DEFAULT_LANGUAGES = ["en", "es"];
 
-const EMPTY_DETAILS: EditableLocalDetails = {
-  title: "",
-  event_date: "",
-  event_time: "",
-  location: "",
-  contact_name: "",
-  contact_phone: "",
-  local_note: "",
-};
+const DEFAULT_FLYER_STYLE = "modern_bordered";
+
+const AVAILABLE_FLYER_STYLES = ["color_blocked", "modern_bordered"] as const;
+type FlyerStyle = (typeof AVAILABLE_FLYER_STYLES)[number];
 
 const languageLabel = (code: string) => {
   const map: Record<string, string> = {
@@ -68,10 +53,10 @@ const languageLabel = (code: string) => {
 
 export default function CustomFlyerPage() {
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState("");
+  const [selectedCampaignIndex, setSelectedCampaignIndex] = useState<number | null>(null);
   const [loadingCampaigns, setLoadingCampaigns] = useState(false);
   const [language, setLanguage] = useState("en");
-  const [details, setDetails] = useState<EditableLocalDetails>(EMPTY_DETAILS);
+  const [flyerStyle, setFlyerStyle] = useState<FlyerStyle>(DEFAULT_FLYER_STYLE);
 
   const [generatingFlyer, setGeneratingFlyer] = useState(false);
   const [previewMode, setPreviewMode] = useState(true);
@@ -79,10 +64,17 @@ export default function CustomFlyerPage() {
   const [generatedThumbnailUrl, setGeneratedThumbnailUrl] = useState("");
   const [error, setError] = useState("");
 
-  const selectedCampaign = useMemo(
-    () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
-    [campaigns, selectedCampaignId]
+  const titledCampaigns = useMemo(
+    () => campaigns.filter((campaign) => (campaign.title ?? "").trim().length > 0),
+    [campaigns]
   );
+
+  const selectedCampaign = useMemo(() => {
+    if (selectedCampaignIndex === null) return null;
+    return titledCampaigns[selectedCampaignIndex] ?? null;
+  }, [selectedCampaignIndex, titledCampaigns]);
+
+  const selectedCampaignId = selectedCampaign?.id ?? "";
 
   const availableLanguages = DEFAULT_LANGUAGES;
 
@@ -93,22 +85,20 @@ export default function CustomFlyerPage() {
       setLoadingCampaigns(true);
       setError("");
       try {
-        let list: CampaignSummary[] = [];
-
-        try {
-          const response = await authFetch<CampaignSummary[]>("/campaigns/mine");
-          list = response.data ?? [];
-        } catch {
-          const response = await apiFetch<CampaignSummary[]>("/campaigns?page=1&limit=50");
-          list = response.data ?? [];
-        }
-
+        const response = await authFetch<CampaignSummary[]>("/campaigns/mine");
+        const list = response.data ?? [];
+        const titledList = list.filter((campaign) => (campaign.title ?? "").trim().length > 0);
         setCampaigns(list);
-        if (!selectedCampaignId && list.length > 0) {
-          setSelectedCampaignId(list[0].id);
-        }
+        setSelectedCampaignIndex((prev) => {
+          if (titledList.length === 0) return null;
+          if (prev === null) return 0;
+          if (prev < 0) return 0;
+          if (prev >= titledList.length) return 0;
+          return prev;
+        });
       } catch (err) {
         setCampaigns([]);
+        setSelectedCampaignIndex(null);
         setError(err instanceof Error ? err.message : "Could not load campaigns.");
       } finally {
         setLoadingCampaigns(false);
@@ -128,7 +118,11 @@ export default function CustomFlyerPage() {
   const generateFlyer = async () => {
     if (generatingFlyer) return;
     if (!selectedCampaignId.trim()) {
-      setError("Select a campaign to generate a flyer.");
+      setError(
+        titledCampaigns.length === 0
+          ? "Please join or create a campaign first."
+          : "Select a campaign to generate a flyer."
+      );
       return;
     }
 
@@ -140,6 +134,7 @@ export default function CustomFlyerPage() {
 
       const body: Record<string, string> = {
         campaign_id: selectedCampaignId.trim(),
+        style: flyerStyle,
       };
 
       const response = await fetch(`${API_BASE}/flyers`, {
@@ -192,21 +187,17 @@ export default function CustomFlyerPage() {
     }, 500);
   };
 
-  const updateDetail = (key: keyof EditableLocalDetails, value: string) => {
-    setDetails((prev) => ({ ...prev, [key]: value }));
-  };
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fffdf5,_#fffbeb_45%,_#fff7d6)] text-[#334155]">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white text-slate-800">
       <div className="flex">
         <HomeSidebar />
 
         <main className="flex-1 px-4 py-8 sm:px-6 lg:ml-72 md:ml-[68px]">
           <div className="mx-auto max-w-3xl space-y-5">
-            <header className="rounded-3xl border border-emerald-200/80 bg-white/95 p-6 shadow-[0_18px_40px_-28px_rgba(16,185,129,0.55)]">
-              <h1 className="text-3xl font-bold text-emerald-800">Custom Flyer Studio</h1>
+            <header className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
+              <h1 className="text-2xl font-bold text-emerald-800 sm:text-3xl">Custom Flyer Studio</h1>
               <p className="mt-2 text-sm text-slate-600">
-                Connected to backend endpoints: templates from /admin/flyer-templates and generation via POST /flyers.
+                Select a campaign, choose a style, then generate a PDF flyer.
               </p>
             </header>
 
@@ -216,37 +207,40 @@ export default function CustomFlyerPage() {
 
             <section>
               <div className="space-y-6">
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-800">Campaign</h2>
                   <select
-                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    value={selectedCampaignId}
-                    onChange={(event) => setSelectedCampaignId(event.target.value)}
-                    disabled={loadingCampaigns || campaigns.length === 0}
+                    className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    value={selectedCampaignIndex === null ? "" : String(selectedCampaignIndex)}
+                    onChange={(event) => {
+                      const nextIndex = Number.parseInt(event.target.value, 10);
+                      setSelectedCampaignIndex(Number.isFinite(nextIndex) ? nextIndex : null);
+                    }}
+                    disabled={loadingCampaigns || titledCampaigns.length === 0}
                   >
-                    {campaigns.length === 0 ? (
-                      <option value="">{loadingCampaigns ? "Loading campaigns..." : "No campaigns found"}</option>
+                    {titledCampaigns.length === 0 ? (
+                      <option value="">Please join or create a campaign first</option>
                     ) : (
-                      campaigns.map((campaign) => (
-                        <option key={campaign.id} value={campaign.id}>
-                          {campaign.title || "Untitled campaign"}
-                          {campaign.date ? ` • ${campaign.date}` : ""}
-                          {campaign.location ? ` • ${campaign.location}` : ""}
+                      titledCampaigns.map((campaign, index) => (
+                        <option key={`${campaign.title ?? "campaign"}-${index}`} value={String(index)}>
+                          {campaign.title ?? "Untitled campaign"}
                         </option>
                       ))
                     )}
                   </select>
                   <p className="mt-2 text-xs text-slate-500">
                     {selectedCampaign
-                      ? `Selected: ${selectedCampaign.title || "Untitled"}`
-                      : "Pick a campaign to generate the flyer PDF."}
+                      ? `Selected: ${selectedCampaign.title}`
+                      : titledCampaigns.length === 0
+                        ? "Please join or create a campaign first."
+                        : "Select your campaign from the dropdown."}
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-800">Language</h2>
                   <select
-                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     value={language}
                     onChange={(event) => setLanguage(event.target.value)}
                   >
@@ -256,83 +250,46 @@ export default function CustomFlyerPage() {
                       </option>
                     ))}
                   </select>
+
+                  <h3 className="mt-4 text-sm font-semibold text-slate-700">Style</h3>
+                  <select
+                    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    value={flyerStyle}
+                    onChange={(event) => {
+                      const next = event.target.value as FlyerStyle;
+                      setFlyerStyle(AVAILABLE_FLYER_STYLES.includes(next) ? next : DEFAULT_FLYER_STYLE);
+                    }}
+                  >
+                    {AVAILABLE_FLYER_STYLES.map((style) => (
+                      <option key={style} value={style}>
+                        {style}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <h2 className="text-lg font-semibold text-slate-800">Editable Local Details</h2>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <input
-                      type="text"
-                      placeholder="Flyer title"
-                      value={details.title}
-                      onChange={(event) => updateDetail("title", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
-                    />
-                    <input
-                      type="date"
-                      value={details.event_date}
-                      onChange={(event) => updateDetail("event_date", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="time"
-                      value={details.event_time}
-                      onChange={(event) => updateDetail("event_time", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Location"
-                      value={details.location}
-                      onChange={(event) => updateDetail("location", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Contact name"
-                      value={details.contact_name}
-                      onChange={(event) => updateDetail("contact_name", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Contact phone"
-                      value={details.contact_phone}
-                      onChange={(event) => updateDetail("contact_phone", event.target.value)}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                    <textarea
-                      placeholder="Local note"
-                      value={details.local_note}
-                      onChange={(event) => updateDetail("local_note", event.target.value)}
-                      rows={3}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-lg font-semibold text-slate-800">Flyer Actions</h2>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={generateFlyer}
                       disabled={generatingFlyer}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {generatingFlyer ? "Generating..." : "Generate Flyer"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPreviewMode((prev) => !prev)}
-                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     >
                       {previewMode ? "Hide Preview" : "Preview Mode"}
                     </button>
                     <button
                       type="button"
                       onClick={printFlyerAsPdf}
-                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                     >
                       Print PDF
                     </button>
