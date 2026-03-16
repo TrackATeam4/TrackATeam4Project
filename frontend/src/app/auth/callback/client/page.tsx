@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errorMessage, setErrorMessage] = useState("");
@@ -45,9 +45,23 @@ export default function AuthCallbackPage() {
         {errorMessage ? (
           <p className="text-sm text-rose-600">{errorMessage}</p>
         ) : (
-          <p className="text-sm text-[#6B7280]">You’ll be redirected to your dashboard.</p>
+          <p className="text-sm text-[#6B7280]">You'll be redirected to your dashboard.</p>
         )}
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#FFF8E1]">
+          <p className="text-sm text-[#6B7280]">Finalizing your sign-in…</p>
+        </div>
+      }
+    >
+      <AuthCallbackInner />
+    </Suspense>
   );
 }
