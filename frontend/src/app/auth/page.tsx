@@ -3,8 +3,9 @@
 import { AnimatePresence, motion, useMotionValue, useSpring } from "framer-motion";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
-import { signInWithEmail, signUpWithEmail } from "@/lib/auth";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 const dmSerif = DM_Serif_Display({
   subsets: ["latin"],
@@ -48,6 +49,32 @@ function AuthPageInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const redirectIfSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (isMounted && data.session) {
+        router.replace("/home");
+      }
+    };
+
+    void redirectIfSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
+        router.replace("/home");
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
   const animatedHeadline = useMemo(
     () => headline.map((wordText, index) => ({ wordText, index })),
     []
@@ -65,7 +92,7 @@ function AuthPageInner() {
 
   const passwordStrength = useMemo(() => {
     const length = password.length;
-    if (length >= 12) return { width: "100%", color: "bg-emerald-500" };
+    if (length >= 12) return { width: "100%", color: "bg-[#F5C542]" };
     if (length >= 8) return { width: "75%", color: "bg-yellow-400" };
     if (length >= 4) return { width: "50%", color: "bg-orange-400" };
     return { width: "25%", color: "bg-rose-400" };
@@ -103,25 +130,38 @@ function AuthPageInner() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setStatus("loading");
+    setMessage("");
+    setShowSuccess(false);
+
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Unable to start Google sign-in.");
+    }
+  };
+
   return (
-    <div className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFFEF5]`}>
+    <div className={`${dmSerif.variable} ${dmSans.variable} min-h-screen bg-[#FFF8E1]`}>
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-        <section className="relative flex min-h-[30vh] flex-col justify-center overflow-hidden bg-[#1B4332] px-8 py-16 text-white lg:min-h-screen">
+        <section className="relative flex min-h-[30vh] flex-col justify-center overflow-hidden bg-[#1F2937] px-8 py-16 text-white lg:min-h-screen">
           <div className="absolute inset-0">
             <motion.div
               animate={{ y: [0, -18, 0], x: [0, 12, 0] }}
               transition={{ duration: 12, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-              className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-yellow-300/20 blur-3xl"
+              className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-[#F5C542]/25 blur-3xl"
             />
             <motion.div
               animate={{ y: [0, 22, 0], x: [0, -16, 0] }}
               transition={{ duration: 14, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-              className="absolute right-0 top-32 h-64 w-64 rounded-full bg-emerald-400/15 blur-3xl"
+              className="absolute right-0 top-32 h-64 w-64 rounded-full bg-[#F5C542]/25 blur-3xl"
             />
             <motion.div
               animate={{ y: [0, -25, 0] }}
               transition={{ duration: 10, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
-              className="absolute bottom-10 left-10 h-48 w-48 rounded-full bg-yellow-200/10 blur-3xl"
+              className="absolute bottom-10 left-10 h-48 w-48 rounded-full bg-[#F5C542]/15 blur-3xl"
             />
           </div>
 
@@ -135,7 +175,7 @@ function AuthPageInner() {
                 {animatedHeadline.map(({ wordText, index }) => (
                   <motion.span
                     key={`${wordText}-${index}`}
-                    className={`mr-2 inline-block ${wordText === "neighborhood." ? "text-[#FCD34D]" : "text-white"}`}
+                    className={`mr-2 inline-block ${wordText === "neighborhood." ? "text-[#F5C542]" : "text-white"}`}
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: index * 0.1, ease: "easeOut" }}
@@ -170,7 +210,7 @@ function AuthPageInner() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 0.4, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="relative z-10 mt-8 text-sm italic text-[#FCD34D]"
+            className="relative z-10 mt-8 text-sm italic text-[#F5C542]"
           >
             “You never know who needs the help.”
           </motion.p>
@@ -190,14 +230,14 @@ function AuthPageInner() {
           onMouseEnter={() => setShowCursor(true)}
           onMouseLeave={() => setShowCursor(false)}
           style={{
-            backgroundImage: "radial-gradient(circle, rgba(27, 67, 50, 0.05) 1px, transparent 1px)",
+            backgroundImage: "radial-gradient(circle, rgba(245, 197, 66, 0.08) 1px, transparent 1px)",
             backgroundSize: "24px 24px",
           }}
         >
           <motion.div
             className="pointer-events-none absolute inset-0"
             style={{
-              background: `radial-gradient(600px circle at ${mousePos.x}% ${mousePos.y}%, rgba(252, 211, 77, 0.07), transparent 60%)`,
+              background: `radial-gradient(600px circle at ${mousePos.x}% ${mousePos.y}%, rgba(245, 197, 66, 0.14), transparent 60%)`,
             }}
           />
           <motion.span
@@ -217,7 +257,7 @@ function AuthPageInner() {
                     layoutId="authTab"
                     className={`absolute top-1 bottom-1 rounded-full ${
                       mode === "signin"
-                        ? "left-1 w-[calc(50%-4px)] bg-[#1B4332]"
+                        ? "left-1 w-[calc(50%-4px)] bg-[#F5C542]"
                         : "left-[50%] w-[calc(50%-4px)] bg-[#F5C542]"
                     }`}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -231,7 +271,7 @@ function AuthPageInner() {
                       setShowSuccess(false);
                     }}
                     className="relative z-10 flex-1 rounded-full py-2.5 text-sm font-semibold transition-colors"
-                    style={{ color: mode === "signin" ? "white" : "#6B7280" }}
+                    style={{ color: mode === "signin" ? "#1A1A1A" : "#6B7280" }}
                   >
                     Sign in
                   </button>
@@ -258,7 +298,7 @@ function AuthPageInner() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3 }}
-                      className="text-3xl font-semibold text-gray-900"
+                      className="text-3xl font-semibold text-[#1A1A1A]"
                       style={{ fontFamily: "var(--auth-display)" }}
                     >
                       {mode === "signin" ? "Welcome back" : mode === "reset" ? "Reset password" : "Join the movement"}
@@ -271,7 +311,7 @@ function AuthPageInner() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -12 }}
                       transition={{ duration: 0.3 }}
-                      className="mt-2 text-sm text-[#334155]"
+                      className="mt-2 text-sm text-[#4B5563]"
                     >
                       {mode === "signin"
                         ? "Sign in to manage your campaigns."
@@ -316,7 +356,7 @@ function AuthPageInner() {
                           cx="60"
                           cy="60"
                           r="52"
-                          stroke="#10B981"
+                          stroke="#F5C542"
                           strokeWidth="6"
                           initial={{ pathLength: 0 }}
                           animate={{ pathLength: 1 }}
@@ -324,7 +364,7 @@ function AuthPageInner() {
                         />
                         <motion.path
                           d="M40 62L54 76L82 46"
-                          stroke="#10B981"
+                          stroke="#F5C542"
                           strokeWidth="6"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -333,7 +373,7 @@ function AuthPageInner() {
                           transition={{ duration: 0.6, delay: 0.3 }}
                         />
                       </svg>
-                      <p className="text-base font-semibold text-[#1B4332]">You’re in! Redirecting…</p>
+                      <p className="text-base font-semibold text-[#1A1A1A]">You’re in! Redirecting…</p>
                     </motion.div>
                   ) : mode === "reset" ? (
                     <motion.div
@@ -349,10 +389,10 @@ function AuthPageInner() {
                         placeholder="Your email address"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-100"
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-[#F5C542] focus:outline-none focus:ring-2 focus:ring-[#F5C542]/30"
                       />
                       {message && (
-                        <p className={`text-xs ${status === "error" ? "text-rose-600" : "text-emerald-700"}`}>{message}</p>
+                        <p className={`text-xs ${status === "error" ? "text-rose-600" : "text-[#F5C542]"}`}>{message}</p>
                       )}
                       <motion.button
                         type="button"
@@ -371,7 +411,7 @@ function AuthPageInner() {
                             setMessage(e instanceof Error ? e.message : "Something went wrong.");
                           }
                         }}
-                        className="w-full rounded-2xl bg-[#1B4332] py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50 hover:bg-[#163828] transition"
+                        className="w-full rounded-2xl bg-[#F5C542] py-3 text-sm font-semibold text-[#1A1A1A] shadow-sm disabled:opacity-50 hover:bg-[#E0B63A] transition"
                       >
                         {status === "loading" ? "Sending..." : "Send Reset Link"}
                       </motion.button>
@@ -393,6 +433,23 @@ function AuthPageInner() {
                       className="mt-6 space-y-6"
                       onSubmit={handleSubmit}
                     >
+                      <div className="space-y-4">
+                        <motion.button
+                          type="button"
+                          whileTap={{ scale: 0.97 }}
+                          disabled={status === "loading"}
+                          onClick={handleGoogleSignIn}
+                          className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          <span className="text-base">G</span>
+                          Continue with Google
+                        </motion.button>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <div className="h-px flex-1 bg-gray-200" />
+                          <span>or</span>
+                          <div className="h-px flex-1 bg-gray-200" />
+                        </div>
+                      </div>
                       <AnimatePresence mode="wait">
                         {mode === "signup" && (
                           <motion.div
@@ -450,13 +507,13 @@ function AuthPageInner() {
                       {mode === "signin" && (
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <label className="flex items-center gap-2">
-                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300" />
+                            <input type="checkbox" className="h-4 w-4 rounded border-gray-300 accent-[#F5C542]" />
                             Remember me
                           </label>
                           <button
                             type="button"
                             onClick={() => { setMode("reset"); setMessage(""); setStatus("idle"); }}
-                            className="text-emerald-700 hover:text-emerald-900 transition"
+                            className="text-[#F5C542] hover:text-[#E0B63A] transition"
                           >
                             Forgot password?
                           </button>
@@ -475,10 +532,10 @@ function AuthPageInner() {
                         whileTap={{ scale: 0.97 }}
                         className={`group relative w-full overflow-hidden rounded-xl px-4 py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${
                           status === "success"
-                            ? "bg-emerald-600 text-white"
+                            ? "bg-[#F5C542] text-[#1A1A1A]"
                             : mode === "signup"
                             ? "bg-[#F5C542] text-[#1A1A1A]"
-                            : "bg-[#1B4332] text-white"
+                            : "bg-[#F5C542] text-[#1A1A1A]"
                         }`}
                       >
                         {status !== "success" ? (
@@ -566,13 +623,13 @@ function FloatingInput({ label, type = "text", value, onChange, rightElement }: 
         onChange={onChange}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        className="w-full border-b-2 border-gray-200 bg-transparent py-3 pr-12 text-sm text-gray-900 outline-none transition-colors focus:border-transparent"
+        className="w-full rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 pr-12 text-sm text-gray-900 shadow-sm outline-none transition-colors focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
       />
       {rightElement ? (
-        <div className="absolute right-0 top-1/2 -translate-y-1/2">{rightElement}</div>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">{rightElement}</div>
       ) : null}
       <motion.div
-        className="absolute bottom-0 left-0 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-0 h-[2px] bg-[#F5C542]"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
@@ -580,11 +637,11 @@ function FloatingInput({ label, type = "text", value, onChange, rightElement }: 
         transition={{ duration: 0.3, ease: "easeOut" }}
       />
       <motion.label
-        className="absolute left-0 pointer-events-none origin-left"
+        className="absolute left-4 pointer-events-none origin-left"
         animate={{
-          y: isActive ? -24 : 8,
+          y: isActive ? -20 : 10,
           scale: isActive ? 0.85 : 1,
-          color: isActive ? "#065F46" : "#9CA3AF",
+          color: isActive ? "#F5C542" : "#9CA3AF",
         }}
         transition={{ duration: 0.2 }}
       >

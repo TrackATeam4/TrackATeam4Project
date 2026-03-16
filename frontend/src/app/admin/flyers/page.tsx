@@ -215,7 +215,7 @@ export default function AdminFlyersPage() {
         {formMode === "idle" && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-teal-600"
+            className="flex items-center gap-2 rounded-xl bg-[#F5C542] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition hover:bg-[#E0B63A]"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -258,7 +258,7 @@ export default function AdminFlyersPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || !formName.trim() || !formFileUrl.trim()}
-                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[#F5C542] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition hover:bg-[#E0B63A] disabled:opacity-50"
               >
                 {saving && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
                 {saving ? "Saving…" : formMode === "create" ? "Create Template" : "Update Template"}

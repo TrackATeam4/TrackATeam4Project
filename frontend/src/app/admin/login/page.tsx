@@ -61,11 +61,11 @@ export default function AdminLoginPage() {
     <div className="relative flex min-h-screen items-center justify-center bg-[#FFF9D6] px-4 text-slate-700">
       <header className="absolute top-0 left-0 right-0 z-20">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <a href="/landing" className="flex items-center gap-3 text-2xl font-bold text-[#065F46]">
+          <a href="/landing" className="flex items-center gap-3 text-2xl font-bold text-[#A66F00]">
             <Image src="/logo.svg" alt="Lemontree" width={40} height={40} className="h-10 w-10" />
             Lemontree
           </a>
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+          <span className="rounded-full bg-[#F5C542]/15 px-3 py-1 text-xs font-semibold text-[#A66F00]">
             Admin Portal
           </span>
         </div>
@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
       >
         <div className="rounded-3xl border border-yellow-100 bg-white p-8 shadow-2xl shadow-yellow-200/50 sm:p-10">
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-xl">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F5C542]/15 text-xl">
               🔒
             </div>
             <h1 className="text-xl font-bold text-[#0F172A]">Admin Console</h1>
@@ -131,7 +131,7 @@ export default function AdminLoginPage() {
                     placeholder="Admin Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
                   />
                 </div>
               )}
@@ -146,7 +146,7 @@ export default function AdminLoginPage() {
                   placeholder="admin@lemontree.org"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
                 />
               </div>
 
@@ -160,7 +160,7 @@ export default function AdminLoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="w-full rounded-xl border border-yellow-100 px-4 py-3 text-sm text-[#0F172A] shadow-sm outline-none transition focus:border-[#F5C542] focus:ring-2 focus:ring-[#F5C542]/30"
                 />
               </div>
 
@@ -169,7 +169,7 @@ export default function AdminLoginPage() {
                 disabled={status === "loading"}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-xl bg-[#F5C542] px-4 py-3 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {status === "loading"
                   ? "Please wait..."
@@ -186,7 +186,7 @@ export default function AdminLoginPage() {
             )}
 
             {status === "success" && message && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700">
+              <div className="rounded-2xl border border-[#F5C542]/40 bg-[#F5C542]/10 p-4 text-xs text-[#A66F00]">
                 {message}
               </div>
             )}

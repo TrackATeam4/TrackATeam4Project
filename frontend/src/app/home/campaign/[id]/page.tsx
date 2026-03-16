@@ -233,7 +233,7 @@ export default function CampaignDetailPage() {
 
         {/* ── Back bar ── */}
         <div className="sticky top-0 z-30 border-b border-white/20 bg-[#1B4332]/95 backdrop-blur-sm px-6 py-3 flex items-center gap-3">
-          <Link href="/home" className="flex items-center gap-2 text-sm text-emerald-200 hover:text-white transition">
+          <Link href="/home" className="flex items-center gap-2 text-sm text-[#F5C542]/60 hover:text-white transition">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
@@ -251,13 +251,13 @@ export default function CampaignDetailPage() {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-              className="h-10 w-10 rounded-full border-4 border-emerald-200 border-t-emerald-600"
+              className="h-10 w-10 rounded-full border-4 border-[#F5C542]/40 border-t-[#E0B63A]"
             />
           </div>
         ) : error ? (
           <div className="mx-auto max-w-3xl px-6 py-16 text-center">
             <p className="text-lg font-semibold text-rose-600">{error}</p>
-            <Link href="/home" className="mt-4 inline-block text-sm text-emerald-700 underline">
+            <Link href="/home" className="mt-4 inline-block text-sm text-[#A66F00] underline">
               Go back to feed
             </Link>
           </div>
@@ -278,7 +278,7 @@ export default function CampaignDetailPage() {
                     Upcoming Campaign
                   </span>
                   {campaign.status === "published" && (
-                    <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300">
+                    <span className="rounded-full border border-[#F5C542]/50 bg-[#F5C542]/15 px-3 py-1 text-xs font-semibold text-[#F5C542]/70">
                       Active
                     </span>
                   )}
@@ -288,12 +288,12 @@ export default function CampaignDetailPage() {
                   {campaign.title}
                 </h1>
                 {campaign.description && (
-                  <p className="mt-3 text-base leading-relaxed text-emerald-100/80 max-w-2xl">
+                  <p className="mt-3 text-base leading-relaxed text-[#F5C542]/70 max-w-2xl">
                     {campaign.description}
                   </p>
                 )}
 
-                <div className="mt-6 flex flex-wrap gap-4 text-sm text-emerald-100/70">
+                <div className="mt-6 flex flex-wrap gap-4 text-sm text-[#F5C542]/60">
                   <span className="flex items-center gap-1.5">
                     <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -317,7 +317,7 @@ export default function CampaignDetailPage() {
 
                 {/* Volunteer progress */}
                 <div className="mt-8 space-y-2 max-w-sm">
-                  <div className="flex justify-between text-xs text-emerald-200/60">
+                  <div className="flex justify-between text-xs text-[#F5C542]/55">
                     <span className="flex items-center gap-1.5">
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
                       {signupCount} / {spotsTotal} volunteers joined
@@ -326,7 +326,7 @@ export default function CampaignDetailPage() {
                   </div>
                   <div className="h-2 w-full rounded-full bg-white/10">
                     <motion.div
-                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-emerald-400"
+                      className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-[#F5C542]"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.8, ease: "easeOut" }}
@@ -375,7 +375,7 @@ export default function CampaignDetailPage() {
                       onClick={() => setActiveTab(tab)}
                       className={`relative px-5 py-4 text-sm font-medium transition capitalize ${
                         activeTab === tab
-                          ? "text-emerald-700"
+                          ? "text-[#A66F00]"
                           : "text-slate-500 hover:text-slate-700"
                       }`}
                     >
@@ -408,7 +408,7 @@ export default function CampaignDetailPage() {
                       {activeTab === tab && (
                         <motion.div
                           layoutId="tab-underline"
-                          className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-emerald-500"
+                          className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full bg-[#F5C542]"
                         />
                       )}
                     </button>
@@ -459,7 +459,7 @@ export default function CampaignDetailPage() {
                               variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
                               className={`rounded-2xl border bg-white p-5 shadow-sm transition ${
                                 isClaimed
-                                  ? "border-emerald-200 ring-1 ring-emerald-200"
+                                  ? "border-[#F5C542]/40 ring-1 ring-[#F5C542]/40"
                                   : "border-gray-100 hover:border-gray-200"
                               }`}
                             >
@@ -479,7 +479,7 @@ export default function CampaignDetailPage() {
                                       </span>
                                     )}
                                     {isClaimed && (
-                                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs text-emerald-700">
+                                      <span className="rounded-full bg-[#F5C542]/10 border border-[#F5C542]/40 px-2 py-0.5 text-xs text-[#A66F00]">
                                         ✓ Claimed by you
                                       </span>
                                     )}
@@ -494,7 +494,7 @@ export default function CampaignDetailPage() {
                                     className={`shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition ${
                                       isClaimed
                                         ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100"
-                                        : "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white"
+                                        : "bg-gradient-to-r from-[#F5C542] to-[#E0B63A] text-[#1A1A1A]"
                                     }`}
                                   >
                                     {taskLoading === task.id ? "..." : isClaimed ? "Unclaim" : "Claim Task"}
@@ -520,28 +520,28 @@ export default function CampaignDetailPage() {
                   >
                     {impact ? (
                       <div className="space-y-6">
-                        <div className="rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-8">
+                        <div className="rounded-3xl border border-[#F5C542]/30 bg-gradient-to-br from-[#F5C542]/10 to-white p-8">
                           <h2 className="text-xl font-bold text-[#0F172A]" style={{ fontFamily: "var(--display)" }}>
                             Campaign Impact Report
                           </h2>
                           <div className="mt-6 grid grid-cols-3 gap-4">
                             {[
-                              { label: "Flyers Distributed", value: impact.flyers_distributed, color: "emerald" },
+                              { label: "Flyers Distributed", value: impact.flyers_distributed, color: "mustard" },
                               { label: "Families Reached", value: impact.families_reached, color: "yellow" },
                               { label: "Volunteers Attended", value: impact.volunteers_attended, color: "teal" },
                             ].map(({ label, value, color }) => (
                               <div
                                 key={label}
                                 className={`rounded-2xl border p-5 text-center ${
-                                  color === "emerald"
-                                    ? "border-emerald-100 bg-emerald-50"
+                                  color === "mustard"
+                                    ? "border-[#F5C542]/30 bg-[#F5C542]/10"
                                     : color === "yellow"
                                     ? "border-yellow-100 bg-yellow-50"
                                     : "border-teal-100 bg-teal-50"
                                 }`}
                               >
                                 <p className={`mt-2 text-3xl font-bold ${
-                                  color === "emerald" ? "text-emerald-700" : color === "yellow" ? "text-yellow-700" : "text-teal-700"
+                                  color === "mustard" ? "text-[#A66F00]" : color === "yellow" ? "text-yellow-700" : "text-teal-700"
                                 }`}>
                                   <AnimatedNumber value={value} />
                                 </p>
@@ -582,8 +582,8 @@ export default function CampaignDetailPage() {
                     className="space-y-4"
                   >
                     <div className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100">
-                        <svg className="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#F5C542]/20 to-[#F5C542]/10">
+                        <svg className="w-8 h-8 text-[#B7791F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
                       </div>
                       <h2 className="mt-4 text-xl font-bold text-[#0F172A]">Add to Your Calendar</h2>
                       <p className="mt-2 text-sm text-slate-500">
@@ -597,7 +597,7 @@ export default function CampaignDetailPage() {
                             href={calendarUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-600 hover:to-emerald-700"
+                            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-8 py-3 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#F5C542]/30 transition hover:from-[#E0B63A] hover:to-[#CFA72F]"
                           >
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/>
@@ -667,8 +667,8 @@ export default function CampaignDetailPage() {
                     </div>
                     {/* Self check-in button */}
                     {isJoined && (
-                      <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6 text-center">
-                        <p className="text-sm text-emerald-700 font-semibold mb-3">You&apos;re signed up — check yourself in when you arrive</p>
+                      <div className="rounded-3xl border border-[#F5C542]/30 bg-[#F5C542]/10 p-6 text-center">
+                        <p className="text-sm text-[#A66F00] font-semibold mb-3">You&apos;re signed up — check yourself in when you arrive</p>
                         <motion.button
                           type="button"
                           whileTap={{ scale: 0.97 }}
@@ -677,7 +677,7 @@ export default function CampaignDetailPage() {
                               await authFetch(`/campaigns/${id}/checkin`, { method: "POST" });
                             } catch { /* ignore */ }
                           }}
-                          className="rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-md"
+                          className="rounded-2xl bg-gradient-to-r from-[#F5C542] to-[#E0B63A] px-8 py-3 text-sm font-bold text-[#1A1A1A] shadow-md"
                         >
                           ✓ Check In Now
                         </motion.button>
@@ -727,7 +727,7 @@ export default function CampaignDetailPage() {
                           }}
                           className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                             copiedInvite
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              ? "border-[#F5C542]/40 bg-[#F5C542]/10 text-[#A66F00]"
                               : "border-gray-200 text-slate-600 hover:bg-gray-50"
                           }`}
                         >
@@ -798,7 +798,7 @@ export default function CampaignDetailPage() {
                       {bskyText.length}/300
                     </span>
                     {bskyMsg && (
-                      <span className={`text-xs font-semibold ${bskyMsg.startsWith("Posted") ? "text-emerald-600" : "text-rose-500"}`}>
+                      <span className={`text-xs font-semibold ${bskyMsg.startsWith("Posted") ? "text-[#B7791F]" : "text-rose-500"}`}>
                         {bskyMsg}
                       </span>
                     )}

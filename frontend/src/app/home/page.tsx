@@ -809,7 +809,7 @@ export default function HomePage() {
                       <div className="absolute top-3 right-3 rounded-full bg-amber-400/20 border border-amber-300/40 px-1.5 py-0.5 text-xs font-bold text-amber-700">
                         🔥
                       </div>
-                      <p className="pr-8 text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-emerald-800 transition">{c.title}</p>
+                      <p className="pr-8 text-sm font-semibold text-[#0F172A] line-clamp-2 group-hover:text-[#8A5A00] transition">{c.title}</p>
                       <p className="mt-2 text-xs text-slate-500 line-clamp-1">{c.location ?? "Location TBD"}</p>
                       <p className="mt-1 text-xs text-amber-600 font-medium">{(c as { recent_signups?: number }).recent_signups ?? 0} recent joins</p>
                     </Link>
@@ -1097,7 +1097,7 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={() => void toggleComments(post.id)}
-                        className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-emerald-600 font-semibold" : ""}`}
+                        className={`flex items-center gap-2 transition hover:text-slate-600 ${expandedComments.has(post.id) ? "text-[#B7791F] font-semibold" : ""}`}
                       >
                         💬 {post.comments} comments
                       </button>
@@ -1105,7 +1105,7 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={() => copyShare(post.id)}
-                        className={`flex items-center gap-2 transition ${copiedShare === post.id ? "text-emerald-600 font-semibold" : "hover:text-slate-600"}`}
+                        className={`flex items-center gap-2 transition ${copiedShare === post.id ? "text-[#B7791F] font-semibold" : "hover:text-slate-600"}`}
                       >
                         {copiedShare === post.id ? "✓ Copied!" : "🔗 Share"}
                       </button>
@@ -1466,7 +1466,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => void startNewChatSession()}
                   disabled={chatBooting || chatLoading}
-                  className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-full border border-[#F5C542]/40 px-3 py-1 text-xs font-semibold text-[#A66F00] transition hover:bg-[#F5C542]/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   New session
                 </button>
