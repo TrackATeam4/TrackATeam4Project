@@ -606,14 +606,12 @@ function FloatingInput({ label, type = "text", value, onChange, rightElement }: 
         <div className="absolute right-0 top-1/2 -translate-y-1/2">{rightElement}</div>
       ) : null}
       <motion.div
-        className="absolute bottom-0 left-1/2 h-[2px] bg-emerald-500"
+        className="absolute bottom-0 left-0 h-[2px] bg-emerald-500"
         initial={false}
         animate={{
           width: focused ? "100%" : "0%",
-          x: focused ? "-50%" : "0%",
         }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        style={{ translateX: "-50%" }}
       />
       <motion.label
         className="absolute left-0 pointer-events-none origin-left"
